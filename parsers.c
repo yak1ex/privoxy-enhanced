@@ -867,6 +867,7 @@ static jb_err handle_conditional_hide_referrer_parameter(char **header,
    const char *host, const int parameter_conditional_block);
 #ifdef FEATURE_ADD_REFERER
 static jb_err create_forged_referrer2(char **header, const char *url, int is_index, int is_add);
+static jb_err create_filtered_referrer(char **header, const char *url, const char *regex, int is_add);
 #endif
 
 const struct parsers client_patterns[] = {
@@ -2861,6 +2862,10 @@ static jb_err client_referrer(struct client_state *csp, char **header)
 
       return (*header == NULL) ? JB_ERR_MEMORY : JB_ERR_OK;
    }
+   else if ('%' == *parameter && 's' == parameter[1])
+   {
+      return create_filtered_referrer(header, csp->http->url, parameter + 1, 0 /* hide */);
+   }
 #endif /* def FEATURE_ADD_REFERER */
    else
    {
@@ -2924,6 +2929,10 @@ jb_err client_referrer_adder(struct client_state *csp)
    else if (0 == strcmpic(parameter, "self"))
    {
       header = strdup(csp->http->url);
+   }
+   else if ('%' == *parameter && 's' == parameter[1])
+   {
+      err = create_filtered_referrer(&header, csp->http->url, parameter + 1, 1 /* add */);
    }
    else
    {
@@ -4467,6 +4476,61 @@ static jb_err create_forged_referrer2( char **header, const char *url, int is_in
    {
      string_append(header, "index.html");
    }
+
+   if (NULL == *header)
+   {
+      return JB_ERR_MEMORY;
+   }
+
+   if (is_add)
+   {
+      log_error(LOG_LEVEL_HEADER, "addh-unique: Referer: %s", *header);
+   }
+   else
+   {
+      log_error(LOG_LEVEL_HEADER, "Referer forged to: %s", *header);
+   }
+   return JB_ERR_OK;
+}
+
+/*********************************************************************
+ *
+ * Function    :  create_filtered_referrer
+ *
+ * Description :  Helper for client_referrer to filter a referer by regex
+ *
+ * Parameters  :
+ *          1  :  header = Pointer to header pointer
+ *          2  :  url    = Target URL
+ *          3  :  regex  = Regular expression
+ *          4  :  is_add = Boolean to signal whether add or hide
+ *                         (0 : hide / 1 : add)
+ *
+ * Returns     :  JB_ERR_OK in case of success, or
+ *                JB_ERR_MEMORY in case of memory problems.
+ *
+ *********************************************************************/
+static jb_err create_filtered_referrer( char **header, const char *url, const char *regex, int is_add )
+{
+   char *temp_url = NULL;
+   int hits;
+
+   assert(NULL == *header);
+   assert(url);
+   assert(regex);
+
+   temp_url = pcrs_execute_single_command(url, regex, &hits);
+
+   if(is_add)
+   {
+      *header = strdup(temp_url);
+   }
+   else
+   {
+      *header = strdup("Referer: ");
+      string_append(header, temp_url);
+   }
+   freez(temp_url);
 
    if (NULL == *header)
    {

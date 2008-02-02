@@ -355,8 +355,7 @@ const char parsers_rcs[] = "$Id: parsers.c,v 1.121 2008/01/05 21:37:03 fabiankei
  *    Windows service integration
  *
  *    Revision 1.59  2006/08/03 02:46:41  david__schmidt
- *    Incorporate Fabian Keil's patch work:
-http://www.fabiankeil.de/sourcecode/privoxy/
+ *    Incorporate Fabian Keil's patch work:http://www.fabiankeil.de/sourcecode/privoxy/
  *
  *    Revision 1.58  2006/07/18 14:48:47  david__schmidt
  *    Reorganizing the repository: swapping out what was HEAD (the old 3.1 branch)
@@ -862,10 +861,13 @@ static jb_err client_referrer_adder       (struct client_state *csp);
 #endif /* def FEATURE_ADD_REFERER */
 static jb_err connection_close_adder  (struct client_state *csp); 
 
-static jb_err create_forged_referrer(char **header, const char *hostport);
-static jb_err create_fake_referrer(char **header, const char *fake_referrer);
+static jb_err create_forged_referrer(char **header, const char *hostport, int is_add);
+static jb_err create_fake_referrer(char **header, const char *fake_referrer, int is_add);
 static jb_err handle_conditional_hide_referrer_parameter(char **header,
    const char *host, const int parameter_conditional_block);
+#ifdef FEATURE_ADD_REFERER
+static jb_err create_forged_referrer2(char **header, const char *url, int is_index, int is_add);
+#endif
 
 const struct parsers client_patterns[] = {
    { "referer:",                  8,   client_referrer },
@@ -2839,42 +2841,23 @@ static jb_err client_referrer(struct client_state *csp, char **header)
    }
    else if (0 == strcmpic(parameter, "forge"))
    {
-      return create_forged_referrer(header, csp->http->hostport);
+      return create_forged_referrer(header, csp->http->hostport, 0 /* hide */);
    }
 #ifdef FEATURE_ADD_REFERER
-   else if (0 == strcmpic(parameter, "directory") || 0 == strcmpic(parameter, "index"))
+   else if (0 == strcmpic(parameter, "directory"))
    {
-      char *temp_url, *idx, *end;
-      temp_url = strdup(csp->http->url);
-      for(idx = temp_url, end = NULL; *idx != '\0' && *idx != '?'; idx++)
-        if(*idx == '/') end = idx;
-      if(end == NULL)
-      {
-        *idx = '\0';
-        string_append(&temp_url, "/");
-      }
-      else
-      {
-        *++end = '\0';
-      }
-      *header = strdup("Referer: ");
-      string_append(header, temp_url);
-      if(0 == strcmpic(parameter, "index"))
-      {
-        string_append(header, "index.html");
-      }
-      freez(temp_url);
-
-      log_error(LOG_LEVEL_HEADER, "Referer overwritten with: %s", *header);
-
-      return (*header == NULL) ? JB_ERR_MEMORY : JB_ERR_OK;
+      return create_forged_referrer2(header, csp->http->url, 0 /* index */, 0 /* hide */);
+   }
+   else if (0 == strcmpic(parameter, "index"))
+   {
+      return create_forged_referrer2(header, csp->http->url, 1 /* index */, 0 /* hide */);
    }
    else if (0 == strcmpic(parameter, "self"))
    {
       *header = strdup("Referer: ");
       string_append(header, csp->http->url);
 
-      log_error(LOG_LEVEL_HEADER, "Referer overwritten with: %s", *header);
+      log_error(LOG_LEVEL_HEADER, "Referer forged to: %s", *header);
 
       return (*header == NULL) ? JB_ERR_MEMORY : JB_ERR_OK;
    }
@@ -2882,7 +2865,7 @@ static jb_err client_referrer(struct client_state *csp, char **header)
    else
    {
       /* interpret parameter as user-supplied referer to fake */
-      return create_fake_referrer(header, parameter);
+      return create_fake_referrer(header, parameter, 0 /* hide */);
    }
 }
 
@@ -2904,9 +2887,9 @@ static jb_err client_referrer(struct client_state *csp, char **header)
  *********************************************************************/
 jb_err client_referrer_adder(struct client_state *csp)
 {
-   const char *newval;
-   char *header;
-   jb_err err;
+   const char *parameter;
+   char *header = NULL;
+   jb_err err = JB_ERR_OK;
 
    /*
     * Are we adding referer?
@@ -2916,9 +2899,9 @@ jb_err client_referrer_adder(struct client_state *csp)
       return JB_ERR_OK;
    }
 
-   newval = csp->action->string[ACTION_STRING_ADD_REFERER];
+   parameter = csp->action->string[ACTION_STRING_ADD_REFERER];
 
-   if ((newval == NULL) || (0 == strcmpic(newval, "block")) )
+   if ((parameter == NULL) || (0 == strcmpic(parameter, "block")) )
    {
       /*
        * Blocking referer
@@ -2926,59 +2909,33 @@ jb_err client_referrer_adder(struct client_state *csp)
       log_error(LOG_LEVEL_HEADER, "Referer crunched!");
       return JB_ERR_OK;
    }
-   else if (0 == strcmpic(newval, "directory") || 0 == strcmpic(newval, "index"))
+   else if (0 == strcmpic(parameter, "forge"))
    {
-	  char *temp_url, *idx, *end;
-      temp_url = strdup(csp->http->url);
-      for(idx = temp_url, end = NULL; *idx != '\0' && *idx != '?'; idx++)
-        if(*idx == '/') end = idx;
-      if(end == NULL)
-      {
-        *idx = '\0';
-        string_append(&temp_url, "/");
-      }
-      else
-      {
-        *++end = '\0';
-      }
-      header = strdup(temp_url);
-      if(0 == strcmpic(newval, "index"))
-      {
-        string_append(&header, "index.html");
-      }
-      freez(temp_url);
+      err = create_forged_referrer(&header, csp->http->hostport, 1 /* add */);
    }
-   else if (0 == strcmpic(newval, "self"))
+   else if (0 == strcmpic(parameter, "directory"))
+   {
+      err = create_forged_referrer2(&header, csp->http->url, 0 /* dir */, 1 /* add */);
+   }
+   else if (0 == strcmpic(parameter, "index"))
+   {
+      err = create_forged_referrer2(&header, csp->http->url, 1 /* index */, 1 /* add */);
+   }
+   else if (0 == strcmpic(parameter, "self"))
    {
       header = strdup(csp->http->url);
    }
-   else if (0 != strcmpic(newval, "forge"))
-   {
-      /*
-       * We have a specific (fixed) referer we want to send.
-       */
-      if ((0 != strncmpic(newval, "http://", 7)) && (0 != strncmpic(newval, "https://", 8)))
-      {
-         log_error(LOG_LEVEL_HEADER, "Parameter: +referrer{%s} is a bad idea, but I don't care.", newval);
-      }
-      header = strdup(newval);
-      log_error(LOG_LEVEL_HEADER, "Referer overwritten with: %s", header);
-   }
    else
    {
-      /*
-       * Forge a referer as http://[hostname:port of REQUEST]/
-       * to fool stupid checks for in-site links
-       */
-
-      header = strdup("http://");
-      string_append(&header, csp->http->hostport);
-      string_append(&header, "/");
-      log_error(LOG_LEVEL_HEADER, "Referer forged to: %s", header);
+      err = create_fake_referrer(&header, parameter, 1 /* add */);
    }
-   log_error(LOG_LEVEL_HEADER, "addh-unique: Referer: %s", header);
-   err = enlist_unique_header(csp->headers, "Referer", header);
-   freez(header);
+
+   if(err == JB_ERR_OK)
+   {
+      log_error(LOG_LEVEL_HEADER, "addh-unique: Referer: %s", header);
+      err = enlist_unique_header(csp->headers, "Referer", header);
+      freez(header);
+   }
    return err;
 }
 #endif /* def FEATURE_ADD_REFERER */
@@ -4300,16 +4257,18 @@ jb_err get_destination_from_headers(const struct list *headers, struct http_requ
  * Parameters  :
  *          1  :  header   = Pointer to header pointer
  *          2  :  hostport = Host and optionally port as string
+ *          3  :  is_add   = Boolean to signal whether add or hide
+ *                           (0 : hide / 1 : add)
  *
  * Returns     :  JB_ERR_OK in case of success, or
  *                JB_ERR_MEMORY in case of memory problems.
  *
  *********************************************************************/
-static jb_err create_forged_referrer(char **header, const char *hostport)
+static jb_err create_forged_referrer(char **header, const char *hostport, int is_add)
 {
     assert(NULL == *header);
 
-    *header = strdup("Referer: http://");
+    *header = strdup(is_add ? "http://" : "Referer: http://");
     string_append(header, hostport);
     string_append(header, "/");
 
@@ -4318,7 +4277,14 @@ static jb_err create_forged_referrer(char **header, const char *hostport)
        return JB_ERR_MEMORY;
     }
 
-    log_error(LOG_LEVEL_HEADER, "Referer forged to: %s", *header);
+   if (is_add)
+   {
+      log_error(LOG_LEVEL_HEADER, "addh-unique: Referer: %s", *header);
+   }
+   else
+   {
+      log_error(LOG_LEVEL_HEADER, "Referer forged to: %s", *header);
+   }
 
     return JB_ERR_OK;
 
@@ -4335,29 +4301,45 @@ static jb_err create_forged_referrer(char **header, const char *hostport)
  * Parameters  :
  *          1  :  header   = Pointer to header pointer
  *          2  :  hosthost = Referrer to fake
+ *          3  :  is_add   = Boolean to signal whether add or hide
+ *                           (0 : hide / 1 : add)
  *
  * Returns     :  JB_ERR_OK in case of success, or
  *                JB_ERR_MEMORY in case of memory problems.
  *
  *********************************************************************/
-static jb_err create_fake_referrer(char **header, const char *fake_referrer)
+static jb_err create_fake_referrer(char **header, const char *fake_referrer, int is_add)
 {
    assert(NULL == *header);
 
    if ((0 != strncmpic(fake_referrer, "http://", 7)) && (0 != strncmpic(fake_referrer, "https://", 8)))
    {
       log_error(LOG_LEVEL_HEADER,
-         "Parameter: +hide-referrer{%s} is a bad idea, but I don't care.", fake_referrer);
+         "Parameter: +%s-referrer{%s} is a bad idea, but I don't care.", is_add ? "add" : "hide", fake_referrer);
    }
-   *header = strdup("Referer: ");
-   string_append(header, fake_referrer);
+
+   if(is_add) {
+      *header = strdup(fake_referrer);
+   }
+   else
+   {
+      *header = strdup("Referer: ");
+      string_append(header, fake_referrer);
+   }
 
    if (NULL == *header)
    {
       return JB_ERR_MEMORY;
    }
 
-   log_error(LOG_LEVEL_HEADER, "Referer replaced with: %s", *header);
+   if (is_add)
+   {
+      log_error(LOG_LEVEL_HEADER, "addh-unique: Referer: %s", *header);
+   }
+   else
+   {
+      log_error(LOG_LEVEL_HEADER, "Referer replaced with: %s", *header);
+   }
 
    return JB_ERR_OK;
 
@@ -4369,10 +4351,9 @@ static jb_err create_fake_referrer(char **header, const char *fake_referrer)
  * Function    :  handle_conditional_hide_referrer_parameter
  *
  * Description :  Helper for client_referrer to crunch or forge
- *                the referrer header if the host has changed.
  *
  * Parameters  :
- *          1  :  header = Pointer to header pointer
+ *          1  :  header   = Pointer to header pointer
  *          2  :  host   = The target host (may include the port)
  *          3  :  parameter_conditional_block = Boolean to signal
  *                if we're in conditional-block mode. If not set,
@@ -4416,7 +4397,7 @@ static jb_err handle_conditional_hide_referrer_parameter(char **header,
       {
          freez(*header);
          freez(referer);
-         return create_forged_referrer(header, host);
+         return create_forged_referrer(header, host, 0 /* hide */);
       }
    }
    freez(referer);
@@ -4424,6 +4405,86 @@ static jb_err handle_conditional_hide_referrer_parameter(char **header,
    return JB_ERR_OK;
 
 }
+
+#ifdef FEATURE_ADD_REFERER
+/*********************************************************************
+ *
+ * Function    :  create_forged_referrer2
+ *
+ * Description :  Helper for client_referrer to forge a referer as
+ *                'http://[hostname:port/dir/index.html' or
+                  'http://[hostname:port/dir/' to fool stupid
+ *                checks for in-site links 
+ *
+ * Parameters  :
+ *          1  :  header   = Pointer to header pointer
+ *          2  :  url      = Target URL
+ *          3  :  is_index = Boolean to signal whether index or 
+ *                           directory (0 : directory / 1 : index)
+ *          4  :  is_add   = Boolean to signal whether add or hide
+ *                           (0 : hide / 1 : add)
+ *
+ * Returns     :  JB_ERR_OK in case of success, or
+ *                JB_ERR_MEMORY in case of memory problems.
+ *
+ *********************************************************************/
+static jb_err create_forged_referrer2( char **header, const char *url, int is_index, int is_add )
+{
+   char *temp_url, *idx, *end;
+
+   assert(NULL == *header);
+
+   if(is_add) {
+      temp_url = strdup(url);
+   }
+   else
+   {
+      temp_url = strdup("Referer: ");
+      string_append(&temp_url, url);
+   }
+
+   if (NULL == temp_url)
+   {
+      return JB_ERR_MEMORY;
+   }
+
+   for(idx = temp_url, end = NULL; *idx != '\0' && *idx != '?'; idx++)
+      if(*idx == '/') end = idx;
+
+   if(end == NULL)
+   {
+      *idx = '\0';
+      string_append(&temp_url, "/");
+   }
+   else
+   {
+      *++end = '\0';
+   }
+
+   *header = strdup(temp_url);
+   freez(temp_url);
+   if(is_index)
+   {
+     string_append(header, "index.html");
+   }
+
+   if (NULL == *header)
+   {
+      return JB_ERR_MEMORY;
+   }
+
+   if (is_add)
+   {
+      log_error(LOG_LEVEL_HEADER, "addh-unique: Referer: %s", *header);
+   }
+   else
+   {
+      log_error(LOG_LEVEL_HEADER, "Referer forged to: %s", *header);
+   }
+   return JB_ERR_OK;
+}
+#endif
+
 
 /*
   Local Variables:

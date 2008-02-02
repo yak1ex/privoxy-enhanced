@@ -152,8 +152,7 @@
  *    Replaced timegm() with mktime().
  *
  *    Revision 1.75  2006/08/03 02:46:41  david__schmidt
- *    Incorporate Fabian Keil's patch work:
- *    http://www.fabiankeil.de/sourcecode/privoxy/
+ *    Incorporate Fabian Keil's patch work: *    http://www.fabiankeil.de/sourcecode/privoxy/
  *
  *    Revision 1.74  2006/07/18 14:48:47  david__schmidt
  *    Reorganizing the repository: swapping out what was HEAD (the old 3.1 branch)
@@ -1130,7 +1129,7 @@ struct iob
 struct current_action_spec
 {
    /** Actions to apply.  A bit set to "1" means perform the action. */
-   unsigned long long flags;
+   unsigned long flags;
 
    /**
     * Paramaters for those actions that require them.
@@ -1531,7 +1530,7 @@ struct forward_spec
  * Initializer for a static struct forward_spec.
  */
 #ifdef FEATURE_FORWARD_CLASS
-#define FORWARD_SPEC_INITIALIZER { { URL_SPEC_INITIALIZER }, 0, NULL, 0, NULL, 0, NULL, 0 }
+#define FORWARD_SPEC_INITIALIZER { { URL_SPEC_INITIALIZER }, 0, NULL, 0, NULL, 0, 0, NULL }
 #else /* def FEATURE_FORWARD_CLASS */
 #define FORWARD_SPEC_INITIALIZER { { URL_SPEC_INITIALIZER }, 0, NULL, 0, NULL, 0, NULL }
 #endif /* def FEATURE_FORWARD_CLASS */

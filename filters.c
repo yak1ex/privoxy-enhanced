@@ -196,8 +196,7 @@ const char filters_rcs[] = "$Id: filters.c,v 1.98 2008/01/04 17:43:45 fabiankeil
  *    Feature request 595948: Re-Filter logging in single line
  *
  *    Revision 1.61  2006/08/03 02:46:41  david__schmidt
- *    Incorporate Fabian Keil's patch work:
-http://www.fabiankeil.de/sourcecode/privoxy/
+ *    Incorporate Fabian Keil's patch work:http://www.fabiankeil.de/sourcecode/privoxy/
  *
  *    Revision 1.60  2006/07/18 14:48:46  david__schmidt
  *    Reorganizing the repository: swapping out what was HEAD (the old 3.1 branch)

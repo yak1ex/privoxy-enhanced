@@ -164,8 +164,7 @@ const char cgi_rcs[] = "$Id: cgi.c,v 1.100 2007/10/17 18:40:53 fabiankeil Exp $"
  *    should serve the manual. Should work cross-platform now.
  *
  *    Revision 1.73  2006/08/03 02:46:41  david__schmidt
- *    Incorporate Fabian Keil's patch work:
-http://www.fabiankeil.de/sourcecode/privoxy/
+ *    Incorporate Fabian Keil's patch work:http://www.fabiankeil.de/sourcecode/privoxy/
  *
  *    Revision 1.72  2006/07/18 14:48:45  david__schmidt
  *    Reorganizing the repository: swapping out what was HEAD (the old 3.1 branch)

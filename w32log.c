@@ -1202,13 +1202,13 @@ void OnLogCommand(int nCommand)
 #endif /* def FEATURE_FORWARD_CLASS */
 #ifdef FEATURE_MANUAL_TAGGER
          if(ID_MANUAL_TAGGER <= nCommand && nCommand < ID_MANUAL_TAGGER + MAX_MANUAL_TAGGERS) {
-            if(list_contains_item(global_manual_tagger, g_manual_tagger[nCommand - ID_MANUAL_TAGGER].name))
+            if(list_contains_item(global_manual_tagger, g_manual_tagger[nCommand - ID_MANUAL_TAGGER].tag))
             {
-               list_remove_item(global_manual_tagger, g_manual_tagger[nCommand - ID_MANUAL_TAGGER].name);
+               list_remove_item(global_manual_tagger, g_manual_tagger[nCommand - ID_MANUAL_TAGGER].tag);
             }
             else
             {
-               enlist_unique(global_manual_tagger, g_manual_tagger[nCommand - ID_MANUAL_TAGGER].name, 0);
+               enlist_unique(global_manual_tagger, g_manual_tagger[nCommand - ID_MANUAL_TAGGER].tag, 0);
             }
             break;
          }
@@ -1279,7 +1279,7 @@ void SetTagSubMenu(HMENU hmenu)
    }
 
    for(i = 0; g_manual_tagger[i].name != NULL && i < MAX_MANUAL_TAGGERS; i++) {
-      AppendMenu(hmenu, MF_STRING | (list_contains_item(global_manual_tagger, g_manual_tagger[i].name) ? MF_CHECKED : MF_UNCHECKED), ID_MANUAL_TAGGER + i, g_manual_tagger[i].name);
+      AppendMenu(hmenu, MF_STRING | (list_contains_item(global_manual_tagger, g_manual_tagger[i].tag) ? MF_CHECKED : MF_UNCHECKED), ID_MANUAL_TAGGER + i, g_manual_tagger[i].name);
    }
 }
 #endif /* def FEATURE_MANUAL_TAGGER */

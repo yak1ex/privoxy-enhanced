@@ -665,6 +665,7 @@ static void unload_configfile (void * data)
    for (i = 0; i < MAX_MANUAL_TAGGERS; i++)
    {
       freez(config->manual_tagger[i].name);
+      freez(config->manual_tagger[i].tag);
    }
 #endif /* def FEATURE_MANUAL_TAGGER */
 
@@ -1467,7 +1468,7 @@ struct configuration_spec * load_config(void)
             continue;
 
 /* *************************************************************************
- * manual-tagger name default-state
+ * manual-tagger display-name tag default-state
  * *************************************************************************/
 #ifdef FEATURE_MANUAL_TAGGER
          case hash_manual_tagger :
@@ -1485,7 +1486,7 @@ struct configuration_spec * load_config(void)
             }
 
             vec_count = ssplit(arg, " \t", vec, SZ(vec), 1, 1);
-            if (vec_count != 2)
+            if (vec_count != 3)
             {
                log_error(LOG_LEVEL_ERROR, "Wrong number of parameters for manual-tagger "
                      "directive in configuration file.");
@@ -1495,10 +1496,11 @@ struct configuration_spec * load_config(void)
                continue;
             }
 
-            config->manual_tagger[i].name = strdup(vec[0]);
-            config->manual_tagger[i].state = atoi(vec[1]);
+            config->manual_tagger[i].name  = strdup(vec[0]);
+            config->manual_tagger[i].tag   = strdup(vec[1]);
+            config->manual_tagger[i].state = atoi(vec[2]);
             if(config->manual_tagger[i].state) {
-               enlist_unique(global_manual_tagger, config->manual_tagger[i].name, 0);
+               enlist_unique(global_manual_tagger, config->manual_tagger[i].tag, 0);
             }
             continue;
 #endif /* def FEATURE_MANUAL_TAGGER */

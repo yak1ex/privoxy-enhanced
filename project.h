@@ -1560,6 +1560,9 @@ struct manual_tagger_spec
    /** Tagger name. */
    char *name;
 
+   /** Tag. */
+   char *tag;
+
    /** Default state. */
    int   state;
 };

@@ -1866,6 +1866,12 @@ static jb_err show_defines(struct map *exports)
    if (!err) err = map_conditional(exports, "FEATURE_FORWARD_CLASS", 0);
 #endif /* ndef FEATURE_FORWARD_CLASS */
 
+#ifdef FEATURE_MANUAL_TAGGER
+   if (!err) err = map_conditional(exports, "FEATURE_MANUAL_TAGGER", 1);
+#else /* ifndef FEATURE_MANUAL_TAGGER */
+   if (!err) err = map_conditional(exports, "FEATURE_MANUAL_TAGGER", 0);
+#endif /* ndef FEATURE_MANUAL_TAGGER */
+
 #ifdef STATIC_PCRE
    if (!err) err = map_conditional(exports, "STATIC_PCRE", 1);
 #else /* ifndef STATIC_PCRE */

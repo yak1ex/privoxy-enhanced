@@ -172,6 +172,11 @@
 #define ID_FORWARD_CLASS                  6000
 #endif /* def FEATURE_FORWARD_CLASS */
 
+#ifdef FEATURE_MANUAL_TAGGER
+/* ID until ID_MANUAL_TAGGER + MAX_MANUAL_TAGGERS - 1 are reserved. */
+#define ID_MANUAL_TAGGER                  7000
+#endif /* def FEATURE_MANUAL_TAGGER */
+
 /*
  * The following symbols are declared in <afxres.h> in VC++.
  * However, mingw32 doesn't have that header.  Let's 

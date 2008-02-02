@@ -3622,6 +3622,11 @@ static void listen_loop(void)
       }
 #endif /* def FEATURE_FORWARD_CLASS */
 
+#ifdef FEATURE_MANUAL_TAGGER
+/* We need to set global manual tagger status to client associated status */
+      list_duplicate(csp->tags, global_manual_tagger);
+#endif /* def FEATURE_MANUAL_TAGGER */
+
       if (run_loader(csp))
       {
          log_error(LOG_LEVEL_FATAL, "a loader failed - must exit");

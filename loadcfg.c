@@ -498,6 +498,11 @@ int global_toggle_state = 1;
 int global_forward_class_state[MAX_FORWARD_CLASSES] = { 1 };
 #endif /* def FEATURE_FORWARD_CLASS */
 
+#ifdef FEATURE_MANUAL_TAGGER
+struct list global_manual_tagger_[1];
+struct list* global_manual_tagger = global_manual_tagger_;
+#endif /* def FEATURE_MANUAL_TAGGER */
+
 /* The filename of the configfile */
 const char *configfile  = NULL;
 
@@ -545,6 +550,7 @@ static struct file_list *current_configfile = NULL;
 #define hash_listen_address              1255650842ul /* "listen-address" */
 #define hash_logdir                          422889ul /* "logdir" */
 #define hash_logfile                        2114766ul /* "logfile" */
+#define hash_manual_tagger               2633089997ul /* "manual-tagger" */
 #define hash_permit_access               3587953268ul /* "permit-access" */
 #define hash_proxy_info_url              3903079059ul /* "proxy-info-url" */
 #define hash_single_threaded             4250084780ul /* "single-threaded" */
@@ -655,6 +661,13 @@ static void unload_configfile (void * data)
    }
 #endif /* def FEATURE_FORWARD_CLASS */
 
+#ifdef FEATURE_MANUAL_TAGGER
+   for (i = 0; i < MAX_MANUAL_TAGGERS; i++)
+   {
+      freez(config->manual_tagger[i].name);
+   }
+#endif /* def FEATURE_MANUAL_TAGGER */
+
    for (i = 0; i < MAX_AF_FILES; i++)
    {
       freez(config->re_filterfile[i]);
@@ -740,6 +753,10 @@ struct configuration_spec * load_config(void)
       global_forward_class_state[i] = 0;
    }
 #endif /* def FEATURE_FORWARD_CLASS */
+
+#ifdef FEATURE_MANUAL_TAGGER
+   list_remove_all(global_manual_tagger);
+#endif /* def FEATURE_MANUAL_TAGGER */
 
    fs->f = config = (struct configuration_spec *)zalloc(sizeof(*config));
 
@@ -1450,6 +1467,43 @@ struct configuration_spec * load_config(void)
             continue;
 
 /* *************************************************************************
+ * manual-tagger name default-state
+ * *************************************************************************/
+#ifdef FEATURE_MANUAL_TAGGER
+         case hash_manual_tagger :
+            i = 0;
+            while ((i < MAX_MANUAL_TAGGERS) && (NULL != config->manual_tagger[i].name))
+            {
+               i++;
+            }
+
+            if (i >= MAX_MANUAL_TAGGERS)
+            {
+               log_error(LOG_LEVEL_FATAL, "Too many 'manual-tagger' directives in config file - limit is %d.\n"
+                  "(You can increase this limit by changing MAX_MANUAL_TAGGERS in project.h and recompiling).",
+                  MAX_MANUAL_TAGGERS);
+            }
+
+            vec_count = ssplit(arg, " \t", vec, SZ(vec), 1, 1);
+            if (vec_count != 2)
+            {
+               log_error(LOG_LEVEL_ERROR, "Wrong number of parameters for manual-tagger "
+                     "directive in configuration file.");
+               string_append(&config->proxy_args,
+                  "<br>\nWARNING: Wrong number of parameters for "
+                  "manual-tagger directive in configuration file.");
+               continue;
+            }
+
+            config->manual_tagger[i].name = strdup(vec[0]);
+            config->manual_tagger[i].state = atoi(vec[1]);
+            if(config->manual_tagger[i].state) {
+               enlist_unique(global_manual_tagger, config->manual_tagger[i].name, 0);
+            }
+            continue;
+#endif /* def FEATURE_MANUAL_TAGGER */
+
+/* *************************************************************************
  * permit-access source-ip[/significant-bits] [dest-ip[/significant-bits]]
  * *************************************************************************/
 #ifdef FEATURE_ACL
@@ -1694,9 +1748,15 @@ struct configuration_spec * load_config(void)
          case hash_enable_edit_actions:
          case hash_enable_remote_toggle:
 #endif /* def FEATURE_CGI_EDIT_ACTIONS */
+#ifndef FEATURE_FORWARD_CLASS
+         case hash_forward_class :
+#endif /* ndef FEATURE_FORWARD_CLASS */
 #ifndef FEATURE_COOKIE_JAR
          case hash_jarfile :
 #endif /* ndef FEATURE_COOKIE_JAR */
+#ifndef FEATURE_MANUAL_TAGGER
+         case hash_manual_tagger :
+#endif /* ndef FEATURE_MANUAL_TAGGER */
 #ifndef FEATURE_ACL
          case hash_permit_access:
 #endif /* ndef FEATURE_ACL */
@@ -1707,9 +1767,6 @@ struct configuration_spec * load_config(void)
          case hash_trustfile :
          case hash_trust_info_url :
 #endif /* ndef FEATURE_TRUST */
-#ifndef FEATURE_FORWARD_CLASS
-         case hash_forward_class :
-#endif /* ndef FEATURE_FORWARD_CLASS */
 
 #ifndef _WIN_CONSOLE
          case hash_hide_console :
@@ -1868,6 +1925,9 @@ struct configuration_spec * load_config(void)
    g_forward_class = config->forward_class;
 #endif /* def FEATURE_FORWARD_CLASS */
 
+#ifdef FEATURE_MANUAL_TAGGER
+   g_manual_tagger = config->manual_tagger;
+#endif /* def FEATURE_MANUAL_TAGGER */
 
 #endif /* defined(_WIN32) && !defined (_WIN_CONSOLE) */
 /* FIXME: end kludge */

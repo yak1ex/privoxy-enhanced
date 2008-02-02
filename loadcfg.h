@@ -169,6 +169,10 @@ extern int global_toggle_state;
 extern int global_forward_class_state[MAX_FORWARD_CLASSES];
 #endif /* def FEATURE_FORWARD_CLASS */
 
+#ifdef FEATURE_MANUAL_TAGGER
+extern struct list* global_manual_tagger;
+#endif /* def FEATURE_MANUAL_TAGGER */
+
 extern const char *configfile;
 
 

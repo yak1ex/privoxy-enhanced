@@ -1285,6 +1285,14 @@ struct url_actions
 #define MAX_FORWARD_CLASSES 10
 #endif /* def FEATURE_FORWARD_CLASS */
 
+#ifdef FEATURE_MANUAL_TAGGER
+/**
+ * Maximum number of manual taggers.  This limit is arbitrary - it's just used
+ * to size an array.
+ */
+#define MAX_MANUAL_TAGGERS 10
+#endif /* def FEATURE_MANUAL_TAGGER */
+
 /**
  * The state of a Privoxy processing thread.
  */
@@ -1546,6 +1554,17 @@ struct forward_class_spec
 };
 #endif /* def FEATURE_FORWARD_CLASS */
 
+#ifdef FEATURE_MANUAL_TAGGER
+struct manual_tagger_spec
+{
+   /** Tagger name. */
+   char *name;
+
+   /** Default state. */
+   int   state;
+};
+#endif /* def FEATURE_MANUAL_TAGGER */
+
 /* Supported filter types */
 #define FT_CONTENT_FILTER       0
 #define FT_CLIENT_HEADER_FILTER 1
@@ -1732,7 +1751,7 @@ struct configuration_spec
    struct forward_spec *forward;
 
 #ifdef FEATURE_FORWARD_CLASS
-   /** Information about parent proxies (forwarding) class. */
+   /** Information about parent proxy (forwarding) classes. */
    struct forward_class_spec forward_class[MAX_FORWARD_CLASSES];
 #endif /* def FEATURE_FORWARD_CLASS */
 
@@ -1741,6 +1760,11 @@ struct configuration_spec
 
    /** All options from the config file, HTML-formatted. */
    char *proxy_args;
+
+#ifdef FEATURE_MANUAL_TAGGER
+   /** Information about manual taggers. */
+   struct manual_tagger_spec manual_tagger[MAX_MANUAL_TAGGERS];
+#endif /* def FEATURE_MANUAL_TAGGER */
 
    /** The configuration file object. */
    struct file_list *config_file_list;

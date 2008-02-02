@@ -155,6 +155,11 @@ extern jb_err cgi_forward_class(struct client_state *csp,
                                  struct http_response *rsp,
                                  const struct map *parameters);
 #endif /* def FEATURE_FORWARD_CLASS */
+#ifdef FEATURE_MANUAL_TAGGER
+extern jb_err cgi_manual_tagger(struct client_state *csp,
+                                struct http_response *rsp,
+                                const struct map *parameters);
+#endif /* def FEATURE_MANUAL_TAGGER */
 #endif /* def FEATURE_CGI_EDIT_ACTIONS */
 
 

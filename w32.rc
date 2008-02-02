@@ -198,8 +198,8 @@ IDI_IDLE                ICON    DISCARDABLE     "icons/privoxy.ico"
 #ifndef _MAC
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_POINT,0
- PRODUCTVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_POINT,0
+ FILEVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_POINT,PATCHLEVEL
+ PRODUCTVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_POINT,PATCHLEVEL
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -253,13 +253,20 @@ BEGIN
             MENUITEM "&Trust list",                   ID_TOOLS_EDITTRUST
 #endif /* def FEATURE_TRUST */
         END
+#ifdef FEATURE_MANUAL_TAGGER
+        MENUITEM                              SEPARATOR
+        POPUP "&Tag.."
+        BEGIN
+            MENUITEM                                  SEPARATOR
+        END
+#endif /* def FEATURE_MANUAL_TAGGER */
 #ifdef FEATURE_FORWARD_CLASS
         MENUITEM                              SEPARATOR
         POPUP "&Forward.."
         BEGIN
-            MENUITEM                              SEPARATOR
+            MENUITEM                                  SEPARATOR
         END
-#endif
+#endif /* FEATURE_FORWARD_CLASS */
         MENUITEM                              SEPARATOR
 #ifdef FEATURE_TOGGLE
         MENUITEM "&Enable",                   ID_TOGGLE_ENABLED, CHECKED
@@ -293,13 +300,20 @@ BEGIN
         MENUITEM "&Enable",                     ID_TOGGLE_ENABLED, CHECKED
         MENUITEM                                SEPARATOR
 #endif /* def FEATURE_TOGGLE */
+#ifdef FEATURE_MANUAL_TAGGER
+        POPUP "&Tag.."
+        BEGIN
+            MENUITEM                            SEPARATOR
+        END
+        MENUITEM                                SEPARATOR
+#endif /* def FEATURE_MANUAL_TAGGER */
 #ifdef FEATURE_FORWARD_CLASS
         POPUP "&Forward.."
         BEGIN
-            MENUITEM                              SEPARATOR
+            MENUITEM                            SEPARATOR
         END
-        MENUITEM                              SEPARATOR
-#endif
+        MENUITEM                                SEPARATOR
+#endif /* def FEATURE_FORWARD_CLASS */
         MENUITEM "Edit Main &Configuration",      ID_TOOLS_EDITCONFIG
         MENUITEM "Edit &Default Actions",         ID_TOOLS_EDITDEFAULTACTIONS
         MENUITEM "Edit &User Actions",            ID_TOOLS_EDITUSERACTIONS

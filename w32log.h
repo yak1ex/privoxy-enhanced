@@ -151,6 +151,9 @@ extern const char * g_trustfile;
 #ifdef FEATURE_FORWARD_CLASS
 extern struct forward_class_spec* g_forward_class;
 #endif /* def FEATURE_FORWARD_CLASS */
+#ifdef FEATURE_MANUAL_TAGGER
+extern struct manual_tagger_spec* g_manual_tagger;
+#endif /* def FEATURE_MANUAL_TAGGER */
 
 /* FIXME: end kludge */
 

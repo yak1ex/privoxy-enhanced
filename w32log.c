@@ -197,6 +197,9 @@ const char w32log_rcs[] = "$Id: w32log.c,v 1.27 2006/07/18 14:48:48 david__schmi
 #include "miscutil.h"
 #include "errlog.h"
 #include "loadcfg.h"
+#ifdef FEATURE_MANUAL_TAGGER
+#include "list.h"
+#endif
 
 const char w32res_h_rcs[] = W32RES_H_VERSION;
 
@@ -286,6 +289,9 @@ const char * g_trustfile = NULL;
 #ifdef FEATURE_FORWARD_CLASS
 struct forward_class_spec* g_forward_class = NULL;
 #endif /* def FEATURE_FORWARD_CLASS */
+#ifdef FEATURE_MANUAL_TAGGER
+struct manual_tagger_spec* g_manual_tagger = NULL;
+#endif /* def FEATURE_MANUAL_TAGGER */
 
 /* FIXME: end kludge */
 
@@ -1194,6 +1200,19 @@ void OnLogCommand(int nCommand)
             break;
          }
 #endif /* def FEATURE_FORWARD_CLASS */
+#ifdef FEATURE_MANUAL_TAGGER
+         if(ID_MANUAL_TAGGER <= nCommand && nCommand < ID_MANUAL_TAGGER + MAX_MANUAL_TAGGERS) {
+            if(list_contains_item(global_manual_tagger, g_manual_tagger[nCommand - ID_MANUAL_TAGGER].name))
+            {
+               list_remove_item(global_manual_tagger, g_manual_tagger[nCommand - ID_MANUAL_TAGGER].name);
+            }
+            else
+            {
+               enlist_unique(global_manual_tagger, g_manual_tagger[nCommand - ID_MANUAL_TAGGER].name, 0);
+            }
+            break;
+         }
+#endif /* def FEATURE_MANUAL_TAGGER */
          /* DO NOTHING */
          break;
    }
@@ -1201,7 +1220,84 @@ void OnLogCommand(int nCommand)
 }
 
 
+#ifdef FEATURE_MANUAL_TAGGER
+/*********************************************************************
+ *
+ * Function    :  GetTagSubMenu
+ *
+ * Description :  Extract tag sub menu
+ *
+ * Parameters  :
+ *          1  :  hmenu = Handle of menu containing tag sub menu
+ *
+ * Returns     :  Handle of tag sub menu
+ *
+ *********************************************************************/
+HMENU GetTagSubMenu(HMENU hmenu)
+{
+   char szItemName[256];
+   int nMax = GetMenuItemCount(hmenu), i;
+   MENUITEMINFO mii = { sizeof(MENUITEMINFO), MIIM_SUBMENU | MIIM_STRING };    
+   mii.dwTypeData = szItemName;
+   mii.cch = sizeof(szItemName);
+
+   for(i = 0; i < nMax; i++) {
+      GetMenuItemInfo(hmenu, i, TRUE, &mii);
+      if(mii.hSubMenu && lstrcmp("&Options", mii.dwTypeData) == 0) {
+         return GetTagSubMenu(mii.hSubMenu);
+      }
+      if(mii.hSubMenu && lstrcmp("&Tag..", mii.dwTypeData) == 0) {
+         return mii.hSubMenu;
+      }
+      mii.cch = sizeof(szItemName);
+   }
+   return NULL;
+}
+
+/*********************************************************************
+ *
+ * Function    :  SetTagSubMenu
+ *
+ * Description :  Add items into tag sub menu
+ *
+ * Parameters  :
+ *          1  :  hmenu = Handle of menu containing tag sub menu
+ *
+ * Returns     :  N/A
+ *
+ *********************************************************************/
+void SetTagSubMenu(HMENU hmenu)
+{
+   int nMax, i;
+   hmenu = GetTagSubMenu(hmenu);
+
+   if(hmenu == NULL) return;
+
+   nMax = GetMenuItemCount(hmenu);
+   for(i = 0; i < nMax; i++) {
+      RemoveMenu(hmenu, 0, MF_BYPOSITION);
+   }
+
+   for(i = 0; g_manual_tagger[i].name != NULL && i < MAX_MANUAL_TAGGERS; i++) {
+      AppendMenu(hmenu, MF_STRING | (list_contains_item(global_manual_tagger, g_manual_tagger[i].name) ? MF_CHECKED : MF_UNCHECKED), ID_MANUAL_TAGGER + i, g_manual_tagger[i].name);
+   }
+}
+#endif /* def FEATURE_MANUAL_TAGGER */
+
+
 #ifdef FEATURE_FORWARD_CLASS
+/*********************************************************************
+ *
+ * Function    :  GetForwardSubMenu
+ *
+ * Description :  Extract forward sub menu
+ *
+ * Parameters  :
+ *          1  :  hmenu = Handle of menu containing forward sub menu
+ *
+ * Returns     :  Handle of forward sub menu
+ *
+ *********************************************************************/
 HMENU GetForwardSubMenu(HMENU hmenu)
 {
    char szItemName[256];
@@ -1223,6 +1319,19 @@ HMENU GetForwardSubMenu(HMENU hmenu)
    return NULL;
 }
 
+
+/*********************************************************************
+ *
+ * Function    :  SetForwardSubMenu
+ *
+ * Description :  Add items into forward sub menu
+ *
+ * Parameters  :
+ *          1  :  hmenu = Handle of menu containing forward sub menu
+ *
+ * Returns     :  N/A
+ *
+ *********************************************************************/
 void SetForwardSubMenu(HMENU hmenu)
 {
    int nMax, i;
@@ -1275,10 +1384,14 @@ void OnLogInitMenu(HMENU hmenu)
 #endif /* def FEATURE_TOGGLE */
    CheckMenuItem(hmenu, ID_TOGGLE_SHOWWINDOW, MF_BYCOMMAND | (g_bShowLogWindow ? MF_CHECKED : MF_UNCHECKED));
 
+#ifdef FEATURE_MANUAL_TAGGER
+   /* Set manual tagger sub menu */
+   SetTagSubMenu(hmenu);
+#endif /* def FEATURE_MANUAL_TAGGER */
 #ifdef FEATURE_FORWARD_CLASS
    /* Set forward class sub menu */
    SetForwardSubMenu(hmenu);
-#endif
+#endif /* def FEATURE_FORWARD_CLASS */
 
 }
 

@@ -555,7 +555,7 @@ dnl =================================================================
 VERSION_MAJOR=3
 VERSION_MINOR=0
 VERSION_POINT=8
-PATCHLEVEL=y1
+PATCHLEVEL=1
 CODE_STATUS="stable"
 
 dnl CODE_STATUS can be "alpha", "beta", or "stable", and will be
@@ -577,7 +577,7 @@ AC_DEFINE_UNQUOTED(VERSION_MAJOR,${VERSION_MAJOR})
 AC_DEFINE_UNQUOTED(VERSION_MINOR,${VERSION_MINOR})
 AC_DEFINE_UNQUOTED(VERSION_POINT,${VERSION_POINT})
 AC_DEFINE_UNQUOTED(PATCHLEVEL,${PATCHLEVEL})
-AC_DEFINE_UNQUOTED(VERSION,"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_POINT}-${PATCHLEVEL}")
+AC_DEFINE_UNQUOTED(VERSION,"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_POINT}-y${PATCHLEVEL}")
 AC_DEFINE_UNQUOTED(DOC_VERSION,"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_POINT}")
 AC_DEFINE_UNQUOTED(CODE_STATUS,"${CODE_STATUS}")
 
@@ -1348,6 +1348,12 @@ AC_ARG_ENABLE(forward-class,
 fi],
 AC_DEFINE(FEATURE_FORWARD_CLASS))
 
+AC_ARG_ENABLE(manual-tagger,
+[  --disable-manua-tagger Prevents manual tagger.],
+[if test $enableval = yes; then
+  AC_DEFINE(FEATURE_MANUAL_TAGGER)
+fi],
+AC_DEFINE(FEATURE_MANUAL_TAGGER))
 
 dnl ====================================================
 dnl This check is incomplete. For mingw32 zlib is found

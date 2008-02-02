@@ -396,6 +396,11 @@
 #undef FEATURE_FORWARD_CLASS
 
 /*
+ * Enables manual tagger.
+ */
+#undef FEATURE_MANUAL_TAGGER
+
+/*
  * Defined on Solaris only.  Makes the system libraries thread safe.
  */
 #undef _REENTRANT

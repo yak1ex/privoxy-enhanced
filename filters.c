@@ -2357,6 +2357,10 @@ void url_actions(struct http_request *http,
 
    init_current_action(csp->action);
 
+#ifdef FEATURE_MANUAL_TAGGER
+   update_action_bits_for_all_tags(csp);
+#endif
+
    for (i = 0; i < MAX_AF_FILES; i++)
    {
       if (((fl = csp->actions_list[i]) == NULL) || ((b = fl->f) == NULL))
@@ -2366,7 +2370,6 @@ void url_actions(struct http_request *http,
 
       apply_url_actions(csp->action, http, b);
    }
-
    return;
 }
 

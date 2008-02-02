@@ -148,6 +148,9 @@ extern const char * g_re_filterfile;
 #ifdef FEATURE_TRUST
 extern const char * g_trustfile;
 #endif /* def FEATURE_TRUST */
+#ifdef FEATURE_FORWARD_CLASS
+extern struct forward_class_spec* g_forward_class;
+#endif /* def FEATURE_FORWARD_CLASS */
 
 /* FIXME: end kludge */
 

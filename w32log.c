@@ -283,6 +283,9 @@ const char * g_re_filterfile = NULL;
 #ifdef FEATURE_TRUST
 const char * g_trustfile = NULL;
 #endif /* def FEATURE_TRUST */
+#ifdef FEATURE_FORWARD_CLASS
+struct forward_class_spec* g_forward_class = NULL;
+#endif /* def FEATURE_FORWARD_CLASS */
 
 /* FIXME: end kludge */
 
@@ -1185,11 +1188,57 @@ void OnLogCommand(int nCommand)
          break;
 
       default:
+#ifdef FEATURE_FORWARD_CLASS
+         if(ID_FORWARD_CLASS <= nCommand && nCommand < ID_FORWARD_CLASS + MAX_FORWARD_CLASSES) {
+            global_forward_class_state[nCommand - ID_FORWARD_CLASS] = ! global_forward_class_state[nCommand - ID_FORWARD_CLASS];
+            break;
+         }
+#endif /* def FEATURE_FORWARD_CLASS */
          /* DO NOTHING */
          break;
    }
 
 }
+
+
+#ifdef FEATURE_FORWARD_CLASS
+HMENU GetForwardSubMenu(HMENU hmenu)
+{
+   char szItemName[256];
+   int nMax = GetMenuItemCount(hmenu), i;
+   MENUITEMINFO mii = { sizeof(MENUITEMINFO), MIIM_SUBMENU | MIIM_STRING };    
+   mii.dwTypeData = szItemName;
+   mii.cch = sizeof(szItemName);
+
+   for(i = 0; i < nMax; i++) {
+      GetMenuItemInfo(hmenu, i, TRUE, &mii);
+      if(mii.hSubMenu && lstrcmp("&Options", mii.dwTypeData) == 0) {
+         return GetForwardSubMenu(mii.hSubMenu);
+      }
+      if(mii.hSubMenu && lstrcmp("&Forward..", mii.dwTypeData) == 0) {
+         return mii.hSubMenu;
+      }
+      mii.cch = sizeof(szItemName);
+   }
+   return NULL;
+}
+
+void SetForwardSubMenu(HMENU hmenu)
+{
+   int nMax, i;
+   hmenu = GetForwardSubMenu(hmenu);
+
+   if(hmenu == NULL) return;
+
+   nMax = GetMenuItemCount(hmenu);
+   for(i = 0; i < nMax; i++) {
+      RemoveMenu(hmenu, 0, MF_BYPOSITION);
+   }
+   for(i = 0; g_forward_class[i].name != NULL && i < MAX_FORWARD_CLASSES; i++) {
+      AppendMenu(hmenu, MF_STRING | (global_forward_class_state[i] ? MF_CHECKED : MF_UNCHECKED), ID_FORWARD_CLASS + i, g_forward_class[i].name);
+   }
+}
+#endif /* def FEATURE_FORWARD_CLASS */
 
 
 /*********************************************************************
@@ -1225,6 +1274,11 @@ void OnLogInitMenu(HMENU hmenu)
    CheckMenuItem(hmenu, ID_TOGGLE_ENABLED, MF_BYCOMMAND | (global_toggle_state ? MF_CHECKED : MF_UNCHECKED));
 #endif /* def FEATURE_TOGGLE */
    CheckMenuItem(hmenu, ID_TOGGLE_SHOWWINDOW, MF_BYCOMMAND | (g_bShowLogWindow ? MF_CHECKED : MF_UNCHECKED));
+
+#ifdef FEATURE_FORWARD_CLASS
+   /* Set forward class sub menu */
+   SetForwardSubMenu(hmenu);
+#endif
 
 }
 

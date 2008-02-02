@@ -1854,6 +1854,18 @@ static jb_err show_defines(struct map *exports)
    if (!err) err = map_conditional(exports, "FEATURE_ZLIB", 0);
 #endif /* ndef FEATURE_ZLIB */
 
+#ifdef FEATURE_ADD_REFERER
+   if (!err) err = map_conditional(exports, "FEATURE_ADD_REFERER", 1);
+#else /* ifndef FEATURE_ADD_REFERER */
+   if (!err) err = map_conditional(exports, "FEATURE_ADD_REFERER", 0);
+#endif /* ndef FEATURE_ADD_REFERER */
+
+#ifdef FEATURE_FORWARD_CLASS
+   if (!err) err = map_conditional(exports, "FEATURE_FORWARD_CLASS", 1);
+#else /* ifndef FEATURE_FOWARD_CLASS */
+   if (!err) err = map_conditional(exports, "FEATURE_FORWARD_CLASS", 0);
+#endif /* ndef FEATURE_FORWARD_CLASS */
+
 #ifdef STATIC_PCRE
    if (!err) err = map_conditional(exports, "STATIC_PCRE", 1);
 #else /* ifndef STATIC_PCRE */

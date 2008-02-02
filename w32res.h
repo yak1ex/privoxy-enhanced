@@ -167,6 +167,11 @@
 #define ID_TOOLS_EDITTRUST                5004
 #endif /* def FEATURE_TRUST */
 
+#ifdef FEATURE_FORWARD_CLASS
+/* ID until ID_FORWARD_CLASS + MAX_FORWARD_CLASSES - 1 are reserved. */
+#define ID_FORWARD_CLASS                  6000
+#endif /* def FEATURE_FORWARD_CLASS */
+
 /*
  * The following symbols are declared in <afxres.h> in VC++.
  * However, mingw32 doesn't have that header.  Let's 

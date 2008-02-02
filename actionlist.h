@@ -84,7 +84,8 @@
  *    Replaced timegm() with mktime().
  *
  *    Revision 1.20  2006/08/03 02:46:41  david__schmidt
- *    Incorporate Fabian Keil's patch work:http://www.fabiankeil.de/sourcecode/privoxy/
+ *    Incorporate Fabian Keil's patch work:
+http://www.fabiankeil.de/sourcecode/privoxy/
  *
  *    Revision 1.19  2006/07/18 14:48:45  david__schmidt
  *    Reorganizing the repository: swapping out what was HEAD (the old 3.1 branch)
@@ -170,6 +171,13 @@
 #endif /* ndef DEFINE_CGI_PARAM_RADIO */
 
 DEFINE_ACTION_MULTI      ("add-header",                 ACTION_MULTI_ADD_HEADER)
+DEFINE_ACTION_STRING     ("add-referrer",               ACTION_ADD_REFERER,    ACTION_STRING_ADD_REFERER)
+DEFINE_CGI_PARAM_RADIO   ("add-referrer",               ACTION_ADD_REFERER,    ACTION_STRING_ADD_REFERER,       "self", 4)
+DEFINE_CGI_PARAM_RADIO   ("add-referrer",               ACTION_ADD_REFERER,    ACTION_STRING_ADD_REFERER,       "index", 3)
+DEFINE_CGI_PARAM_RADIO   ("add-referrer",               ACTION_ADD_REFERER,    ACTION_STRING_ADD_REFERER,       "directory", 2)
+DEFINE_CGI_PARAM_RADIO   ("add-referrer",               ACTION_ADD_REFERER,    ACTION_STRING_ADD_REFERER,       "forge", 1)
+DEFINE_CGI_PARAM_RADIO   ("add-referrer",               ACTION_ADD_REFERER,    ACTION_STRING_ADD_REFERER,       "block", 0)
+DEFINE_CGI_PARAM_CUSTOM  ("add-referrer",               ACTION_ADD_REFERER,    ACTION_STRING_ADD_REFERER,       "http://www.privoxy.org/")
 DEFINE_ACTION_BOOL       ("block",                      ACTION_BLOCK)
 DEFINE_ACTION_MULTI      ("client-header-filter",       ACTION_MULTI_CLIENT_HEADER_FILTER)
 DEFINE_ACTION_MULTI      ("client-header-tagger",       ACTION_MULTI_CLIENT_HEADER_TAGGER)
@@ -209,6 +217,9 @@ DEFINE_ACTION_STRING     ("hide-if-modified-since",     ACTION_HIDE_IF_MODIFIED_
 DEFINE_CGI_PARAM_RADIO   ("hide-if-modified-since",     ACTION_HIDE_IF_MODIFIED_SINCE, ACTION_STRING_IF_MODIFIED_SINCE, "block", 0)
 DEFINE_CGI_PARAM_CUSTOM  ("hide-if-modified-since",     ACTION_HIDE_IF_MODIFIED_SINCE, ACTION_STRING_IF_MODIFIED_SINCE, "-1")
 DEFINE_ACTION_STRING     ("hide-referrer",              ACTION_HIDE_REFERER,    ACTION_STRING_REFERER)
+DEFINE_CGI_PARAM_RADIO   ("hide-referrer",              ACTION_HIDE_REFERER,    ACTION_STRING_REFERER,       "self", 6)
+DEFINE_CGI_PARAM_RADIO   ("hide-referrer",              ACTION_HIDE_REFERER,    ACTION_STRING_REFERER,       "index", 5)
+DEFINE_CGI_PARAM_RADIO   ("hide-referrer",              ACTION_HIDE_REFERER,    ACTION_STRING_REFERER,       "directory", 4)
 DEFINE_CGI_PARAM_RADIO   ("hide-referrer",              ACTION_HIDE_REFERER,    ACTION_STRING_REFERER,       "conditional-forge", 3)
 DEFINE_CGI_PARAM_RADIO   ("hide-referrer",              ACTION_HIDE_REFERER,    ACTION_STRING_REFERER,       "conditional-block", 2)
 DEFINE_CGI_PARAM_RADIO   ("hide-referrer",              ACTION_HIDE_REFERER,    ACTION_STRING_REFERER,       "forge", 1)
@@ -244,6 +255,7 @@ DEFINE_ACTION_BOOL       ("treat-forbidden-connects-like-blocks",   ACTION_TREAT
 /* 
  * Alternative spellings
  */
+DEFINE_ACTION_STRING     ("add-referer",    ACTION_ADD_REFERER,     ACTION_STRING_ADD_REFERER)
 DEFINE_ACTION_BOOL       ("kill-popup",      ACTION_NO_POPUPS)
 DEFINE_ACTION_STRING     ("hide-referer",   ACTION_HIDE_REFERER,    ACTION_STRING_REFERER)
 DEFINE_ACTION_BOOL       ("prevent-keeping-cookies", ACTION_NO_COOKIE_KEEP)

@@ -494,6 +494,10 @@ const char loadcfg_h_rcs[] = LOADCFG_H_VERSION;
 int global_toggle_state = 1;
 #endif /* def FEATURE_TOGGLE */
 
+#ifdef FEATURE_FORWARD_CLASS
+int global_forward_class_state[MAX_FORWARD_CLASSES] = { 1 };
+#endif /* def FEATURE_FORWARD_CLASS */
+
 /* The filename of the configfile */
 const char *configfile  = NULL;
 
@@ -533,6 +537,7 @@ static struct file_list *current_configfile = NULL;
 #define hash_enforce_blocks              1862427469ul /* "enforce-blocks" */
 #define hash_filterfile                   250887266ul /* "filterfile" */
 #define hash_forward                        2029845ul /* "forward" */
+#define hash_forward_class               1651776168ul /* "forward-class" */
 #define hash_forward_socks4              3963965521ul /* "forward-socks4" */
 #define hash_forward_socks4a             2639958518ul /* "forward-socks4a" */
 #define hash_forwarded_connect_retries    101465292ul /* "forwarded-connect-retries" */
@@ -643,6 +648,13 @@ static void unload_configfile (void * data)
    list_remove_all(config->trust_info);
 #endif /* def FEATURE_TRUST */
 
+#ifdef FEATURE_FORWARD_CLASS
+   for (i = 0; i < MAX_FORWARD_CLASSES; i++)
+   {
+      freez(config->forward_class[i].name);
+   }
+#endif /* def FEATURE_FORWARD_CLASS */
+
    for (i = 0; i < MAX_AF_FILES; i++)
    {
       freez(config->re_filterfile[i]);
@@ -722,6 +734,13 @@ struct configuration_spec * load_config(void)
    global_toggle_state      = 1;
 #endif /* def FEATURE_TOGGLE */
 
+#ifdef FEATURE_FORWARD_CLASS
+   for(i = 0; i < MAX_FORWARD_CLASSES; i++)
+   {
+      global_forward_class_state[i] = 0;
+   }
+#endif /* def FEATURE_FORWARD_CLASS */
+
    fs->f = config = (struct configuration_spec *)zalloc(sizeof(*config));
 
    if (config==NULL)
@@ -773,7 +792,11 @@ struct configuration_spec * load_config(void)
 #endif /* def FEATURE_ACL */
       struct forward_spec *cur_fwd;
       int vec_count;
+#ifdef FEATURE_FORWARD_CLASS
+      char *vec[4];
+#else  /* def FEATURE_FORWARD_CLASS */
       char *vec[3];
+#endif  /* def FEATURE_FORWARD_CLASS */
 
       strlcpy(tmp, buf, sizeof(tmp));
 
@@ -1055,13 +1078,51 @@ struct configuration_spec * load_config(void)
 
             continue;
 
+#ifdef FEATURE_FORWARD_CLASS
+/* *************************************************************************
+ * forward-class class-name default-status
+ * *************************************************************************/
+         case hash_forward_class:
+            i = 0;
+            while ((i < MAX_FORWARD_CLASSES) && (NULL != config->forward_class[i].name))
+            {
+               i++;
+            }
+
+            if (i >= MAX_FORWARD_CLASSES)
+            {
+               log_error(LOG_LEVEL_FATAL, "Too many 'forward-class' directives in config file - limit is %d.\n"
+                  "(You can increase this limit by changing MAX_FORWARD_CLASSES in project.h and recompiling).",
+                  MAX_FORWARD_CLASSES);
+            }
+
+            vec_count = ssplit(arg, " \t", vec, SZ(vec), 1, 1);
+            if (vec_count != 2)
+           {
+               log_error(LOG_LEVEL_ERROR, "Wrong number of parameters for forward class "
+                     "directive in configuration file.");
+               string_append(&config->proxy_args,
+                  "<br>\nWARNING: Wrong number of parameters for "
+                  "forward class directive in configuration file.");
+               continue;
+            }
+
+            config->forward_class[i].name = strdup(vec[0]);
+            config->forward_class[i].state = global_forward_class_state[i] = atoi(vec[1]);
+            continue;
+#endif /* def FEATURE_FORWARD_CLASS */
+
 /* *************************************************************************
  * forward url-pattern (.|http-proxy-host[:port])
  * *************************************************************************/
          case hash_forward:
             vec_count = ssplit(arg, " \t", vec, SZ(vec), 1, 1);
 
+#ifdef FEATURE_FORWARD_CLASS
+            if (vec_count != 2 && vec_count != 3)
+#else  /* def FEATURE_FORWARD_CLASS */
             if (vec_count != 2)
+#endif  /* def FEATURE_FORWARD_CLASS */
             {
                log_error(LOG_LEVEL_ERROR, "Wrong number of parameters for forward "
                      "directive in configuration file.");
@@ -1112,6 +1173,24 @@ struct configuration_spec * load_config(void)
                }
             }
 
+#ifdef FEATURE_FORWARD_CLASS
+            /* Set forward class */
+            if (vec_count == 3) {
+               cur_fwd->forward_class = atoi(vec[2]);
+               if(cur_fwd->forward_class > MAX_FORWARD_CLASSES) {
+                 log_error(LOG_LEVEL_ERROR, "Forward class number for forward directive in configuration file is more than limit - the limit is %d.\n"
+                    "(You can increase this limit by changing MAX_FORWARD_CLASSES in project.h and recompiling).",
+                    MAX_FORWARD_CLASSES);
+                 string_append(&config->proxy_args,
+                    "<br>\nWARNING: Forward class number for forward directive"
+                    " in configuration file is more than limit.");
+                 continue;
+               }
+            } else {
+               cur_fwd->forward_class = 0;
+            }
+#endif /* def FEATURE_FORWARD_CLASS */
+
             /* Add to list. */
             cur_fwd->next = config->forward;
             config->forward = cur_fwd;
@@ -1124,7 +1203,11 @@ struct configuration_spec * load_config(void)
          case hash_forward_socks4:
             vec_count = ssplit(arg, " \t", vec, SZ(vec), 1, 1);
 
+#ifdef FEATURE_FORWARD_CLASS
+            if (vec_count != 3 && vec_count != 4)
+#else /* def FEATURE_FORWARD_CLASS */
             if (vec_count != 3)
+#endif /* def FEATURE_FORWARD_CLASS */
             {
                log_error(LOG_LEVEL_ERROR, "Wrong number of parameters for "
                      "forward-socks4 directive in configuration file.");
@@ -1193,6 +1276,24 @@ struct configuration_spec * load_config(void)
                }
             }
 
+#ifdef FEATURE_FORWARD_CLASS
+            /* Set forward class */
+            if (vec_count == 4) {
+               cur_fwd->forward_class = atoi(vec[3]);
+               if(cur_fwd->forward_class > MAX_FORWARD_CLASSES) {
+                 log_error(LOG_LEVEL_ERROR, "Forward class number for forward directive in configuration file is more than limit - the limit is %d.\n"
+                    "(You can increase this limit by changing MAX_FORWARD_CLASSES in project.h and recompiling).",
+                    MAX_FORWARD_CLASSES);
+                 string_append(&config->proxy_args,
+                    "<br>\nWARNING: Forward class number for forward-socks4 directive"
+                    " in configuration file is more than limit.");
+                 continue;
+              }
+            } else {
+               cur_fwd->forward_class = 0;
+            }
+#endif /* def FEATURE_FORWARD_CLASS */
+
             /* Add to list. */
             cur_fwd->next = config->forward;
             config->forward = cur_fwd;
@@ -1205,7 +1306,11 @@ struct configuration_spec * load_config(void)
          case hash_forward_socks4a:
             vec_count = ssplit(arg, " \t", vec, SZ(vec), 1, 1);
 
+#ifdef FEATURE_FORWARD_CLASS
+            if (vec_count != 3 && vec_count != 4)
+#else /* def FEATURE_FORWARD_CLASS */
             if (vec_count != 3)
+#endif /* def FEATURE_FORWARD_CLASS */
             {
                log_error(LOG_LEVEL_ERROR, "Wrong number of parameters for "
                      "forward-socks4a directive in configuration file.");
@@ -1270,6 +1375,24 @@ struct configuration_spec * load_config(void)
                   cur_fwd->forward_port = 8000;
                }
             }
+
+#ifdef FEATURE_FORWARD_CLASS
+            /* Set forward class */
+            if (vec_count == 4) {
+               cur_fwd->forward_class = atoi(vec[3]);
+               if(cur_fwd->forward_class > MAX_FORWARD_CLASSES) {
+                 log_error(LOG_LEVEL_ERROR, "Forward class number for forward directive in configuration file is more than limit - the limit is %d.\n"
+                    "(You can increase this limit by changing MAX_FORWARD_CLASSES in project.h and recompiling).",
+                    MAX_FORWARD_CLASSES);
+                 string_append(&config->proxy_args,
+                    "<br>\nWARNING: Forward class number for forward-socks4a directive"
+                    " in configuration file is more than limit.");
+                 continue;
+               }
+            } else {
+               cur_fwd->forward_class = 0;
+            }
+#endif /* def FEATURE_FORWARD_CLASS */
 
             /* Add to list. */
             cur_fwd->next = config->forward;
@@ -1584,6 +1707,9 @@ struct configuration_spec * load_config(void)
          case hash_trustfile :
          case hash_trust_info_url :
 #endif /* ndef FEATURE_TRUST */
+#ifndef FEATURE_FORWARD_CLASS
+         case hash_forward_class :
+#endif /* ndef FEATURE_FORWARD_CLASS */
 
 #ifndef _WIN_CONSOLE
          case hash_hide_console :
@@ -1733,6 +1859,14 @@ struct configuration_spec * load_config(void)
 #ifdef FEATURE_TRUST
    g_trustfile        = config->trustfile;
 #endif /* def FEATURE_TRUST */
+
+#ifdef FEATURE_FORWARD_CLASS
+   if(config->forward_class[0].name == NULL) {
+      config->forward_class[0].name = strdup("Default");
+      global_forward_class_state[0] = config->forward_class[0].state = 1;
+   }
+   g_forward_class = config->forward_class;
+#endif /* def FEATURE_FORWARD_CLASS */
 
 
 #endif /* defined(_WIN32) && !defined (_WIN_CONSOLE) */

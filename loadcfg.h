@@ -163,6 +163,12 @@ struct configuration_spec;
 extern int global_toggle_state;
 #endif /* def FEATURE_TOGGLE */
 
+#ifdef FEATURE_FORWARD_CLASS
+/* Unfortunately, project.h is required by MAX_FORWARD_CLASSES */
+#include "project.h"
+extern int global_forward_class_state[MAX_FORWARD_CLASSES];
+#endif /* def FEATURE_FORWARD_CLASS */
+
 extern const char *configfile;
 
 

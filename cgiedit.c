@@ -4270,6 +4270,211 @@ jb_err cgi_edit_actions_section_add(struct client_state *csp,
 }
 
 
+#ifdef FEATURE_FORWARD_CLASS
+/*********************************************************************
+ *
+ * Function    :  cgi_forward_class
+ *
+ * Description :  CGI function that show and edit forward class state
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *          2  :  rsp = http_response data structure for output
+ *          3  :  parameters = map of cgi parameters
+ *
+ * CGI Parameters :
+ * <classname> : If present, how to change toggle setting:
+ *               "enable", "disable", "toggle", or none (default).
+ *        mini : If present, use mini reply template.
+ *
+ * Returns     :  JB_ERR_OK     on success
+ *                JB_ERR_MEMORY on out-of-memory
+ *
+ *********************************************************************/
+jb_err cgi_forward_class(struct client_state *csp,
+                         struct http_response *rsp,
+                         const struct map *parameters)
+{
+   struct map *exports;
+   struct map *section_exports;
+   char mode;
+   const char *template_name;
+   int i;
+   char *state_template;
+   char *state;
+   char *bookmarklet_template;
+   char *bookmarklet;
+   char *s;
+   jb_err err;
+   int *forward_class_state;
+   int forward_class[MAX_FORWARD_CLASSES];
+   int is_update;
+
+   assert(csp);
+   assert(rsp);
+   assert(parameters);
+
+   if (NULL == (exports = default_exports(csp, "forward-class")))
+   {
+      return JB_ERR_MEMORY;
+   }
+
+   if (get_char_param(parameters, "untrust"))
+   {
+      if (get_char_param(parameters, "mini"))
+      {
+         forward_class_state = forward_class;
+         is_update = 1;
+         map_conditional(exports, "forward-class-changing", 1);
+      }
+      else
+      {
+         forward_class_state = global_forward_class_state;
+         is_update = 0;
+         map_conditional(exports, "forward-class-changing", 0);
+      }
+   }
+   else
+   {
+      forward_class_state = global_forward_class_state;
+     is_update = 1;
+         map_conditional(exports, "forward-class-changing", 0);
+   }
+   /* Update forward class state */
+   if (is_update)
+   {
+      for (i = 0; i < MAX_FORWARD_CLASSES; i++)
+      {
+         if (csp->config->forward_class[i].name)
+         {
+            mode = get_char_param(parameters, csp->config->forward_class[i].name);
+
+            if (mode == 'E')
+            {
+               /* Enable */
+               forward_class_state[i] = 1;
+            }
+            else if (mode == 'D')
+            {
+               /* Disable */
+               forward_class_state[i] = 0;
+            }
+            else if (mode == 'T')
+            {
+               /* Toggle */
+               forward_class_state[i] = !global_forward_class_state[i];
+            }
+            else
+            {
+               /* Keep */
+               forward_class_state[i] = global_forward_class_state[i];
+            }
+         }
+      }
+   }
+
+   err = template_load(csp, &state_template, "forward-class-state", 0);
+   if (err)
+   {
+      if (err == JB_ERR_FILE)
+      {
+         free_map(exports);
+         return cgi_error_no_template(csp, rsp, "forward-class-state");
+      }
+      return err;
+   }
+
+  err = template_load(csp, &bookmarklet_template, "forward-class-bookmarklet", 0);
+   if (err)
+   {
+      if (err == JB_ERR_FILE)
+      {
+         free_map(exports);
+         free(state_template);
+         return cgi_error_no_template(csp, rsp, "forward-class-bookmarklet");
+      }
+      return err;
+   }
+
+   state = strdup("");
+   bookmarklet = strdup("");
+   for (i = 0; i < MAX_FORWARD_CLASSES; i++)
+   {
+      if (csp->config->forward_class[i].name != NULL)
+      {
+         if (err || (NULL == (section_exports = new_map())))
+         {
+            free_map(exports);
+            free(state_template);
+            free(bookmarklet_template);
+            free(state);
+            free(bookmarklet);
+            return JB_ERR_MEMORY;
+         }
+
+         err = map(section_exports, "forward-class-name", 1, csp->config->forward_class[i].name, 1);
+         if (forward_class_state[i])
+         {
+            if (!err) err = map_block_keep(section_exports, "forward-class-enabled");
+            if (!err) err = map_block_killer(section_exports, "forward-class-disabled");
+         }
+         else
+         {
+            if (!err) err = map_block_killer(section_exports, "forward-class-enabled");
+            if (!err) err = map_block_keep(section_exports, "forward-class-disabled");
+         }
+
+         if (err || (NULL == (s = strdup(state_template))))
+         {
+            free_map(exports);
+            free_map(section_exports);
+            free(state_template);
+            free(bookmarklet_template);
+            free(state);
+            free(bookmarklet);
+            return JB_ERR_MEMORY;
+         }
+         if (!err) err = template_fill(&s, section_exports);
+         if (!err) err = string_join(&state, s);
+         if (err || (NULL == (s = strdup(bookmarklet_template))))
+         {
+            free_map(exports);
+            free_map(section_exports);
+            free(state_template);
+            free(bookmarklet_template);
+            free(state);
+            free(bookmarklet);
+            return JB_ERR_MEMORY;
+         }
+         if (!err) err = template_fill(&s, section_exports);
+         free_map(section_exports);
+         if (!err) err = string_join(&bookmarklet, s);
+      }
+   }
+   freez(state_template);
+   freez(bookmarklet_template);
+   if (!err) err = map(exports, "state", 1, state, 0);
+   if (!err) err = map(exports, "bookmarklet", 1, bookmarklet, 0);
+
+   if (err)
+   {
+      free_map(exports);
+      free(state_template);
+      free(bookmarklet_template);
+      free(state);
+      free(bookmarklet);
+      return JB_ERR_MEMORY;
+   }
+
+   template_name = (get_char_param(parameters, "mini")
+                 ? "forward-class-mini"
+                 : "forward-class");
+
+   return template_fill_for_cgi(csp, template_name, exports, rsp);
+}
+#endif /* def FEATURE_FORWARD_CLASS */
+
+
 /*********************************************************************
  *
  * Function    :  cgi_edit_actions_section_swap

@@ -291,6 +291,16 @@
                 Requires external zlib library and hasn't been tested on all platforms.</td>
             </tr>
             <tr>
+              <td><code>FEATURE_ADD_REFERER</code></td>
+              <td>@if-FEATURE_ADD_REFERER-then@ Yes @else-not-FEATURE_ADD_REFERER@ No @endif-FEATURE_ADD_REFERER@</td>
+              <td>Enables add-referer action and extended parameters for hide-referer action.</td>
+            </tr>
+            <tr>
+              <td><code>FEATURE_FORWARD_CLASS</code></td>
+              <td>@if-FEATURE_FORWARD_CLASS-then@ Yes @else-not-FEATURE_FORWARD_CLASS@ No @endif-FEATURE_FORWARD_CLASS@</td>
+              <td>Enables forward class selection.</td>
+            </tr>
+            <tr>
               <td><code>STATIC_PCRE</code></td>
               <td>@if-STATIC_PCRE-then@ Yes @else-not-STATIC_PCRE@ No @endif-STATIC_PCRE@</td>
               <td>Use the supplied statically-linked PCRE library.  This is set automatically

@@ -105,7 +105,8 @@
  *    Replaced timegm() with mktime().
  *
  *    Revision 1.29  2006/08/03 02:46:41  david__schmidt
- *    Incorporate Fabian Keil's patch work:http://www.fabiankeil.de/sourcecode/privoxy/
+ *    Incorporate Fabian Keil's patch work:
+http://www.fabiankeil.de/sourcecode/privoxy/
  *
  *    Revision 1.28  2006/07/18 14:48:47  david__schmidt
  *    Reorganizing the repository: swapping out what was HEAD (the old 3.1 branch)

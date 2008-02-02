@@ -86,7 +86,8 @@
 #    and filter-server-headers{}.
 #
 #    Revision 1.35  2006/08/03 02:46:42  david__schmidt
-#    Incorporate Fabian Keil's patch work:http://www.fabiankeil.de/sourcecode/privoxy/
+#    Incorporate Fabian Keil's patch work:
+http://www.fabiankeil.de/sourcecode/privoxy/
 #
 #    Revision 1.34  2006/07/18 14:49:13  david__schmidt
 #    Reorganizing the repository: swapping out what was HEAD (the old 3.1 branch)
@@ -389,6 +390,18 @@ function show_hide_referrer_opts(tf)
     target.style.display = (tf ? "" : "none");
 }
 
+function show_add_referrer_opts(tf)
+{
+   if (document.getElementById) {
+        target = document.getElementById("hide_referrer_opts");
+    } else if (document.all) {
+        target = document.hide_referrer_opts;
+    } else {
+        return;
+    }
+    target.style.display = (tf ? "" : "none");
+}
+
 function show_user_agent_opts(tf)
 {
     if (document.getElementById) {
@@ -512,6 +525,52 @@ function show_send_wafer_opts(tf)
         onclick="show_add_header_opts(false)"></td>
       <td class="action"><a href="@user-manual@@actions-help-prefix@ADD-HEADER">add-header</a></td>
       <td>Adds HTTP headers.</td>
+    </tr>
+    <tr class="bg1" align="left" valign="top">
+      <td class="en1" align="center" valign="middle"><input type="radio"
+        name="add_referrer" id="add_referrer_y" value="Y" @add-referrer-y@
+        onclick="show_add_referrer_opts(true)"></td>
+      <td class="dis1" align="center" valign="middle"><input type="radio"
+        name="add_referrer" id="add_referrer_n" value="N" @add-referrer-n@
+        onclick="show_add_referrer_opts(false)"></td>
+      <td class="noc1" align="center" valign="middle"><input type="radio"
+        name="add_referrer" id="add_referrer_x" value="X" @add-referrer-x@
+        onclick="show_add_referrer_opts(false)"
+        ></td>
+      <td class="action"><a href="@user-manual@@actions-help-prefix@add-REFERRER">add-referrer</a></td>
+      <td>Helps prevent tracking by not sending the URL of the previous web
+        page.&nbsp;</td>
+    </tr>
+    <tr class="bg1" align="left" valign="top" id="add_referrer_opts">
+      <td class="en1">&nbsp;</td>
+      <td class="dis1">&nbsp;</td>
+      <td class="noc1">&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>
+        <input type="radio" name="add_referrer_mode" value="index"
+        onclick="add_referrer_param_disable(true)"
+        @add-referrer-param-index@ id="add_referrer_mode_index"><label
+        for="add_referrer_mode_index">Fake as index.html in same directory.</label><br>
+        <input type="radio" name="add_referrer_mode" value="directory"
+        onclick="add_referrer_param_disable(true)"
+        @add-referrer-param-directory@ id="add_referrer_mode_directory"><label
+        for="add_referrer_mode_directory">Fake as directory including the file.</label><br>
+        <input type="radio" name="add_referrer_mode" value="self"
+        onclick="add_referrer_param_disable(true)"
+        @add-referrer-param-self@ id="add_referrer_mode_self"><label
+        for="add_referrer_mode_self">Fake as the URL of the file.</label><br>
+        <input type="radio" name="add_referrer_mode" value="forge"
+        onclick="add_referrer_param_disable(true)"
+        @add-referrer-param-forge@ id="add_referrer_mode_forge"><label
+        for="add_referrer_mode_forge">Fake as the root directory of the
+        site</label> (fools checks for in-site links.)<br>
+        <input type="radio" name="add_referrer_mode" value="CUSTOM"
+        onclick="add_referrer_param_disable(false)"
+        @add-referrer-param-custom@ id="add_referrer_mode_set"><label
+        for="add_referrer_mode_set">Fake as this web address:</label><br>
+        <input type="text" name="add_referrer_param" 
+        id="add_referrer_param" size="40"
+        value="@add-referrer-param@"></td>
     </tr>
     <tr class="bg1" align="left" valign="top" id="add_header_opts">
       <td class="en1">&nbsp;</td>
@@ -1066,6 +1125,18 @@ function show_send_wafer_opts(tf)
         @hide-referrer-param-conditional-forge@ id="hide_referrer_mode_conditional-forge"><label
         for="hide_referrer_mode_conditional-forge">Forge referrer if host has
         changed, but don't touch in-site referrers.</label><br>
+        <input type="radio" name="hide_referrer_mode" value="index"
+        onclick="hide_referrer_param_disable(true)"
+        @hide-referrer-param-index@ id="hide_referrer_mode_index"><label
+        for="hide_referrer_mode_index">Fake as index.html in same directory.</label><br>
+        <input type="radio" name="hide_referrer_mode" value="directory"
+        onclick="hide_referrer_param_disable(true)"
+        @hide-referrer-param-directory@ id="hide_referrer_mode_directory"><label
+        for="hide_referrer_mode_directory">Fake as directory including the file.</label><br>
+        <input type="radio" name="hide_referrer_mode" value="self"
+        onclick="hide_referrer_param_disable(true)"
+        @hide-referrer-param-self@ id="hide_referrer_mode_self"><label
+        for="hide_referrer_mode_self">Fake as the URL of the file.</label><br>
       </td>
     </tr>
     <tr class="bg1" align="left" valign="top">

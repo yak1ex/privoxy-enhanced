@@ -246,9 +246,19 @@
 #undef VERSION_POINT
 
 /*
+ * Patchlevel
+ */
+#undef PATCHLEVEL
+
+/*
  * Version number, as a string
  */
 #undef VERSION
+
+/*
+ * Version number of referenced document, as a string
+ */
+#undef DOC_VERSION
 
 /*
  * Status of the code: "alpha", "beta" or "stable".
@@ -374,6 +384,16 @@
  * Allows the use of trust files.
  */
 #undef FEATURE_TRUST
+
+/*
+ * Enables add-referer action and extended parameters for hide-referer action.
+ */
+#undef FEATURE_ADD_REFERER
+
+/*
+ * Enables forward class selection.
+ */
+#undef FEATURE_FORWARD_CLASS
 
 /*
  * Defined on Solaris only.  Makes the system libraries thread safe.

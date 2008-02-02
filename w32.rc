@@ -253,6 +253,13 @@ BEGIN
             MENUITEM "&Trust list",                   ID_TOOLS_EDITTRUST
 #endif /* def FEATURE_TRUST */
         END
+#ifdef FEATURE_FORWARD_CLASS
+        MENUITEM                              SEPARATOR
+        POPUP "&Forward.."
+        BEGIN
+            MENUITEM                              SEPARATOR
+        END
+#endif
         MENUITEM                              SEPARATOR
 #ifdef FEATURE_TOGGLE
         MENUITEM "&Enable",                   ID_TOGGLE_ENABLED, CHECKED
@@ -286,6 +293,13 @@ BEGIN
         MENUITEM "&Enable",                     ID_TOGGLE_ENABLED, CHECKED
         MENUITEM                                SEPARATOR
 #endif /* def FEATURE_TOGGLE */
+#ifdef FEATURE_FORWARD_CLASS
+        POPUP "&Forward.."
+        BEGIN
+            MENUITEM                              SEPARATOR
+        END
+        MENUITEM                              SEPARATOR
+#endif
         MENUITEM "Edit Main &Configuration",      ID_TOOLS_EDITCONFIG
         MENUITEM "Edit &Default Actions",         ID_TOOLS_EDITDEFAULTACTIONS
         MENUITEM "Edit &User Actions",            ID_TOOLS_EDITUSERACTIONS

@@ -355,14 +355,16 @@ const char parsers_rcs[] = "$Id: parsers.c,v 1.121 2008/01/05 21:37:03 fabiankei
  *    Windows service integration
  *
  *    Revision 1.59  2006/08/03 02:46:41  david__schmidt
- *    Incorporate Fabian Keil's patch work:http://www.fabiankeil.de/sourcecode/privoxy/
+ *    Incorporate Fabian Keil's patch work:
+http://www.fabiankeil.de/sourcecode/privoxy/
  *
  *    Revision 1.58  2006/07/18 14:48:47  david__schmidt
  *    Reorganizing the repository: swapping out what was HEAD (the old 3.1 branch)
  *    with what was really the latest development (the v_3_0_branch branch)
  *
  *    Revision 1.56.2.10  2006/01/21 16:16:08  david__schmidt
- *    Thanks to  Edward Carrel for his patch to modernize OSX'spthreads support.  See bug #1409623.
+ *    Thanks to  Edward Carrel for his patch to modernize OSX's
+pthreads support.  See bug #1409623.
  *
  *    Revision 1.56.2.9  2004/10/03 12:53:45  david__schmidt
  *    Add the ability to check jpeg images for invalid
@@ -855,6 +857,9 @@ static jb_err server_content_disposition(struct client_state *csp, char **header
 static jb_err client_host_adder       (struct client_state *csp);
 static jb_err client_cookie_adder     (struct client_state *csp);
 static jb_err client_xtra_adder       (struct client_state *csp);
+#ifdef FEATURE_ADD_REFERER
+static jb_err client_referrer_adder       (struct client_state *csp);
+#endif /* def FEATURE_ADD_REFERER */
 static jb_err connection_close_adder  (struct client_state *csp); 
 
 static jb_err create_forged_referrer(char **header, const char *hostport);
@@ -916,6 +921,9 @@ const struct parsers server_patterns_light[] = {
 const add_header_func_ptr add_client_headers[] = {
    client_host_adder,
    client_cookie_adder,
+#ifdef FEATURE_ADD_REFERER
+   client_referrer_adder,
+#endif
    client_xtra_adder,
    /* Temporarily disabled:    client_accept_encoding_adder, */
    connection_close_adder,
@@ -2833,12 +2841,147 @@ static jb_err client_referrer(struct client_state *csp, char **header)
    {
       return create_forged_referrer(header, csp->http->hostport);
    }
+#ifdef FEATURE_ADD_REFERER
+   else if (0 == strcmpic(parameter, "directory") || 0 == strcmpic(parameter, "index"))
+   {
+      char *temp_url, *idx, *end;
+      temp_url = strdup(csp->http->url);
+      for(idx = temp_url, end = NULL; *idx != '\0' && *idx != '?'; idx++)
+        if(*idx == '/') end = idx;
+      if(end == NULL)
+      {
+        *idx = '\0';
+        string_append(&temp_url, "/");
+      }
+      else
+      {
+        *++end = '\0';
+      }
+      *header = strdup("Referer: ");
+      string_append(header, temp_url);
+      if(0 == strcmpic(parameter, "index"))
+      {
+        string_append(header, "index.html");
+      }
+      freez(temp_url);
+
+      log_error(LOG_LEVEL_HEADER, "Referer overwritten with: %s", *header);
+
+      return (*header == NULL) ? JB_ERR_MEMORY : JB_ERR_OK;
+   }
+   else if (0 == strcmpic(parameter, "self"))
+   {
+      *header = strdup("Referer: ");
+      string_append(header, csp->http->url);
+
+      log_error(LOG_LEVEL_HEADER, "Referer overwritten with: %s", *header);
+
+      return (*header == NULL) ? JB_ERR_MEMORY : JB_ERR_OK;
+   }
+#endif /* def FEATURE_ADD_REFERER */
    else
    {
       /* interpret parameter as user-supplied referer to fake */
       return create_fake_referrer(header, parameter);
    }
 }
+
+
+#ifdef FEATURE_ADD_REFERER
+/*********************************************************************
+ *
+ * Function    :  client_referrer_adder
+ *
+ * Description :  Adds a Referer header field if it is missing.
+ *                Called from `sed'.
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *
+ * Returns     :  JB_ERR_OK on success, or
+ *                JB_ERR_MEMORY on out-of-memory error.
+ *
+ *********************************************************************/
+jb_err client_referrer_adder(struct client_state *csp)
+{
+   const char *newval;
+   char *header;
+   jb_err err;
+
+   /*
+    * Are we adding referer?
+    */
+   if ((csp->action->flags & ACTION_ADD_REFERER) == 0)
+   {
+      return JB_ERR_OK;
+   }
+
+   newval = csp->action->string[ACTION_STRING_ADD_REFERER];
+
+   if ((newval == NULL) || (0 == strcmpic(newval, "block")) )
+   {
+      /*
+       * Blocking referer
+       */
+      log_error(LOG_LEVEL_HEADER, "Referer crunched!");
+      return JB_ERR_OK;
+   }
+   else if (0 == strcmpic(newval, "directory") || 0 == strcmpic(newval, "index"))
+   {
+	  char *temp_url, *idx, *end;
+      temp_url = strdup(csp->http->url);
+      for(idx = temp_url, end = NULL; *idx != '\0' && *idx != '?'; idx++)
+        if(*idx == '/') end = idx;
+      if(end == NULL)
+      {
+        *idx = '\0';
+        string_append(&temp_url, "/");
+      }
+      else
+      {
+        *++end = '\0';
+      }
+      header = strdup(temp_url);
+      if(0 == strcmpic(newval, "index"))
+      {
+        string_append(&header, "index.html");
+      }
+      freez(temp_url);
+   }
+   else if (0 == strcmpic(newval, "self"))
+   {
+      header = strdup(csp->http->url);
+   }
+   else if (0 != strcmpic(newval, "forge"))
+   {
+      /*
+       * We have a specific (fixed) referer we want to send.
+       */
+      if ((0 != strncmpic(newval, "http://", 7)) && (0 != strncmpic(newval, "https://", 8)))
+      {
+         log_error(LOG_LEVEL_HEADER, "Parameter: +referrer{%s} is a bad idea, but I don't care.", newval);
+      }
+      header = strdup(newval);
+      log_error(LOG_LEVEL_HEADER, "Referer overwritten with: %s", header);
+   }
+   else
+   {
+      /*
+       * Forge a referer as http://[hostname:port of REQUEST]/
+       * to fool stupid checks for in-site links
+       */
+
+      header = strdup("http://");
+      string_append(&header, csp->http->hostport);
+      string_append(&header, "/");
+      log_error(LOG_LEVEL_HEADER, "Referer forged to: %s", header);
+   }
+   log_error(LOG_LEVEL_HEADER, "addh-unique: Referer: %s", header);
+   err = enlist_unique_header(csp->headers, "Referer", header);
+   freez(header);
+   return err;
+}
+#endif /* def FEATURE_ADD_REFERER */
 
 
 /*********************************************************************

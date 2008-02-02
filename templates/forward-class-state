@@ -1,0 +1,1 @@
+<tr><td>@forward-class-name@</td><td><input type="radio" name="@forward-class-name@" value="enabled" @if-forward-class-enabled-start@checked@if-forward-class-enabled-end@></td><td><input type="radio" name="@forward-class-name@" value="disabled" @if-forward-class-disabled-start@checked@if-forward-class-disabled-end@></td></tr>

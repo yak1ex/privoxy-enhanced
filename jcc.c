@@ -2266,14 +2266,29 @@ static void chat(struct client_state *csp)
 
    log_error(LOG_LEVEL_GPC, "%s%s", http->hostport, http->path);
 
-   if (fwd->forward_host)
+   if (fwd->gateway_host)
    {
-      log_error(LOG_LEVEL_CONNECT, "via %s:%d to: %s",
-               fwd->forward_host, fwd->forward_port, http->hostport);
+      if (fwd->forward_host)
+      {
+         log_error(LOG_LEVEL_CONNECT, "via SOCKS %s:%d via %s:%d to: %s",
+                  fwd->gateway_host, fwd->gateway_port, fwd->forward_host, fwd->forward_port, http->hostport);
+      }
+      else
+      {
+         log_error(LOG_LEVEL_CONNECT, "via SOCKS %s:%d to %s", fwd->gateway_host, fwd->gateway_port, http->hostport);
+      }
    }
    else
    {
-      log_error(LOG_LEVEL_CONNECT, "to %s", http->hostport);
+      if (fwd->forward_host)
+      {
+         log_error(LOG_LEVEL_CONNECT, "via %s:%d to: %s",
+                  fwd->forward_host, fwd->forward_port, http->hostport);
+      }
+      else
+      {
+         log_error(LOG_LEVEL_CONNECT, "to %s", http->hostport);
+      }
    }
 
    /* here we connect to the server, gateway, or the forwarder */
@@ -3596,6 +3611,16 @@ static void listen_loop(void)
       {
          csp->flags |= CSP_FLAG_TOGGLED_ON;
       }
+
+#ifdef FEATURE_FORWARD_CLASS
+/* We need to set global forward class status to client associated status */
+      {
+        int i;
+         for(i = 0; i < MAX_FORWARD_CLASSES; i++) {
+            csp->forward_class_state[i] = global_forward_class_state[i];
+         }
+      }
+#endif /* def FEATURE_FORWARD_CLASS */
 
       if (run_loader(csp))
       {

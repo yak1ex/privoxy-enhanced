@@ -150,6 +150,11 @@ extern jb_err cgi_edit_actions_section_swap  (struct client_state *csp,
 extern jb_err cgi_toggle        (struct client_state *csp,
                                  struct http_response *rsp,
                                  const struct map *parameters);
+#ifdef FEATURE_FORWARD_CLASS
+extern jb_err cgi_forward_class(struct client_state *csp,
+                                 struct http_response *rsp,
+                                 const struct map *parameters);
+#endif /* def FEATURE_FORWARD_CLASS */
 #endif /* def FEATURE_CGI_EDIT_ACTIONS */
 
 

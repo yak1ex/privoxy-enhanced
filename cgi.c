@@ -164,7 +164,8 @@ const char cgi_rcs[] = "$Id: cgi.c,v 1.100 2007/10/17 18:40:53 fabiankeil Exp $"
  *    should serve the manual. Should work cross-platform now.
  *
  *    Revision 1.73  2006/08/03 02:46:41  david__schmidt
- *    Incorporate Fabian Keil's patch work:http://www.fabiankeil.de/sourcecode/privoxy/
+ *    Incorporate Fabian Keil's patch work:
+http://www.fabiankeil.de/sourcecode/privoxy/
  *
  *    Revision 1.72  2006/07/18 14:48:45  david__schmidt
  *    Reorganizing the repository: swapping out what was HEAD (the old 3.1 branch)
@@ -660,6 +661,12 @@ static const struct cgi_dispatcher cgi_dispatchers[] = {
          "Toggle Privoxy on or off",
          FALSE },
 #endif /* def FEATURE_TOGGLE */
+#ifdef FEATURE_FORWARD_CLASS
+   { "forward-class",
+         cgi_forward_class, 
+         "View & change the forward class state",
+         FALSE },
+#endif /* def FEATURE_FORWARD_CLASS */
    { "edit-actions", /* Edit the actions list */
          cgi_edit_actions, 
          NULL, FALSE },
@@ -1066,12 +1073,17 @@ static struct http_response *dispatch_known_cgi(struct client_state * csp,
          else
          {
             /*
-             * Else, modify toggle calls so that they only display
+             * Else, modify toggle or forward-class calls so that they only display
              * the status, and deny all other calls.
              */
             if (0 == strcmp(path_copy, "toggle"))
             {
                unmap(param_list, "set");
+               err = (d->handler)(csp, rsp, param_list);
+            }
+            else if (0 == strcmp(path_copy, "forward-class"))
+            {
+               map(param_list, "untrust", 1, "yes", 1);
                err = (d->handler)(csp, rsp, param_list);
             }
             else

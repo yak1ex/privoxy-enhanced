@@ -152,7 +152,8 @@
  *    Replaced timegm() with mktime().
  *
  *    Revision 1.75  2006/08/03 02:46:41  david__schmidt
- *    Incorporate Fabian Keil's patch work: *    http://www.fabiankeil.de/sourcecode/privoxy/
+ *    Incorporate Fabian Keil's patch work:
+ *    http://www.fabiankeil.de/sourcecode/privoxy/
  *
  *    Revision 1.74  2006/07/18 14:48:47  david__schmidt
  *    Reorganizing the repository: swapping out what was HEAD (the old 3.1 branch)
@@ -1056,6 +1057,8 @@ struct iob
 #define ACTION_TREAT_FORBIDDEN_CONNECTS_LIKE_BLOCKS  0x20000000UL
 /** Action bitmap: Override the forward settings in the config file */
 #define ACTION_FORWARD_OVERRIDE                      0x40000000UL
+/** Action bitmap: Add "Referer" header.  (sic - follow HTTP, not English). */
+#define ACTION_ADD_REFERER                           0x80000000UL
 
 
 /** Action string index: How to deanimate GIFs */
@@ -1090,8 +1093,10 @@ struct iob
 #define ACTION_STRING_FAST_REDIRECTS       14
 /** Action string index: Overriding forward rule. */
 #define ACTION_STRING_FORWARD_OVERRIDE     15
+/** Action string index: Completion string for "Referer:" header */
+#define ACTION_STRING_ADD_REFERER          16
 /** Number of string actions. */
-#define ACTION_STRING_COUNT                16
+#define ACTION_STRING_COUNT                17
 
 
 /* To make the ugly hack in sed easier to understand */
@@ -1125,7 +1130,7 @@ struct iob
 struct current_action_spec
 {
    /** Actions to apply.  A bit set to "1" means perform the action. */
-   unsigned long flags;
+   unsigned long long flags;
 
    /**
     * Paramaters for those actions that require them.
@@ -1273,6 +1278,14 @@ struct url_actions
  */
 #define MAX_AF_FILES 10
 
+#ifdef FEATURE_FORWARD_CLASS
+/**
+ * Maximum number of forward classes.  This limit is arbitrary - it's just used
+ * to size an array.
+ */
+#define MAX_FORWARD_CLASSES 10
+#endif /* def FEATURE_FORWARD_CLASS */
+
 /**
  * The state of a Privoxy processing thread.
  */
@@ -1351,6 +1364,11 @@ struct client_state
     * or NULL. Currently only used for socks errors.
     */
    char *error_message;
+
+#ifdef FEATURE_FORWARD_CLASS
+   /** Forward class state associated with this client */
+   int forward_class_state[MAX_FORWARD_CLASSES];
+#endif /* def FEATURE_FORWARD_CLASS */
 
    /** Next thread in linked list. Only read or modify from the main thread! */
    struct client_state *next;
@@ -1499,6 +1517,11 @@ struct forward_spec
    /** Parent HTTP proxy port. */
    int   forward_port;
 
+#ifdef FEATURE_FORWARD_CLASS
+   /** Forward class for selection. */
+   int   forward_class;
+#endif /* def FEATURE_FORWARD_CLASS */
+
    /** Next entry in the linked list. */
    struct forward_spec *next;
 };
@@ -1507,7 +1530,22 @@ struct forward_spec
 /**
  * Initializer for a static struct forward_spec.
  */
+#ifdef FEATURE_FORWARD_CLASS
+#define FORWARD_SPEC_INITIALIZER { { URL_SPEC_INITIALIZER }, 0, NULL, 0, NULL, 0, NULL, 0 }
+#else /* def FEATURE_FORWARD_CLASS */
 #define FORWARD_SPEC_INITIALIZER { { URL_SPEC_INITIALIZER }, 0, NULL, 0, NULL, 0, NULL }
+#endif /* def FEATURE_FORWARD_CLASS */
+
+#ifdef FEATURE_FORWARD_CLASS
+struct forward_class_spec
+{
+   /** Class name. */
+   char *name;
+
+   /** State of selection. */
+   int   state;
+};
+#endif /* def FEATURE_FORWARD_CLASS */
 
 /* Supported filter types */
 #define FT_CONTENT_FILTER       0
@@ -1694,6 +1732,11 @@ struct configuration_spec
    /** Information about parent proxies (forwarding). */
    struct forward_spec *forward;
 
+#ifdef FEATURE_FORWARD_CLASS
+   /** Information about parent proxies (forwarding) class. */
+   struct forward_class_spec forward_class[MAX_FORWARD_CLASSES];
+#endif /* def FEATURE_FORWARD_CLASS */
+
    /** Number of retries in case a forwarded connection attempt fails */
    int         forwarded_connect_retries;
 
@@ -1734,7 +1777,7 @@ struct configuration_spec
 #define HOME_PAGE_URL     "http://www.privoxy.org/"
 
 /** URL for the Privoxy user manual. */
-#define USER_MANUAL_URL   HOME_PAGE_URL VERSION "/user-manual/"
+#define USER_MANUAL_URL   HOME_PAGE_URL DOC_VERSION "/user-manual/"
 
 /** Prefix for actions help links  (append to USER_MANUAL_URL). */
 #define ACTIONS_HELP_PREFIX "actions-file.html#"

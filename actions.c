@@ -275,8 +275,8 @@ const char actions_h_rcs[] = ACTIONS_H_VERSION;
 struct action_name
 {
    const char * name;
-   unsigned long mask;   /* a bit set to "0" = remove action */
-   unsigned long add;    /* a bit set to "1" = add action */
+   unsigned long long mask;   /* a bit set to "0" = remove action */
+   unsigned long long add;    /* a bit set to "1" = add action */
    int takes_value;      /* an AV_... constant */
    int index;            /* index into strings[] or multi[] */
 };
@@ -1603,8 +1603,8 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
  *********************************************************************/
 char * actions_to_text(struct action_spec *action)
 {
-   unsigned mask = action->mask;
-   unsigned add  = action->add;
+   unsigned long long mask = action->mask;
+   unsigned long long add  = action->add;
    char * result = strdup("");
    struct list_entry * lst;
 
@@ -1692,8 +1692,8 @@ char * actions_to_text(struct action_spec *action)
 char * actions_to_html(struct client_state *csp,
                        struct action_spec *action)
 {
-   unsigned mask = action->mask;
-   unsigned add  = action->add;
+   unsigned long long mask = action->mask;
+   unsigned long long add  = action->add;
    char * result = strdup("");
    struct list_entry * lst;
 
@@ -1798,7 +1798,7 @@ char * actions_to_html(struct client_state *csp,
 char *current_action_to_html(struct client_state *csp,
                              struct current_action_spec *action)
 {
-   unsigned long flags  = action->flags;
+   unsigned long long flags  = action->flags;
    char * result = strdup("");
    struct list_entry * lst;
 

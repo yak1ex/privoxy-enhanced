@@ -362,8 +362,7 @@ const char parsers_rcs[] = "$Id: parsers.c,v 1.121 2008/01/05 21:37:03 fabiankei
  *    with what was really the latest development (the v_3_0_branch branch)
  *
  *    Revision 1.56.2.10  2006/01/21 16:16:08  david__schmidt
- *    Thanks to  Edward Carrel for his patch to modernize OSX's
-pthreads support.  See bug #1409623.
+ *    Thanks to  Edward Carrel for his patch to modernize OSX'spthreads support.  See bug #1409623.
  *
  *    Revision 1.56.2.9  2004/10/03 12:53:45  david__schmidt
  *    Add the ability to check jpeg images for invalid

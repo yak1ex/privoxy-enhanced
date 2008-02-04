@@ -1603,8 +1603,8 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
  *********************************************************************/
 char * actions_to_text(struct action_spec *action)
 {
-   unsigned long mask = action->mask;
-   unsigned long add  = action->add;
+   unsigned mask = action->mask;
+   unsigned add  = action->add;
    char * result = strdup("");
    struct list_entry * lst;
 
@@ -1692,8 +1692,8 @@ char * actions_to_text(struct action_spec *action)
 char * actions_to_html(struct client_state *csp,
                        struct action_spec *action)
 {
-   unsigned long mask = action->mask;
-   unsigned long add  = action->add;
+   unsigned mask = action->mask;
+   unsigned add  = action->add;
    char * result = strdup("");
    struct list_entry * lst;
 

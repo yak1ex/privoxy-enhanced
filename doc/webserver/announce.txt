@@ -1,85 +1,105 @@
-                 Announcing Privoxy v.3.0.11
+              Announcing Privoxy v.3.0.13 beta
 -----------------------------------------------------------------
 
-3.0.11 is a stable release which includes many enhancements but no major 
-new features. The most prominent new feature is "keep-alive" support for 
-outgoing connections.
+Privoxy 3.0.14 beta is a bugfix-release for the previous beta
+which introduced IPv6 support, improved keep-alive support and
+a bunch of minor improvements.
 
-See http://www.privoxy.org/3.0.11/user-manual/whatsnew.html for details.
+See http://www.privoxy.org/3.0.14/user-manual/whatsnew.html for details.
 
 --------------------------------------------------------------------
 ChangeLog for Privoxy
 --------------------------------------------------------------------
+*** Version 3.0.14 Beta ***
 
-*** Version 3.0.11 ***
-	
-- On most platforms, outgoing connections can be kept alive and
-  reused if the server supports it. Whether or not this improves
-  things depends on the connection.
-- When dropping privileges, membership in supplementary groups
-  is given up as well. Not doing that can lead to Privoxy running
-  with more rights than necessary and violates the principle of
-  least privilege. Users of the --user option are advised to update.
-  Thanks to Matthias Drochner for reporting the problem,
-  providing the initial patch and testing the final version.
-- Passing invalid users or groups with the --user option
-  didn't lead to program exit. Regression introduced in 3.0.7.
-- The match all section has been moved from default.action
-  to a new file called match-all.action. As a result the
-  default.action no longer needs to be touched by the user
-  and can be safely overwritten by updates.
-- The standard.action file has been removed. Its content
-  is now part of the default.action file.
-- In some situations the logged content length was slightly too low.
-- Crunched requests are logged with their own log level.
-  If you used "debug 1" in the past, you'll probably want
-  to additionally enable "debug 1024", otherwise only passed
-  requests will be logged. If you only care about crunched
-  requests, simply replace "debug 1" with "debug 1024".
-- The crunch reason has been moved to the beginning of the
-  crunch message. For HTTP URLs, the protocol is logged as well.
-- Log messages are shortened by printing the thread id on its
-  own (as opposed to putting it inside the string "Privoxy()").
-- The config option socket-timeout has been added to control
-  the time Privoxy waits for data to arrive on a socket.
-- Support for remote toggling is controlled by the configure
-  option --disable-toggle only. In previous versions it also
-  depended on the action editor and thus configuring with the
-  --disable-editor option would disable remote toggling support
-  as well.
-- Requests with invalid HTTP versions are rejected.
-- The template symbol @date@ can be used to include a date(1)-like
-  time string. Initial patch submitted by Endre Szabo.
-- Responses from shoutcast servers are accepted again.
-  Problem reported and fix suggested by Stefan.
-- The hide-forwarded-for-headers action has been replaced with
-  the change-x-forwarded-for{} action which can also be used to
-  add X-Forwarded-For headers. The latter functionality already
-  existed in Privoxy versions prior to 3.0.7 but has been removed
-  as it was often used unintentionally (by not using the
-  hide-forwarded-for-headers action).
-- A "clear log" view option was added to the mingw32 version
-  to clear out all of the lines in the Privoxy log window.
-  Based on a patch submitted by T Ford.
-- The mingw32 version uses "critical sections" now, which prevents
-  log message corruption under load. As a side effect, the
-  "no thread-safe PRNG" warning could be removed as well.
-- The mingw32 version's task bar icon is crossed out and
-  the color changed to gray if Privoxy is toggled off.
+- The latency is taken into account when evaluating whether or not to
+  reuse a connection. This should significantly reduce the number of
+  connections problems several users reported.
+- If the server doesn't specify how long the connection stays alive,
+  Privoxy errs on the safe side of caution and assumes it's only a second.
+- The error pages for connection timeouts or missing server data use a
+  Last-Modified date in the past. Retry attempts are detected and Privoxy
+  removes the If-Modified-Since header to prevent the server from responding
+  with status code 304 in which case the client would reuse the error message.
+- Setting keep-alive-timeout to 0 disables keep-alive support. Previously
+  Privoxy would claim to allow persistence but not reuse the connection.
+- Pipelined requests are less likely to be mistaken for the request
+  body of the previous request. Note that Privoxy still has no real
+  pipeline support and will either serialize pipelined requests or
+  drop them in which case the client has to resent them.
+- Fixed a crash on some Windows versions when header randomization
+  is enabled and the date couldn't be parsed.
+- Privoxy's keep-alive timeout for the current connection is reduced
+  to the one specified in the client's Keep-Alive header.
+- For HTTP/1.1 requests, Privoxy implies keep-alive support by not
+  setting any Connection header instead of using 'Connection: keep-alive'.
+- If the socket isn't reusable, Privoxy doesn't temporarily waste
+  a socket slot to remember the connection.
+- If keep-alive support is disabled but compiled in, the client's
+  Keep-Alive header is removed.
+- Fixed a bug on mingw32 where downloading large files failed if
+  keep-alive support was enabled.
+- Fixed a bug that (at least theoretically) could cause log
+  timestamps to be occasionally off by about a second.
+- No Proxy-Connection header if added if there already is one.
+- The configure script respects the $PATH variable when searching
+  for groups and id.
+
+*** Version 3.0.13 beta  ***
+
+- Added IPv6 support. Thanks to Petr Pisar who not only provided
+  the initial patch but also helped a lot with the integration.
+- Added client-side keep-alive support.
+- The connection sharing code is only used if the connection-sharing
+  option is enabled.
+- The max-client-connections option has been added to restrict
+  the number of client connections below a value enforced by
+  the operating system.
+- Fixed a regression reintroduced in 3.0.12 that could cause
+  crashes on mingw32 if header date randomization was enabled.
+- Compressed content with extra fields couldn't be decompressed
+  and would get passed to the client unfiltered. This problem
+  has only be detected through statical analysis with clang as
+  nobody seems to be using extra fields anyway.
+- If the server resets the Connection after sending only the headers
+  Privoxy forwards what it got to the client. Previously Privoxy
+  would deliver an error message instead.
+- Error messages in case of connection timeouts use the right
+  HTTP status code.
+- If spawning a child to handle a request fails, the client
+  gets an error message and Privoxy continues to listen for
+  new requests right away.
+- The error messages in case of server-connection timeouts or
+  prematurely closed server connections are now template-based.
+- If zlib support isn't compiled in, Privoxy no longer tries to
+  filter compressed content unless explicitly asked to do so.
+- In case of connections that are denied based on ACL directives,
+  the memory used for the client IP is no longer leaked.
+- Fixed another small memory leak if the client request times out
+  while waiting for client headers other than the request line.
+- The client socket is kept open until the server socket has
+  been marked as unused. This should increase the chances that
+  the still-open connection will be reused for the client's next
+  request to the same destination. Note that this only matters
+  if connection-sharing is enabled.
+- A TODO list has been added to the source tarballs to give potential
+  volunteers a better idea of what the current goals are.
 
 -----------------------------------------------------------------
 About Privoxy:
 -----------------------------------------------------------------
 
-Privoxy is a non-caching web proxy with advanced filtering
-capabilities for enhancing privacy, modifying web page data,
-managing HTTP cookies, controlling access, and removing ads,
-banners, pop-ups and other obnoxious Internet junk. Privoxy
-has a flexible configuration and can be customized to suit
-individual needs and tastes. Privoxy has application for
-both stand-alone systems and multi-user networks.
+Privoxy is a non-caching web proxy with advanced filtering capabilities for
+enhancing privacy, modifying web page data and HTTP headers, controlling
+access, and removing ads and other obnoxious Internet junk. Privoxy has a
+flexible configuration and can be customized to suit individual needs and
+tastes. It has application for both stand-alone systems and multi-user
+networks.
 
-Privoxy is based on Internet Junkbuster (tm).
+Privoxy is Free Software and licensed under the GPL2.
+
+Privoxy is an associated project of Software in the Public Interest (SPI).
+Donations are welcome: http://www.privoxy.org/faq/general.html#DONATE
 
 At present, Privoxy is known to run on Windows(95, 98, ME, 2000,
 XP, Vista), Linux (Ubuntu, RedHat, SuSE, Debian, Fedora, Gentoo and
@@ -91,7 +111,12 @@ Privoxy provides many supplemental features, that give the end-user
 more control, more privacy and more freedom:
 
 
-    *  Can keep outgoing connections alive and reuse them later on.
+    *  Supports "Connection: keep-alive". Outgoing connections can be kept
+       alive independently from the client. Currently not available on all
+       platforms.
+
+    *  Supports IPv6, provided the operating system does so too,
+       and the configure script detects it.
 
     *  Supports tagging which allows to change the behaviour based on client
        and server headers.
@@ -109,8 +134,7 @@ more control, more privacy and more freedom:
        tracing of rule and filter effects. Remote toggling.
 
     *  Web page filtering (text replacements, removes banners based on size,
-       invisible "web-bugs", JavaScript and HTML annoyances, pop-up windows,
-       etc.)
+       invisible <quote>web-bugs</quote> and HTML annoyances, etc.)
 
     *  Modularized configuration that allows for standard settings and user
        settings to reside in separate files, so that installing updated actions
@@ -119,23 +143,16 @@ more control, more privacy and more freedom:
     *  Support for Perl Compatible Regular Expressions in the configuration
        files, and a more sophisticated and flexible configuration syntax.
 
-    *  Improved cookie management features (e.g. session based cookies).
-
     *  GIF de-animation.
 
     *  Bypass many click-tracking scripts (avoids script redirection).
-
-    *  Multi-threaded (POSIX and native threads).
 
     *  User-customizable HTML templates for most proxy-generated pages (e.g.
        "blocked" page).
 
     *  Auto-detection and re-reading of config file changes.
-
-    *  Improved signal handling, and a true daemon mode (Unix).
     
-    *  Every feature now controllable on a per-site or per-location basis,
-       configuration more powerful and versatile over-all.
+    *  Most features are controllable on a per-site or per-location basis.
     
 
 Download location: 

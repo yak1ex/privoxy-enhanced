@@ -272,7 +272,7 @@ TARGET="_top"
  web advertising and user tracking.</P
 ><P
 > But the web, its protocols and standards, and with it, the techniques for
- forcing  ads on users, give up autonomy over their browsing, and
+ forcing ads on users, give up autonomy over their browsing, and
  for tracking them, keeps evolving. Unfortunately, the <SPAN
 CLASS="APPLICATION"
 >Internet
@@ -291,19 +291,14 @@ TARGET="_top"
 >.
  Fortunately, it had been released under the GNU
  <A
-HREF="http://www.gnu.org/licenses/gpl.html"
+HREF="http://www.gnu.org/licenses/old-licenses/gpl-2.0.html"
 TARGET="_top"
-> GPL</A
->, which allowed further
- development by others.</P
+>GPL</A
+>,
+ which allowed further development by others.</P
 ><P
-> So Stefan Waldherr started maintaining an
- <A
-HREF="http://www.waldherr.org/junkbuster/"
-TARGET="_top"
->improved version of the
- software</A
->, to which eventually a number of people contributed patches.
+> So Stefan Waldherr started maintaining an improved version of the
+ software, to which eventually a number of people contributed patches.
  It could already replace banners with a transparent image, and had a first
  version of pop-up killing, but it was still very closely based on the
  original, with all its limitations, such as the lack of HTTP/1.1 support,
@@ -337,7 +332,7 @@ CLASS="SECT2"
 ><H3
 CLASS="SECT2"
 ><A
-NAME="AEN79"
+NAME="AEN78"
 >1.6. Why <SPAN
 CLASS="QUOTE"
 >"Privoxy"</SPAN
@@ -456,7 +451,15 @@ CLASS="APPLICATION"
 ><UL
 ><LI
 ><P
->     Can keep outgoing connections alive and reuse them later on.
+>     Supports "Connection: keep-alive". Outgoing connections can
+     be kept alive independently from the client. Currently not
+     available on all platforms.
+  </P
+></LI
+><LI
+><P
+>     Supports IPv6, provided the operating system does so too,
+     and the configure script detects it.
   </P
 ></LI
 ><LI
@@ -474,7 +477,7 @@ CLASS="APPLICATION"
 ><LI
 ><P
 >     Sophisticated actions and filters for manipulating both server and client
-     headers. 
+     headers.
    </P
 ></LI
 ><LI
@@ -484,7 +487,7 @@ CLASS="APPLICATION"
 ></LI
 ><LI
 ><P
->   Integrated browser based configuration and control utility at <A
+>   Integrated browser-based configuration and control utility at <A
 HREF="http://config.privoxy.org/"
 TARGET="_top"
 >http://config.privoxy.org/</A
@@ -503,8 +506,7 @@ TARGET="_top"
    invisible <SPAN
 CLASS="QUOTE"
 >"web-bugs"</SPAN
->, JavaScript and HTML annoyances, 
-   pop-up windows, etc.)
+> and HTML annoyances, etc.)
   </P
 ></LI
 ><LI
@@ -516,28 +518,18 @@ CLASS="QUOTE"
 ></LI
 ><LI
 ><P
->   Support for Perl Compatible Regular Expressions in the configuration files, and 
+>   Support for Perl Compatible Regular Expressions in the configuration files, and
    a more sophisticated and flexible configuration syntax.
   </P
 ></LI
 ><LI
 ><P
->   Improved cookie management features (e.g. session based cookies).
-  </P
-></LI
-><LI
-><P
->   GIF de-animation. 
+>   GIF de-animation.
   </P
 ></LI
 ><LI
 ><P
 >   Bypass many click-tracking scripts (avoids script redirection).
-  </P
-></LI
-><LI
-><P
->   Multi-threaded (POSIX and native threads).
   </P
 ></LI
 ><LI
@@ -552,13 +544,7 @@ CLASS="QUOTE"
 ></LI
 ><LI
 ><P
->   Improved signal handling, and a true daemon mode (Unix).
-  </P
-></LI
-><LI
-><P
->   Every feature now controllable on a per-site or per-location basis, configuration
-   more powerful and versatile over-all.
+>   Most features are controllable on a per-site or per-location basis.
   </P
 ></LI
 ><LI
@@ -633,7 +619,7 @@ CLASS="SECT2"
 ><H3
 CLASS="SECT2"
 ><A
-NAME="AEN161"
+NAME="AEN156"
 >1.9. Can Privoxy make mistakes? 
 This does not sound very scientific.</A
 ></H3
@@ -660,7 +646,7 @@ CLASS="SECT2"
 ><H3
 CLASS="SECT2"
 ><A
-NAME="AEN167"
+NAME="AEN162"
 >1.10. Will I have to configure Privoxy
  before I can use it?</A
 ></H3
@@ -903,7 +889,7 @@ CLASS="SECT2"
 ><H3
 CLASS="SECT2"
 ><A
-NAME="JOINTEAM"
+NAME="HELP-THE-DEVELOPERS"
 >1.17. I would like to help you, what can I do?</A
 ></H3
 ><DIV
@@ -911,7 +897,7 @@ CLASS="SECT3"
 ><H4
 CLASS="SECT3"
 ><A
-NAME="JOINTEAM-WORK"
+NAME="PARTICIPATE"
 >1.17.1. Would you like to participate?</A
 ></H4
 ><P
@@ -937,70 +923,98 @@ CLASS="QUOTE"
 >. There are many other tasks available. In fact,
    the programmers often can't spend as much time programming because of some
    of the other, more mundane things that need to be done, like checking the
-   Tracker feedback sections. 
+   Tracker feedback sections or responding to user questions on the mailing
+   lists.
  </P
 ><P
->  So first thing, <A
+>  So first thing, subscribe to the <A
+HREF="https://lists.sourceforge.net/lists/listinfo/ijbswa-users"
+TARGET="_top"
+>Privoxy Users</A
+>
+  or the <A
+HREF="https://lists.sourceforge.net/lists/listinfo/ijbswa-developers"
+TARGET="_top"
+>Privoxy
+  Developers</A
+> mailing list, join the discussion, help out other users, provide general
+  feedback or report problems you noticed.
+ </P
+><P
+>  If you intend to help out with the trackers, you also might want to <A
 HREF="https://sourceforge.net/account/register.php"
 TARGET="_top"
 >get an account on SourceForge.net</A
 >
-   and mail your id to the <A
-HREF="mailto:ijbswa-developers@lists.sourceforge.net"
-TARGET="_top"
->developers
-   mailing list</A
->. Then, please read the <A
+   so we don't confuse you with the other name-less users.
+ </P
+><P
+>   We also have a <A
 HREF="../developer-manual/index.html"
 TARGET="_top"
 >Developer's Manual</A
->, at least
-   the pertinent sections.</P
+>.
+   While it is partly out of date, it's still worth reading.</P
 ><P
->  You can also start helping out without SourceForge.net account,
-  simply by showing up on the mailing list, helping out other users,
-  providing general feedback or reporting problems you noticed.
- </P
-></DIV
-><DIV
-CLASS="SECT3"
-><H4
-CLASS="SECT3"
-><A
-NAME="JOINTEAM-MONEY"
->1.17.2. Contribute!</A
-></H4
-><P
-> We, of course, welcome donations and could use money for domain registering,
- buying software to test <SPAN
-CLASS="APPLICATION"
->Privoxy</SPAN
-> with, and, of course,
- for regular world-wide get-togethers (hahaha). If you enjoy the software and feel
- like helping us with a donation, just <A
-HREF="mailto: ijbswa-developers@lists.sourceforge.net"
+>   Our <A
+HREF="http://ijbswa.cvs.sourceforge.net/viewvc/ijbswa/current/TODO?view=markup"
 TARGET="_top"
->drop us a note</A
+>TODO list</A
 >
- and get your name on the list of contributors.</P
+   may be of interest to you as well.
+   Please let us know if you want to work on one of the items listed.</P
 ></DIV
 ><DIV
 CLASS="SECT3"
 ><H4
 CLASS="SECT3"
 ><A
-NAME="JOINTEAM-SOFTWARE"
->1.17.3. Software</A
+NAME="DONATE"
+>1.17.2. Would you like to donate?</A
 ></H4
 ><P
-> If you are a vendor of a web-related software like a browser, web server
- or proxy, and would like us to ensure that <SPAN
+> <SPAN
+CLASS="APPLICATION"
+>Privoxy</SPAN
+> is developed by unpaid volunteers
+ and thus our current running costs are pretty low. Nevertheless, we
+ have plans that will cost money in the future. We would like to get
+ this money through donations made by our users.</P
+><P
+> <SPAN
+CLASS="APPLICATION"
+>Privoxy</SPAN
+> has therefore become an associated
+ project of <A
+HREF="http://www.spi-inc.org/about-spi/about-spi"
+TARGET="_top"
+>Software
+ in the Public Interest (SPI)</A
+>, which allows us to receive tax-deductible
+ donations in most western countries.</P
+><P
+> We intend to use the donations to pay for our domain after transfering
+ it to SPI. Our goal is to make sure there's no single point of failure
+ and the bill gets paid and the site keeps running even if a some of
+ the currently active developers were to suddenly disappear for a while.</P
+><P
+> We would also like to spend some money on more reliable hosting,
+ on hardware to help make sure <SPAN
 CLASS="APPLICATION"
 >Privoxy</SPAN
 >
- runs smoothly with your product, you might consider supplying us with a
- copy or license. We can't, however, guarantee that we will fix all potential
- compatibility issues as a result.</P
+ keeps running on platforms the developers currently can't test on,
+ and on technical books to educate our developers about said platforms
+ or to improve their knowledge in general.</P
+><P
+> If you enjoy our software and feel like helping out with a donation,
+ please have a look at
+ <A
+HREF="http://www.spi-inc.org/donations"
+TARGET="_top"
+>SPI's donation page</A
+>
+ to see what the options are.</P
 ></DIV
 ></DIV
 ></DIV

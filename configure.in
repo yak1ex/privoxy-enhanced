@@ -1389,11 +1389,22 @@ fi],
 AC_DEFINE(FEATURE_FORWARD_CLASS))
 
 AC_ARG_ENABLE(manual-tagger,
-[  --disable-manua-tagger Prevents manual tagger.],
+[  --disable-manual-tagger Prevents manual tagger.],
 [if test $enableval = yes; then
   AC_DEFINE(FEATURE_MANUAL_TAGGER)
 fi],
 AC_DEFINE(FEATURE_MANUAL_TAGGER))
+
+AC_ARG_ENABLE(required-tag,
+[  --disable-required-tag Prevents required tag.],
+[if test $enableval = yes; then
+  AC_DEFINE(FEATURE_REQUIRED_TAG)
+  REQUIRED_TAG_ONLY=
+else
+  REQUIRED_TAG_ONLY=#
+fi],
+AC_DEFINE(FEATURE_REQUIRED_TAG))
+AC_SUBST(REQUIRED_TAG_ONLY)
 
 dnl ====================================================
 dnl This check is incomplete. For mingw32 zlib is found

@@ -414,6 +414,11 @@
 #undef FEATURE_MANUAL_TAGGER
 
 /*
+ * Enables required tag.
+ */
+#undef FEATURE_REQUIRED_TAG
+
+/*
  * Defined on Solaris only.  Makes the system libraries thread safe.
  */
 #undef _REENTRANT

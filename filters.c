@@ -2398,7 +2398,12 @@ void apply_url_actions(struct current_action_spec *action,
 
    for (b = b->next; NULL != b; b = b->next)
    {
+#ifdef FEATURE_REQUIRED_TAG
+      /* Required tag is checked at another place. */
+      if (!b->rtags && url_match(b->url, http))
+#else /* def FEATURE_REQUIRED_TAG */
       if (url_match(b->url, http))
+#endif /* def FEATURE_REQUIRED_TAG */
       {
          merge_current_action(action, b->action);
       }

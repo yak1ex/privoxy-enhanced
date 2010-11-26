@@ -209,6 +209,24 @@ extern pthread_mutex_t rand_mutex;
 
 #endif /* FEATURE_PTHREAD */
 
+#if defined(_WIN32) && !defined(_CYGWIN)
+#include <winbase.h>
+
+extern CRITICAL_SECTION log_mutex;
+extern CRITICAL_SECTION log_init_mutex;
+extern CRITICAL_SECTION gmtime_mutex;
+extern CRITICAL_SECTION localtime_mutex;
+extern CRITICAL_SECTION resolver_mutex;
+extern CRITICAL_SECTION rand_mutex;
+
+#define pthread_mutex_lock(arg)   EnterCriticalSection(arg)
+#define pthread_mutex_unlock(arg) LeaveCriticalSection(arg)
+#define pthread_mutex_init(mutex, arg) (InitializeCriticalSection(mutex), 0)
+
+#define pthread_mutex_t CRITICAL_SECTION
+
+#endif /* defined(_WIN32) && !defined(_CYGWIN) */
+
 /* Functions */
 
 #ifdef __MINGW32__

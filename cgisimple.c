@@ -1966,6 +1966,12 @@ static jb_err show_defines(struct map *exports)
    if (!err) err = map_conditional(exports, "FEATURE_MANUAL_TAGGER", 0);
 #endif /* ndef FEATURE_MANUAL_TAGGER */
 
+#ifdef FEATURE_REQUIRED_TAG
+   if (!err) err = map_conditional(exports, "FEATURE_REQUIRED_TAG", 1);
+#else /* ifndef FEATURE_REQUIRED_TAG */
+   if (!err) err = map_conditional(exports, "FEATURE_REQUIRED_TAG", 0);
+#endif /* ndef FEATURE_REQUIRED_TAG */
+
 #ifdef STATIC_PCRE
    if (!err) err = map_conditional(exports, "STATIC_PCRE", 1);
 #else /* ifndef STATIC_PCRE */

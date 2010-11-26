@@ -213,6 +213,11 @@ REGEX_SRC    =
 REGEX_OBJS   = $(REGEX_SRC:.c=.@OBJEXT@)
 REGEX_HDRS   = $(REGEX_SRC:.c=.h)
 
+# Required tag
+RTAG_SRC     = @REQUIRED_TAG_ONLY@requiredtag.c
+RTAG_OBJS    = @REQUIRED_TAG_ONLY@$(RTAG_SRC:.c=.@OBJEXT@)
+RTAG_HDRS    = @REQUIRED_TAG_ONLY@requiredtag.h
+
 # Dependencies introduced by #include "project.h".
 PROJECT_H_DEPS = project.h $(REGEX_HDRS) $(PCRS_HDRS) @STATIC_PCRE_ONLY@pcre/pcre.h
 
@@ -222,9 +227,9 @@ SOCKET_LIB   = @SOCKET_LIB@
 # PThreads library, if needed.
 PTHREAD_LIB  = @PTHREAD_ONLY@@PTHREAD_LIB@
 
-SRCS         = $(C_SRC)  $(W32_SRC)  $(PCRS_SRC)  $(PCRE_SRC)  $(REGEX_SRC)
-OBJS         = $(C_OBJS) $(W32_OBJS) $(PCRS_OBJS) $(PCRE_OBJS) $(REGEX_OBJS)
-HDRS         = $(C_HDRS) $(W32_HDRS) $(PCRS_HDRS) $(PCRE_OBJS) $(REGEX_HDRS)
+SRCS         = $(C_SRC)  $(W32_SRC)  $(PCRS_SRC)  $(PCRE_SRC)  $(REGEX_SRC)  $(RTAG_SRC)
+OBJS         = $(C_OBJS) $(W32_OBJS) $(PCRS_OBJS) $(PCRE_OBJS) $(REGEX_OBJS) $(RTAG_OBJS)
+HDRS         = $(C_HDRS) $(W32_HDRS) $(PCRS_HDRS) $(PCRE_OBJS) $(REGEX_HDRS) $(RTAG_HDRS)
 LIBS         = @LIBS@ $(W32_LIB) $(SOCKET_LIB) $(PTHREAD_LIB)
 
 
@@ -914,6 +919,9 @@ urlmatch.@OBJEXT@:  urlmatch.c  urlmatch.h  config.h $(PROJECT_H_DEPS) errlog.h 
 
 # GNU regex
 gnu_regex.@OBJEXT@: gnu_regex.c gnu_regex.h config.h
+
+# required tag
+required.tag.@OBJEXT@: requiredtag.c requiredtag.h config.h $(PROJECT_H_DEPS) errlog.h miscutil.h
 
 # PCRS
 pcrs.@OBJEXT@: pcrs.c pcrs.h config.h pcre/pcre.h 

@@ -296,6 +296,9 @@ const char actions_rcs[] = "$Id: actions.c,v 1.53 2008/05/26 16:04:04 fabiankeil
 #include "urlmatch.h"
 #include "cgi.h"
 #include "ssplit.h"
+#ifdef FEATURE_REQUIRED_TAG
+#include "requiredtag.h"
+#endif /* def FEATURE_REQUIRED_TAG */
 
 const char actions_h_rcs[] = ACTIONS_H_VERSION;
 
@@ -1075,6 +1078,30 @@ int update_action_bits_for_tag(struct client_state *csp, const char *tag)
       /* and through all the action patterns, */
       for (b = b->next; NULL != b; b = b->next)
       {
+#ifdef FEATURE_REQUIRED_TAG
+         if (b->rtags)
+         {
+            /* when required tags are set, check if all required tags are matched. */
+            if (0 == match_req_tag_list(b->rtags, csp->tags))
+            {
+               /* skip when not matched. */
+               continue;
+            }
+
+            /* when all required tags are matched, re-check URL patterns. */
+            if (url_match(b->url, csp->http))
+            {
+               if (merge_current_action(csp->action, b->action))
+               {
+                  log_error(LOG_LEVEL_ERROR,
+                     "Out of memory while changing action bits");
+               }
+               /* and signal the change. */
+               updated = 1;
+            }
+         }
+#endif
+
          /* skip the URL patterns, */
          if (NULL == b->url->tag_regex)
          {
@@ -1197,6 +1224,18 @@ void unload_actions_file(void *file_data)
           */
          free_action_spec(cur->action);
       }
+#ifdef FEATURE_REQUIRED_TAG
+      if ((next == NULL) || (next->rtags != cur->rtags))
+      {
+         /*
+          * As the required tags might be shared,
+          * we can only free them if the current
+          * required tag is the last one, or if the
+          * next one is using different settings.
+          */
+         free_req_tag_list(cur->rtags);
+      }
+#endif /* def FEATURE_REQUIRED_TAG */
       freez(cur);
       cur = next;
    }
@@ -1294,6 +1333,9 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
 #define MODE_DESCRIPTION   3
 #define MODE_ALIAS         4
 #define MODE_ACTIONS       5
+#ifdef FEATURE_REQUIRED_TAG
+#define MODE_REQUIRED_TAGS 6
+#endif
 
    int mode = MODE_START_OF_FILE;
 
@@ -1306,6 +1348,10 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
    int cur_action_used = 0;
    struct action_alias * alias_list = NULL;
    unsigned long linenum = 0;
+#ifdef FEATURE_REQUIRED_TAG
+   struct req_tag_list * cur_req_tag = NULL;
+   int cur_req_tag_used = 0;
+#endif /* def FEATURE_REQUIRED_TAG */
 
    if (!check_file_changed(current_actions_file[fileid], csp->config->actions_file[fileid], &fs))
    {
@@ -1439,6 +1485,24 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
                }
                mode = MODE_ALIAS;
             }
+#ifdef FEATURE_REQUIRED_TAG
+            else if (0 == strcmpic(start, "required"))
+            {
+               /* free old required tags */
+               if (cur_req_tag)
+               {
+                  if (!cur_req_tag_used)
+                  {
+                     free_req_tag_list(cur_req_tag);
+                  }
+                  cur_req_tag = NULL;
+               }
+               cur_req_tag_used = 0;
+
+               /* set mode */
+               mode    = MODE_REQUIRED_TAGS;
+            }
+#endif
             else
             {
                /* invalid {{something}} block */
@@ -1665,6 +1729,12 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
                csp->config->actions_file[fileid], linenum, buf);
             return 1; /* never get here */
          }
+#ifdef FEATURE_REQUIRED_TAG
+         perm->rtags = cur_req_tag;
+         if (cur_req_tag) {
+            cur_req_tag_used = 1;
+         }
+#endif /* def FEATURE_REQUIRED_TAG */
 
          /* add it to the list */
          last_perm->next = perm;
@@ -1679,6 +1749,31 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
             csp->config->actions_file[fileid], linenum, buf);
          return 1; /* never get here */
       }
+#ifdef FEATURE_REQUIRED_TAG
+      else if (mode == MODE_REQUIRED_TAGS)
+      {
+         struct req_tag_list *temp;
+         temp = (struct req_tag_list *)zalloc(sizeof(*temp));
+         if (temp == NULL)
+         {
+            fclose(fp);
+            log_error(LOG_LEVEL_FATAL,
+               "can't load actions file '%s': out of memory",
+               csp->config->actions_file[fileid]);
+            return 1; /* never get here */
+         }
+         if (init_req_tag_list(temp, buf) != JB_ERR_OK)
+         {
+            fclose(fp);
+            log_error(LOG_LEVEL_FATAL,
+               "can't load actions file '%s': invalid required tag configuration",
+               csp->config->actions_file[fileid]);
+            return 1; /* never get here */
+         }
+         temp->next = cur_req_tag;
+         cur_req_tag = temp;
+      }
+#endif /* def FEATURE_REQUIRED_TAG */
       else
       {
          /* How did we get here? This is impossible! */
@@ -1697,6 +1792,12 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
       free_action_spec(cur_action);
    }
    free_alias_list(alias_list);
+#ifdef FEATURE_REQUIRED_TAG
+   if (!cur_req_tag_used)
+   {
+      free_req_tag_list(cur_req_tag);
+   }
+#endif /* def FEATURE_REQUIRED_TAG */
 
    /* the old one is now obsolete */
    if (current_actions_file[fileid])

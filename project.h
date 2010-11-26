@@ -1219,6 +1219,19 @@ struct action_spec
    struct list multi_add[ACTION_MULTI_COUNT][1];
 };
 
+#ifdef FEATURE_REQUIRED_TAG
+/**
+ * A required tag list entry.
+ *
+ * This is a linked list.
+ */
+struct req_tag_list
+{
+   regex_t *tag_regex;         /**< Regex for tag matching      */
+
+   struct req_tag_list *next;  /**< The next entry in the list. */
+};
+#endif /* def FEATURE_REQUIRED_TAG */
 
 /**
  * This structure is used to store action files.
@@ -1235,6 +1248,13 @@ struct url_actions
    struct action_spec *action; /**< Action settings that might be shared with
                                     the list entry before or after the current
                                     one and can't be free'd willy nilly. */
+
+#ifdef FEATURE_REQUIRED_TAG
+   struct req_tag_list *rtags; /**< Required tags that might be shared with
+                                    the list entry before or after the current
+                                    one and can't be free'd willy nilly. */
+
+#endif /* def FEATURE_REQUIRED_TAG */
 
    struct url_actions *next;   /**< Next action section in file, or NULL. */
 };

@@ -4,7 +4,7 @@
 <!entity p-intro SYSTEM "privoxy.sgml">
 <!entity contacting SYSTEM "contacting.sgml">
 <!entity buildsource SYSTEM "buildsource.sgml">
-<!entity p-version "3.0.8">
+<!entity p-version "3.0.10">
 <!entity p-status "stable">
 <!entity % p-not-stable "IGNORE">
 <!entity % p-stable "INCLUDE">
@@ -17,7 +17,7 @@
 
  Purpose     :  README for Privoxy
                 
- $Id: readme.sgml,v 2.16 2008/01/19 15:03:05 hal9 Exp $
+ $Id: readme.sgml,v 2.20 2008/08/14 16:57:40 hal9 Exp $
 
  Copyright (C) 2001-2008 Privoxy Developers http://www.privoxy.org/
  See LICENSE.
@@ -128,6 +128,17 @@
 <!--   ~~~~~       New section      ~~~~~     -->
 <sect1 id="importantchanges" ><title>IMPORTANT CHANGES</title>
 <para>
+ August 2008, Privoxy 3.0.10 is released! There are not any major new
+ features, but many improvements and refinements. As usual there are changes
+ that effect the configuration. See the "ChangeLog", and the "What's New"
+ section and the "Upgrader's Notes" in <citetitle>the User Manual</citetitle>
+ for details and specifics. 
+</para>
+<para>
+ June 2008, Privoxy 3.0.9 beta is released. There are no major new
+ features, but many improvements and refinements. 
+</para>
+<para>
  NEWS! January 2008, Privoxy 3.0.8 stable is released. This is a significant
  upgrade with many new and enhanced features, and many bugs fixed. All Privoxy
  users are encouraged to upgrade. See the "ChangeLog", and the "What's New"
@@ -139,16 +150,6 @@
 <para>
   December 2007, Privoxy 3.0.7 is released. This is a beta release in
   preparation for the forthcoming 3.0.8 release.
-</para>
-<para>
- NEWS! November 2006, Privoxy 3.0.6 stable is released. This is a significant
- upgrade with many new and enhanced features, and many bugs fixed. 
-</para>
-<para>
- There was and will not be an official 3.0.4 release. This release cycle 
- was used to gather our thoughts, play with some new ideas and refine 
- some old ones. It will remain a development cycle with no actual release.
- 3.0.5 is the fruit of these efforts.
 </para>
 </sect1>
 
@@ -181,7 +182,7 @@
  Or for Red Hat and Fedora based distributions: /etc/rc.d/init.d/privoxy start
 </para>
 <para>
- Or Debian: /etc/init.d/privoxy start
+ Or Debian and Ubuntu: /etc/init.d/privoxy start
 </para>
 </sect1>
 
@@ -255,7 +256,7 @@
 <!-- </LiteralLayout> -->
 <!-- </para> -->
 <!-- <para> -->
-<!--  $Id: readme.sgml,v 2.16 2008/01/19 15:03:05 hal9 Exp $ -->
+<!--  $Id: readme.sgml,v 2.20 2008/08/14 16:57:40 hal9 Exp $ -->
 <!-- </para> -->
 
 </article>

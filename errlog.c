@@ -1,4 +1,4 @@
-const char errlog_rcs[] = "$Id: errlog.c,v 1.63 2007/12/15 19:49:32 fabiankeil Exp $";
+const char errlog_rcs[] = "$Id: errlog.c,v 1.74 2008/08/06 18:33:36 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/errlog.c,v $
@@ -33,6 +33,50 @@ const char errlog_rcs[] = "$Id: errlog.c,v 1.63 2007/12/15 19:49:32 fabiankeil E
  *
  * Revisions   :
  *    $Log: errlog.c,v $
+ *    Revision 1.74  2008/08/06 18:33:36  fabiankeil
+ *    If the "close fd first" workaround doesn't work,
+ *    the fatal error message will be lost, so we better
+ *    explain the consequences while we still can.
+ *
+ *    Revision 1.73  2008/08/04 19:06:55  fabiankeil
+ *    Add a lame workaround for the "can't open an already open
+ *    logfile on OS/2" problem reported by Maynard in #2028842
+ *    and describe what a real solution would look like.
+ *
+ *    Revision 1.72  2008/07/27 12:04:28  fabiankeil
+ *    Fix a comment typo.
+ *
+ *    Revision 1.71  2008/06/28 17:17:15  fabiankeil
+ *    Remove another stray semicolon.
+ *
+ *    Revision 1.70  2008/06/28 17:10:29  fabiankeil
+ *    Remove stray semicolon in get_log_timestamp().
+ *    Reported by Jochen Voss in #2005221.
+ *
+ *    Revision 1.69  2008/05/30 15:55:25  fabiankeil
+ *    Declare variable "debug" static and complain about its name.
+ *
+ *    Revision 1.68  2008/04/27 16:50:46  fabiankeil
+ *    Remove an incorrect assertion. The value of debug may change if
+ *    the configuration is reloaded in another thread. While we could
+ *    cache the initial value, the assertion doesn't seem worth it.
+ *
+ *    Revision 1.67  2008/03/27 18:27:23  fabiankeil
+ *    Remove kill-popups action.
+ *
+ *    Revision 1.66  2008/01/31 15:38:14  fabiankeil
+ *    - Make the logfp assertion more strict. As of 1.63, the "||" could
+ *      have been an "&&", which means we can use two separate assertions
+ *      and skip on of them on Windows.
+ *    - Break a long commit message line in two.
+ *
+ *    Revision 1.65  2008/01/31 14:44:33  fabiankeil
+ *    Use (a != b) instead of !(a == b) so the sanity check looks less insane.
+ *
+ *    Revision 1.64  2008/01/21 18:56:46  david__schmidt
+ *    Swap #def from negative to positive, re-joined it so it didn't
+ *    span an assertion (compilation failure on OS/2)
+ *
  *    Revision 1.63  2007/12/15 19:49:32  fabiankeil
  *    Stop overloading logfile to control the mingw32 log window as well.
  *    It's no longer necessary now that we disable all debug lines by default
@@ -380,8 +424,8 @@ const char errlog_h_rcs[] = ERRLOG_H_VERSION;
 /* where to log (default: stderr) */
 static FILE *logfp = NULL;
 
-/* logging detail level.  */
-int debug = (LOG_LEVEL_FATAL | LOG_LEVEL_ERROR | LOG_LEVEL_INFO);  
+/* logging detail level. XXX: stupid name. */
+static int debug = (LOG_LEVEL_FATAL | LOG_LEVEL_ERROR | LOG_LEVEL_INFO);  
 
 /* static functions */
 static void fatal_error(const char * error_message);
@@ -515,7 +559,7 @@ void init_log_module(const char *prog_name)
  *                plus LOG_LEVEL_MINIMUM.
  *
  *                XXX: we should only use the LOG_LEVEL_MINIMUM
- *                until the frist time the configuration file has
+ *                until the first time the configuration file has
  *                been parsed.
  *                
  * Parameters  :  1: debug_level = The debug level to set.
@@ -585,6 +629,37 @@ void init_error_log(const char *prog_name, const char *logfname)
 
    /* set the designated log file */
    fp = fopen(logfname, "a");
+   if ((NULL == fp) && (logfp != NULL))
+   {
+      /*
+       * Some platforms (like OS/2) don't allow us to open
+       * the same file twice, therefore we give it another
+       * shot after closing the old file descriptor first.
+       *
+       * We don't do it right away because it prevents us
+       * from logging the "can't open logfile" message to
+       * the old logfile.
+       *
+       * XXX: this is a lame workaround and once the next
+       * release is out we should stop bothering reopening
+       * the logfile unless we have to.
+       *
+       * Currently we reopen it every time the config file
+       * has been reloaded, but actually we only have to
+       * reopen it if the file name changed or if the
+       * configuration reloas was caused by a SIGHUP.
+       */
+      log_error(LOG_LEVEL_INFO, "Failed to reopen logfile: \'%s\'. "
+         "Retrying after closing the old file descriptor first. If that "
+         "doesn't work, Privoxy will exit without being able to log a message.",
+         logfname);
+      lock_logfile();
+      fclose(logfp);
+      logfp = NULL;
+      unlock_logfile();
+      fp = fopen(logfname, "a");
+   }
+
    if (NULL == fp)
    {
       log_error(LOG_LEVEL_FATAL, "init_error_log(): can't open logfile: \'%s\'", logfname);
@@ -703,7 +778,7 @@ static inline size_t get_log_timestamp(char *buffer, size_t buffer_size)
 #endif
 
    length = strftime(buffer, buffer_size, "%b %d %H:%M:%S", &tm_now);
-   if (length > 0);
+   if (length > 0)
    {
       msecs_length = snprintf(buffer+length, buffer_size - length, ".%.3ld", msecs);               
    }
@@ -774,7 +849,7 @@ static inline size_t get_clf_timestamp(char *buffer, size_t buffer_size)
 
    length = strftime(buffer, buffer_size, "%d/%b/%Y:%H:%M:%S ", tm_now);
 
-   if (length > 0);
+   if (length > 0)
    {
       tz_length = snprintf(buffer+length, buffer_size-length,
                      "%+03d%02d", mins / 60, abs(mins) % 60);
@@ -849,11 +924,6 @@ static inline const char *get_log_level_string(int loglevel)
       case LOG_LEVEL_DEANIMATE:
          log_level_string = "Gif-Deanimate";
          break;
-#ifdef FEATURE_KILL_POPUPS
-      case LOG_LEVEL_POPUPS:
-         log_level_string = "Kill-Popups";
-         break;
-#endif /* def FEATURE_KILL_POPUPS */
       case LOG_LEVEL_CGI:
          log_level_string = "CGI";
          break;
@@ -1134,9 +1204,9 @@ void log_error(int loglevel, const char *fmt, ...)
    length += strlcpy(outbuf + length, "\n", log_buffer_size - length);
 
    /* Some sanity checks */
-   if (!(length < log_buffer_size)
-    || !(outbuf[log_buffer_size-1] == '\0')
-    || !(outbuf[log_buffer_size] == '\0')
+   if ((length >= log_buffer_size)
+    || (outbuf[log_buffer_size-1] != '\0')
+    || (outbuf[log_buffer_size] != '\0')
       )
    {
       /* Repeat as assertions */
@@ -1155,11 +1225,13 @@ void log_error(int loglevel, const char *fmt, ...)
       loglevel = LOG_LEVEL_FATAL;
    }
 
-   assert(
 #ifndef _WIN32
-          (NULL != logfp) ||
+   /*
+    * On Windows this is acceptable in case
+    * we are logging to the GUI window only.
+    */
+   assert(NULL != logfp);
 #endif
-          (loglevel & debug));
 
    if (loglevel == LOG_LEVEL_FATAL)
    {

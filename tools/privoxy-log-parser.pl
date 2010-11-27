@@ -8,7 +8,7 @@
 #
 # http://www.fabiankeil.de/sourcecode/privoxy-log-parser/
 #
-# $Id: privoxy-log-parser.pl,v 1.22 2009/02/11 19:15:05 fabiankeil Exp $
+# $Id: privoxy-log-parser.pl,v 1.42 2009/07/21 14:04:25 fabiankeil Exp $
 #
 # TODO:
 #       - LOG_LEVEL_CGI, LOG_LEVEL_ERROR, LOG_LEVEL_WRITE content highlighting
@@ -370,7 +370,7 @@ sub get_missing_css_lines () {
 
     my $css_line;
 
-    $css_line .= '.' . 'default' . ' {'; # XXX: lc() shouldn't be necessary
+    $css_line .= '.' . 'default' . ' {';
     $css_line .= 'color:' . HEADER_DEFAULT_COLOUR . ';';
     $css_line .= 'background-color:' . get_css_colour(DEFAULT_BACKGROUND) . ';';
     $css_line .= '}' . "\n"; 
@@ -912,6 +912,10 @@ sub handle_loglevel_header ($) {
           or $c =~ m/^Converting tab to space in /
           or $c =~ m/A HTTP\/1\.1 response without/
           or $c =~ m/Disabled filter mode on behalf of the client/
+          or $c =~ m/Keeping the (?:server|client) header /
+          or $c =~ m/Content modified with no Content-Length header set/
+          or $c =~ m/^Appended client IP address to/
+          or $c =~ m/^Removing 'Connection: close' to imply keep-alive./
             )
     {
         # XXX: Some of these may need highlighting
@@ -950,6 +954,12 @@ sub handle_loglevel_header ($) {
         #  this again   is  not'
         # A HTTP/1.1 response without Connection header implies keep-alive.
         # Disabled filter mode on behalf of the client.
+        # Keeping the server header 'Connection: keep-alive' around.
+        # Keeping the client header 'Connection: close' around. The connection will not be kept alive.
+        # Keeping the client header 'Connection: keep-alive' around. The connection will be kept alive if possible.
+        # Content modified with no Content-Length header set. Creating a fake one for adjustment later on.
+        # Appended client IP address to X-Forwarded-For: 10.0.0.2, 10.0.0.1
+        # Removing 'Connection: close' to imply keep-alive.
 
     } elsif ($c =~ m/^scanning headers for:/) {
 
@@ -986,6 +996,21 @@ sub handle_loglevel_header ($) {
         #  Enable force-text-mode if you know what you're doing.
         # XXX: Could highlight more here.
         $content =~ s@(?<=^Content-Type: )(.*)(?= not replaced)@$h{'content-type'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^(Server|Client) keep-alive timeout is/) {
+
+       # Server keep-alive timeout is 5. Sticking with 10.
+       # Client keep-alive timeout is 20. Sticking with 10.
+
+       $content =~ s@(?<=timeout is )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+       $content =~ s@(?<=Sticking with )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Reducing keep-alive timeout/) {
+
+       # Reducing keep-alive timeout from 60 to 10.
+
+       $content =~ s@(?<= from )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+       $content =~ s@(?<= to )(\d+)@$h{'Number'}$1$h{'Standard'}@;
 
     } else {
 
@@ -1376,9 +1401,10 @@ sub handle_loglevel_connect ($) {
 
         $c =~ s@(?<=failed: )(.*)@$h{'error'}$1$h{'Standard'}@;
 
-    } elsif ($c =~ m/^to ([^\s]*) successful$/) {
+    } elsif ($c =~ m/^to ([^\s]*)( successful)?$/) {
 
         # Connect: to www.nzherald.co.nz successful
+        # Connect: to archiv.radiotux.de
 
         return '' if SUPPRESS_SUCCESSFUL_CONNECTIONS;
         $c = highlight_matched_host($c, '(?<=to )[^\s]+');
@@ -1449,7 +1475,7 @@ sub handle_loglevel_connect ($) {
         $c = highlight_matched_host($c, '(?<=connection to )[^\s]+');
         $c =~ s@(?<=on socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
 
-    } elsif ($c =~ m/^^Found reusable socket/) {
+    } elsif ($c =~ m/^Found reusable socket/) {
 
         # Found reusable socket 9 for www.privoxy.org:80 in slot 0.
         $c =~ s@(?<=Found reusable socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
@@ -1472,6 +1498,7 @@ sub handle_loglevel_connect ($) {
 
         # Remembering socket 13 for www.privoxy.org:80 in slot 0.
         # Forgetting socket 38 for www.privoxy.org:80 in slot 5.
+
         $c =~ s@(?<=socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
         $c = highlight_matched_host($c, '(?<=for )[^\s]+');
         $c =~ s@(?<=in slot )(\d+)@$h{'Number'}$1$h{'Standard'}@;
@@ -1490,7 +1517,7 @@ sub handle_loglevel_connect ($) {
         $c =~ s@(?<=Closing socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
         $c =~ s@(?<=Timeout is: )(\d+)@$h{'Number'}$1$h{'Standard'}@;
 
-    } elsif ($c =~ m/^Waiting for/) {
+    } elsif ($c =~ m/^Waiting for \d/) {
 
         # Waiting for 1 connections to timeout.
         $c =~ s@(?<=^Waiting for )(\d+)@$h{'Number'}$1$h{'Standard'}@;
@@ -1526,15 +1553,69 @@ sub handle_loglevel_connect ($) {
         # Connection from 81.163.28.218 dropped due to ACL
         $c =~ s@(?<=^Connection from )((?:\d+\.?){4})@$h{'Number'}$1$h{'Standard'}@;
 
+    } elsif ($c =~ m/^(?:Reusing|Closing) server socket \d./ or
+             $c =~ m/^No additional client request/) {
+
+        # Reusing server socket 4. Opened for 10.0.0.1.
+        # Closing server socket 2. Opened for 10.0.0.1.
+        # No additional client request received in time. \
+        #  Closing server socket 4, initially opened for 10.0.0.1.
+
+        $c =~ s@(?<=server socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c = highlight_matched_host($c, '(?<=for )[^\s]+(?=\.$)');
+
+    } elsif ($c =~ m/^Connected to /) {
+
+        # Connected to tor-jail[10.0.0.2]:9050.
+
+        $c = highlight_matched_host($c, '(?<=\[)[^\]]+');
+        $c = highlight_matched_host($c, '(?<=Connected to )[^\[\s]+');
+        $c =~ s@(?<=\]:)(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Could not connect to /) {
+
+        # Could not connect to [10.0.0.1]:80.
+
+        $c = highlight_matched_host($c, '(?<=\[)[^\]]+');
+        $c =~ s@(?<=\]:)(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Waiting for the next client request/ or
+             $c =~ m/^The connection on server socket/ ) {
+
+        # Waiting for the next client request. Keeping the server socket 5 to 10.0.0.1 open.
+        # The connection on server socket 6 to upload.wikimedia.org isn't reusable. Closing.
+
+        $c =~ s@(?<=server socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c = highlight_matched_host($c, '(?<=to )[^\s]+');
+
+    } elsif ($c =~ m/^Marking the server socket/) {
+
+        # Marking the server socket 7 tainted.
+
+        $c =~ s@(?<=server socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
     } elsif ($c =~ m/^Looks like we rea/ or
              $c =~ m/^Unsetting keep-alive flag/ or
-             $c =~ m/^No connections to wait/) {
+             $c =~ m/^No connections to wait/ or
+             $c =~ m/^Client request arrived in time or the client closed the connection/ or
+             $c =~ m/^Complete client request received/ or
+             $c =~ m/^Possible pipeline attempt detected./ or
+             $c =~ m/^POST request detected. The connection will not be kept alive./ or
+             $c =~ m/^The server still wants to talk, but the client hung up on us./ or
+             $c =~ m/^The server didn't specify how long the connection will stay open/) {
 
         # Looks like we reached the end of the last chunk. We better stop reading.
         # Looks like we read the end of the last chunk together with the server \
         #  headers. We better stop reading.
         # Unsetting keep-alive flag.
         # No connections to wait for left.
+        # Client request arrived in time or the client closed the connection.
+        # Complete client request received
+        # Possible pipeline attempt detected. The connection will not be \
+        #  kept alive and we will only serve the first request.
+        # POST request detected. The connection will not be kept alive.
+        # The server still wants to talk, but the client hung up on us.
+        # The server didn't specify how long the connection will stay open. Assume it's only a second.
 
     } else {
 
@@ -1623,10 +1704,17 @@ sub handle_loglevel_info ($) {
         # Method HEAD implies no body.
         $c =~ s@(?<=Method )([^\s]+)@$h{'method'}$1$h{'Standard'}@;
 
+    } elsif ($c =~ m/^Buffer limit reached while extending /) {
+
+        # Buffer limit reached while extending the buffer (iob). Needed: 4197470. Limit: 4194304
+        $c =~ s@(?<=Needed: )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=Limit: )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
     } elsif ($c =~ m/^No logfile configured/ or
              $c =~ m/^Malformerd HTTP headers detected and MS IIS5 hack enabled/ or
              $c =~ m/^Invalid \"chunked\" transfer/ or
-             $c =~ m/^Support for/
+             $c =~ m/^Support for/ or
+             $c =~ m/^Flushing header and buffers/
              ) {
 
         # No logfile configured. Please enable it before reporting any problems.
@@ -1636,6 +1724,7 @@ sub handle_loglevel_info ($) {
         # Invalid "chunked" transfer encoding detected and ignored.
         # Support for 'Connection: keep-alive' is experimental, incomplete and\
         #  known not to work properly in some situations.
+        # Flushing header and buffers. Stepping back from filtering.
 
     } else {
 
@@ -1789,26 +1878,27 @@ sub parse_loop () {
     my %log_level_count;
 
     my %log_level_handlers = (
-        'Re-Filter'     => \&handle_loglevel_re_filter,
-        'Header'        => \&handle_loglevel_header,
-        'Connect'       => \&handle_loglevel_connect,
-        'Redirect'      => \&handle_loglevel_redirect,
-        'Request'       => \&handle_loglevel_request,
-        'Crunch'        => \&handle_loglevel_crunch,
-        'Gif-Deanimate' => \&handle_loglevel_gif_deanimate,
-        'Info'          => \&handle_loglevel_info,
-        'CGI'           => \&handle_loglevel_cgi,
-        'Force'         => \&handle_loglevel_force,
-        'Error'         => \&handle_loglevel_ignore,
-        'Fatal error'   => \&handle_loglevel_ignore,
-        'Writing'       => \&handle_loglevel_ignore,
+        'Re-Filter'         => \&handle_loglevel_re_filter,
+        'Header'            => \&handle_loglevel_header,
+        'Connect'           => \&handle_loglevel_connect,
+        'Redirect'          => \&handle_loglevel_redirect,
+        'Request'           => \&handle_loglevel_request,
+        'Crunch'            => \&handle_loglevel_crunch,
+        'Gif-Deanimate'     => \&handle_loglevel_gif_deanimate,
+        'Info'              => \&handle_loglevel_info,
+        'CGI'               => \&handle_loglevel_cgi,
+        'Force'             => \&handle_loglevel_force,
+        'Error'             => \&handle_loglevel_ignore,
+        'Fatal error'       => \&handle_loglevel_ignore,
+        'Writing'           => \&handle_loglevel_ignore,
+        'Unknown log level' => \&handle_loglevel_ignore,
     );
 
     while (<>) {
  
         $output = '';
 
-        if (m/^(\w{3} \d{2}) (\d\d:\d\d:\d\d)\.?(\d+)? (?:Privoxy\()?([^\)\s]*)[\)]? ([\w -]*): (.*)$/) {
+        if (m/^(\w{3} \d{2}) (\d\d:\d\d:\d\d)\.?(\d+)? (?:Privoxy\()?([^\)\s]*)[\)]? ([\w -]*): (.*?)\r?$/) {
             # XXX: Put in req hash?
             $day = $1;
             $time_stamp = $2;
@@ -1863,7 +1953,7 @@ sub parse_loop () {
 
             print_non_clf_message($content);
 
-        } elsif (m/^(\d+\.\d+\.\d+\.\d+) - - \[(.*)\] "(.*)" (\d+) (\d+)/) {
+        } elsif (m/^((?:\d+\.\d+\.\d+\.\d+|[:\d]+)) - - \[(.*)\] "(.*)" (\d+) (\d+)/) {
 
             # LOG_LEVEL_CLF lines look like this
             # 61.152.239.32 - - [04/Mar/2007:18:28:23 +0100] "GET \
@@ -1986,7 +2076,7 @@ just don't highlight them.
 [B<--html-output>] Use HTML and CSS for the syntax highlighting. If this option is
 omitted, ANSI escape sequences are used unless B<--no-syntax-highlighting> is active.
 This option is only intended to make embedding log excerpts in web pages easier.
-It does not excape any input!
+It does not escape any input!
 
 [B<--no-msecs>] Don't expect milisecond resolution
 

@@ -1,5 +1,5 @@
 #############################################################################
-# $Id: regression-tests.action,v 1.21 2009/02/15 14:49:10 fabiankeil Exp $
+# $Id: regression-tests.action,v 1.32 2009/07/19 09:21:19 fabiankeil Exp $
 #############################################################################
 #
 # This is a configuration file for Privoxy-Regression-Test
@@ -27,14 +27,19 @@
 #############################################################################
 
 {{settings}}
-for-privoxy-version=3.0.11
+for-privoxy-version=3.0.14
 
 # Some dependencies Privoxy-Regression-Test should know about:
 #
-# Level 9 needs  = config line user-manual\s+(/|[A-Za-z]:)
+# Level  9 needs = config line user-manual\s+(\.?\.?/|[A-Za-z]:)
 # Level 12 needs = config line enable-edit-actions\s+1
 # Level 13 needs = feature status FEATURE_CONNECTION_KEEP_ALIVE Yes
+# Level 13 needs = config line keep-alive-timeout\s+[1-9]+
 # Level 14 needs = feature status FEATURE_CONNECTION_KEEP_ALIVE No
+# Level 15 needs = config line connection-sharing\s+0
+# Level 16 needs = feature status FEATURE_CONNECTION_KEEP_ALIVE Yes
+# Level 16 needs = config line connection-sharing\s+1
+# Level 17 needs = feature status FEATURE_PTHREAD Yes
 
 #######################################################
 # Enable taggers to activate the tests on demand
@@ -250,6 +255,16 @@ TAG:^hide-if-modified-since\{block\}$
 # Expect Header = REMOVAL
 # Set Header    = If-Modified-Since: Thu, 04 Oct 2007 09:56:35 GMT
 # Expect Header = SOME CHANGE
+# Set Header    = If-Modified-Since: Thu, 1 Jan 1970 00:00:00 GMT
+# Expect Header = SOME CHANGE
+# Level = 17
+# Set Header    = If-Modified-Since: Thu, 1 Jan 123456789 00:00:00 GMT
+# Expect Header = REMOVAL
+# Set Header    = If-Modified-Since: Mon, 1 Jan 2525 00:00:00 GMT
+# Expect Header = SOME CHANGE
+# Level = 17
+# Set Header    = If-Modified-Since: Thu, 1 Jan 1970 02:00:00 GMT
+# Expect Header = SOME CHANGE
 
 {+hide-if-modified-since{-60} -crunch-if-none-match}
 TAG:^hide-if-modified-since\{-60\}$
@@ -257,6 +272,8 @@ TAG:^hide-if-modified-since\{-60\}$
 # Set Header    = If-Modified-Since: Gee, this date is invalid
 # Expect Header = REMOVAL
 # Set Header    = If-Modified-Since: Thu, 04 Oct 2007 09:56:35 GMT
+# Expect Header = SOME CHANGE
+# Set Header    = If-Modified-Since: Wed, 31 Dec 1969 23:59:59 GMT
 # Expect Header = SOME CHANGE
 
 {+hide-if-modified-since{+60} -crunch-if-none-match}
@@ -441,14 +458,11 @@ TAG:^filter\{banners-by-size\}$
 }
 TAG:^no-content-filter$
 
-# Set Header    = Connection: close
-# Expect Header = Connection: keep-alive
-# Level = 13
 # Set Header    = Connection: keep-alive
 # Expect Header = NO CHANGE
 # Level = 13
 # Set Header    = Connection:
-# Expect Header = Connection: keep-alive
+# Expect Header = REMOVAL
 # Level = 13
 {}
 TAG:^Connection: keep-alive$
@@ -461,6 +475,21 @@ TAG:^Connection: keep-alive$
 # Level = 14
 {}
 TAG:^Connection: close$
+
+# Set Header    = Connection: close
+# Expect Header = NO CHANGE
+# Level = 15
+{}
+TAG:^connection-sharing disabled$
+
+# Set Header    = Connection: close
+# Expect Header = REMOVAL
+# Level = 16
+# Set Header    = Connection: keep-alive
+# Expect Header = NO CHANGE
+# Level = 16
+{}
+TAG:^connection-sharing enabled$
 
 # XXX: Removing a header by not specifying a value is
 # an inherited curl feature and could be viewed as a
@@ -476,9 +505,15 @@ TAG:^No Host header$
 {}
 TAG:^Host header other than the target host$
 
-# XXX: check the RFC to use a real value
-# Set Header = Keep-Alive: Yes
+# Set Header = Keep-Alive: 20
+# Expect Header = NO CHANGE
+# Level = 13
+{}
+TAG:^Pass Keep-Alive header$
+
+# Set Header = Keep-Alive: 20
 # Expect Header = REMOVAL
+# Level = 14
 {}
 TAG:^Keep-Alive header removal$
 
@@ -751,6 +786,11 @@ www.blocked-request.example/blocked-request-with-no-reason-specified
 # Blocked URL = http://domain-pattern-test.example/
 # Blocked URL = http://domain-pattern-test.example.org/
 domain-pattern-test.example.
+
+{+block{Hostname patterns without trailing dots cover hostnames with trailing dots as well.}}
+# Blocked URL = http://trailing-dot.example.org./
+# Blocked URL = http://trailing-dot.example.org./foo
+trailing-dot.example.org
 
 # Just in case there is no white-space fuzzer in the house ...
 #

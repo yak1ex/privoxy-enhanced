@@ -11,11 +11,11 @@
 <!entity license SYSTEM "license.sgml">
 <!entity p-authors SYSTEM "p-authors.sgml">
 <!entity config SYSTEM "p-config.sgml">
-<!entity p-version "3.0.11">
-<!entity p-status "stable">
+<!entity p-version "3.0.14">
+<!entity p-status "BETA">
 <!entity % p-authors-formal "INCLUDE"> <!-- include additional text, etc  -->
-<!entity % p-not-stable "IGNORE">
-<!entity % p-stable "INCLUDE">
+<!entity % p-not-stable "INCLUDE">
+<!entity % p-stable "IGNORE">
 <!entity % p-text "IGNORE">        <!-- define we are not a text only doc -->
 <!entity % p-doc "INCLUDE">        <!-- and we are a formal doc           -->
 <!entity % p-readme "IGNORE">
@@ -34,7 +34,7 @@
                 This file belongs into
                 ijbswa.sourceforge.net:/home/groups/i/ij/ijbswa/htdocs/
 
- $Id: user-manual.sgml,v 2.100 2009/02/19 17:14:11 fabiankeil Exp $
+ $Id: user-manual.sgml,v 2.112 2009/07/24 12:20:30 fabiankeil Exp $
 
  Copyright (C) 2001-2009 Privoxy Developers http://www.privoxy.org/
  See LICENSE.
@@ -60,7 +60,7 @@
  </subscript>
 </pubdate>
 
-<pubdate>$Id: user-manual.sgml,v 2.100 2009/02/19 17:14:11 fabiankeil Exp $</pubdate>
+<pubdate>$Id: user-manual.sgml,v 2.112 2009/07/24 12:20:30 fabiankeil Exp $</pubdate>
 
 <!--
 
@@ -115,12 +115,12 @@ Hal.
 <sect1 label="1" id="introduction"><title>Introduction</title>
 <para>
  This documentation is included with the current &p-status; version of
- <application>Privoxy</application>, v.&p-version;<![%p-not-stable;[, 
+ <application>Privoxy</application>, v.&p-version;<![%p-not-stable;[,
  and is mostly complete at this point. The most up to date reference for the
  time being is still the comments in the source files and in the individual
  configuration files. Development of a new version is currently nearing
  completion, and includes significant changes and enhancements over
- earlier versions. ]]>.
+ earlier versions]]>.
 </para>
 
 <!-- include only in non-stable versions -->
@@ -437,153 +437,183 @@ How to install the binary packages depends on your operating system:
 <sect1 id="whatsnew">
 <title>What's New in this Release</title>
 <para>
- There are only a few improvements and new features since
- <application>Privoxy 3.0.10</application>, the last stable release:
+ <application>Privoxy 3.0.14 Beta</application> is a bugfix-release
+ for the previous beta which introduced IPv6 support,  improved keep-alive
+ support and a bunch of minor improvements. The changes since 3.0.12:
 </para>
 
 <para>
  <itemizedlist>
   <listitem>
    <para>
-    On most platforms, outgoing connections can be kept alive and
-    reused if the server supports it. Whether or not this improves
-    things depends on the connection.
+    Added IPv6 support. Thanks to Petr Pisar who not only provided
+    the initial patch but also helped a lot with the integration.
    </para>
   </listitem>
   <listitem>
    <para>
-    When dropping privileges, membership in supplementary groups
-    is given up as well. Not doing that can lead to Privoxy running
-    with more rights than necessary and violates the principle of
-    least privilege. Users of the --user option are advised to update.
-    Thanks to Matthias Drochner for reporting the problem,
-    providing the initial patch and testing the final version.
+    Added client-side keep-alive support.
    </para>
   </listitem>
   <listitem>
    <para>
-    Passing invalid users or groups with the --user option
-    didn't lead to program exit. Regression introduced in 3.0.7.
+    The connection sharing code is only used if the connection-sharing
+    option is enabled.
    </para>
   </listitem>
   <listitem>
    <para>
-    The match all section has been moved from default.action
-    to a new file called match-all.action. As a result the
-    default.action no longer needs to be touched by the user
-    and can be safely overwritten by updates.
+    The latency is taken into account when evaluating whether or not to
+    reuse a connection. This should significantly reduce the number of
+    connections problems several users reported.
    </para>
   </listitem>
   <listitem>
    <para>
-    The standard.action file has been removed. Its content
-    is now part of the default.action file.
+    The max-client-connections option has been added to restrict
+    the number of client connections below a value enforced by
+    the operating system.
    </para>
   </listitem>
   <listitem>
    <para>
-    In some situations the logged content length was slightly too low.
+    If the server doesn't specify how long the connection stays alive,
+    Privoxy errs on the safe side of caution and assumes it's only a second.
    </para>
   </listitem>
   <listitem>
    <para>
-    Crunched requests are logged with their own log level.
-    If you used "debug 1" in the past, you'll probably want
-    to additionally enable "debug 1024", otherwise only passed
-    requests will be logged. If you only care about crunched
-    requests, simply replace "debug 1" with "debug 1024".
+    Setting keep-alive-timeout to 0 disables keep-alive support. Previously
+    Privoxy would claim to allow persistence but not reuse the connection.
    </para>
   </listitem>
   <listitem>
    <para>
-    The crunch reason has been moved to the beginning of the
-    crunch message. For HTTP URLs, the protocol is logged as well.
+    Pipelined requests are less likely to be mistaken for the request
+    body of the previous request. Note that Privoxy still has no real
+    pipeline support and will either serialize pipelined requests or
+    drop them in which case the client has to resent them.
    </para>
   </listitem>
   <listitem>
    <para>
-    Log messages are shortened by printing the thread id on its
-    own (as opposed to putting it inside the string "Privoxy()").
+    Fixed a crash on some Windows versions when header randomization
+    is enabled and the date couldn't be parsed.
    </para>
   </listitem>
   <listitem>
    <para>
-    The config option socket-timeout has been added to control
-    the time Privoxy waits for data to arrive on a socket.
+    Privoxy's keep-alive timeout for the current connection is reduced
+    to the one specified in the client's Keep-Alive header.
    </para>
   </listitem>
   <listitem>
    <para>
-    Support for remote toggling is controlled by the configure
-    option --disable-toggle only. In previous versions it also
-    depended on the action editor and thus configuring with the
-    --disable-editor option would disable remote toggling support
-    as well.
+    For HTTP/1.1 requests, Privoxy implies keep-alive support by not
+    setting any Connection header instead of using 'Connection: keep-alive'.
    </para>
   </listitem>
   <listitem>
    <para>
-    Requests with invalid HTTP versions are rejected.
+    If the socket isn't reusable, Privoxy doesn't temporarily waste
+    a socket slot to remember the connection.
    </para>
   </listitem>
   <listitem>
    <para>
-    The template symbol @date@ can be used to include a date(1)-like
-    time string. Initial patch submitted by Endre Szabo.
+    If keep-alive support is disabled but compiled in, the client's
+    Keep-Alive header is removed.
    </para>
   </listitem>
   <listitem>
    <para>
-    Responses from shoutcast servers are accepted again.
-    Problem reported and fix suggested by Stefan.
+    Fixed a bug on mingw32 where downloading large files failed if
+    keep-alive support was enabled.
    </para>
   </listitem>
   <listitem>
    <para>
-    The hide-forwarded-for-headers action has been replaced with
-    the change-x-forwarded-for{} action which can also be used to
-    add X-Forwarded-For headers. The latter functionality already
-    existed in Privoxy versions prior to 3.0.7 but has been removed
-    as it was often used unintentionally (by not using the
-    hide-forwarded-for-headers action).
+    Fixed a bug that (at least theoretically) could cause log
+    timestamps to be occasionally off by about a second.
    </para>
   </listitem>
   <listitem>
    <para>
-    A "clear log" view option was added to the mingw32 version
-    to clear out all of the lines in the Privoxy log window.
-    Based on a patch submitted by T Ford.
+    The configure script respects the $PATH variable when searching
+    for groups and id.
    </para>
   </listitem>
   <listitem>
    <para>
-    The mingw32 version uses "critical sections" now, which prevents
-    log message corruption under load. As a side effect, the
-    "no thread-safe PRNG" warning could be removed as well.
+    Compressed content with extra fields couldn't be decompressed
+    and would get passed to the client unfiltered. This problem
+    has only be detected through statical analysis with clang as
+    nobody seems to be using extra fields anyway.
    </para>
   </listitem>
   <listitem>
    <para>
-    The mingw32 version's task bar icon is crossed out and
-    the color changed to gray if Privoxy is toggled off.
+    If the server resets the Connection after sending only the headers
+    Privoxy forwards what it got to the client. Previously Privoxy
+    would deliver an error message instead.
+   </para>
+  </listitem>
+  <listitem>
+   <para>
+    Error messages in case of connection timeouts use the right
+    HTTP status code.
+   </para>
+  </listitem>
+  <listitem>
+   <para>
+    If spawning a child to handle a request fails, the client
+    gets an error message and Privoxy continues to listen for
+    new requests right away.
+   </para>
+  </listitem>
+  <listitem>
+   <para>
+    The error messages in case of server-connection timeouts or
+    prematurely closed server connections are now template-based.
+   </para>
+  </listitem>
+  <listitem>
+   <para>
+    If zlib support isn't compiled in, Privoxy no longer tries to
+    filter compressed content unless explicitly asked to do so.
+   </para>
+  </listitem>
+  <listitem>
+   <para>
+    In case of connections that are denied based on ACL directives,
+    the memory used for the client IP is no longer leaked.
+   </para>
+  </listitem>
+  <listitem>
+   <para>
+    Fixed another small memory leak if the client request times out
+    while waiting for client headers other than the request line.
+   </para>
+  </listitem>
+  <listitem>
+   <para>
+    The client socket is kept open until the server socket has
+    been marked as unused. This should increase the chances that
+    the still-open connection will be reused for the client's next
+    request to the same destination. Note that this only matters
+    if connection-sharing is enabled.
+   </para>
+  </listitem>
+  <listitem>
+   <para>
+    A TODO list has been added to the source tarballs to give potential
+    volunteers a better idea of what the current goals are. Donations
+    are still welcome too: http://www.privoxy.org/faq/general.html#DONATE
    </para>
   </listitem>
  </itemizedlist>
 </para>
 
-<para>
- This release marks a departure for Privoxy development.
-</para>
-<para>
- Previously, odd numbered releases were considered beta versions and
- were only released at the end of the development cycle when the code
- was already believed to be stable. Usually it was, so the stable release
- contained pretty much the same code, but got a higher version number.
- In the future we intend to release several snapshots between stable releases.
- There will probably still be about two stable releases per year,
- but hopefully about six snapshots instead of the two betas we have now.
- The intentions is to make testing without CVS access easier.
-</para>
 
 <!--   ~~~~~       New section      ~~~~~     -->
 
@@ -2207,12 +2237,12 @@ for details.
  
 <para>
  Generally, an URL pattern has the form
- <literal>&lt;domain&gt;/&lt;path&gt;</literal>, where both the
- <literal>&lt;domain&gt;</literal> and <literal>&lt;path&gt;</literal> are
- optional. (This is why the special <literal>/</literal> pattern matches all
- URLs). Note that the protocol portion of the URL pattern (e.g.
- <literal>http://</literal>) should <emphasis>not</emphasis> be included in
- the pattern. This is assumed already!
+ <literal>&lt;domain&gt;&lt;port&gt;/&lt;path&gt;</literal>, where the
+ <literal>&lt;domain&gt;</literal>, the <literal>&lt;port&gt;</literal>
+ and the <literal>&lt;path&gt;</literal> are optional. (This is why the special
+ <literal>/</literal> pattern matches all URLs). Note that the protocol
+ portion of the URL pattern (e.g. <literal>http://</literal>) should
+ <emphasis>not</emphasis> be included in the pattern. This is assumed already!
 </para>
 <para>
  The pattern matching syntax is different for the domain and path parts of
@@ -2220,6 +2250,12 @@ for details.
  while the path part uses more flexible 
  <ulink url="http://en.wikipedia.org/wiki/Regular_expressions"><quote>Regular
   Expressions</quote></ulink> (POSIX 1003.2).
+</para>
+<para>
+ The port part of a pattern is a decimal port number preceded by a colon
+ (<literal>:</literal>). If the domain part contains a numerical IPv6 address,
+ it has to be put into angle brackets
+ (<literal>&lt;</literal>, <literal>&gt;</literal>).
 </para>
 
 <variablelist>
@@ -2267,6 +2303,23 @@ for details.
    <para>
     matches the document <literal>/index.html</literal>, regardless of the domain,
     i.e. on <emphasis>any</emphasis> web server anywhere.
+   </para>
+  </listitem>
+ </varlistentry>
+ <varlistentry>
+  <term><literal>:8000/</literal></term>
+  <listitem>
+   <para>
+    Matches any URL pointing to TCP port 8000.
+   </para>
+  </listitem>
+ </varlistentry>
+ <varlistentry>
+  <term><literal>&lt;2001:db8::1&gt;/</literal></term>
+  <listitem>
+   <para>
+    Matches any URL with the host address <literal>2001:db8::1</literal>.
+    (Note that the real URL uses plain brackets, not angle brackets.)
    </para>
   </listitem>
  </varlistentry>
@@ -5231,7 +5284,7 @@ new action
     <quote>reset-to-request-time</quote> overwrites the value of the
     <quote>Last-Modified:</quote> header with the current time. You could use
     this option together with
-    <literal><link linkend="hide-if-modified-since">hided-if-modified-since</link></literal>
+    <literal><link linkend="hide-if-modified-since">hide-if-modified-since</link></literal>
     to further customize your random range.
    </para>
    <para>
@@ -8513,6 +8566,42 @@ In file: user.action <guibutton>[ View ]</guibutton> <guibutton>[ Edit ]</guibut
  USA
 
  $Log: user-manual.sgml,v $
+ Revision 2.112  2009/07/24 12:20:30  fabiankeil
+ Remove duplicated period.
+
+ Revision 2.111  2009/07/18 18:11:11  fabiankeil
+ Don't claim that NTLM should work when there are multiple reports that it doesn't.
+
+ Revision 2.110  2009/07/18 16:25:17  fabiankeil
+ Fix trailing whitespace.
+
+ Revision 2.109  2009/07/18 16:24:39  fabiankeil
+ Bump entities for 3.0.14 beta.
+
+ Revision 2.108  2009/07/18 15:49:23  fabiankeil
+ Add most of the changes in 3.0.14 to the "What's New" section.
+
+ Revision 2.107  2009/06/12 14:30:58  fabiankeil
+ Update entities for 3.0.13 beta.
+
+ Revision 2.106  2009/06/12 11:04:13  fabiankeil
+ Import ChangeLog for 3.0.13 beta.
+
+ Revision 2.105  2009/04/17 11:32:57  fabiankeil
+ Grammar and spelling fixes.
+
+ Revision 2.104  2009/04/17 11:27:49  fabiankeil
+ Petr Pisar's privoxy-3.0.12-ipv6-3.diff.
+
+ Revision 2.103  2009/03/21 10:49:05  fabiankeil
+ Merge updated ChangeLog.
+
+ Revision 2.102  2009/03/15 19:31:36  fabiankeil
+ Update "What's New in this Release" section.
+
+ Revision 2.101  2009/02/25 19:01:56  fabiankeil
+ Fix typo.
+
  Revision 2.100  2009/02/19 17:14:11  fabiankeil
  - Copy the release cycle description from announce.txt into
    the "What's New" section.

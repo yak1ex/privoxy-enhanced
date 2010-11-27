@@ -216,6 +216,12 @@
             <tr> 
               <th>#define</th> <th>Enabled?</th> <th>Effects when enabled</th>
             </tr>
+
+            <tr>
+              <td><code>FEATURE_ACCEPT_FILTER</code></td>
+              <td>@if-FEATURE_ACCEPT_FILTER-then@ Yes @else-not-FEATURE_ACCEPT_FILTER@ No @endif-FEATURE_ACCEPT_FILTER@</td>
+              <td>Support for FreeBSD's accf_http(9) which is also available on some other BSDs.</td>
+            </tr>
             <tr>
               <td><code>FEATURE_ACL</code></td>
               <td>@if-FEATURE_ACL-then@ Yes @else-not-FEATURE_ACL@ No @endif-FEATURE_ACL@</td>
@@ -235,6 +241,14 @@
               <td>
                Allows to send multiple request through the same connections if the server supports it.
                Requires the keep-alive-timeout config directive to be set.
+              </td>
+            </tr>
+            <tr>
+              <td><code>FEATURE_CONNECTION_SHARING</code></td>
+              <td>@if-FEATURE_CONNECTION_SHARING-then@ Yes @else-not-FEATURE_CONNECTION_SHARING@ No @endif-FEATURE_CONNECTION_SHARING@</td>
+              <td>
+               Allows to share outgoing connections between incoming connections.
+               Requires the connection-sharing config directive to be set.
               </td>
             </tr>
             <tr>

@@ -7,7 +7,7 @@
 # A regression test "framework" for Privoxy. For documentation see:
 # perldoc privoxy-regression-test.pl
 #
-# $Id: privoxy-regression-test.pl,v 1.51 2009/06/15 20:47:49 fabiankeil Exp $
+# $Id: privoxy-regression-test.pl,v 1.61 2010/01/03 13:49:01 fabiankeil Exp $
 #
 # Wish list:
 #
@@ -40,7 +40,7 @@ use strict;
 use Getopt::Long;
 
 use constant {
-    PRT_VERSION => 'Privoxy-Regression-Test 0.3',
+    PRT_VERSION => 'Privoxy-Regression-Test 0.4',
  
     CURL => 'curl',
 
@@ -83,6 +83,7 @@ use constant {
     STICKY_ACTIONS_TEST =>  5,
     TRUSTED_CGI_REQUEST =>  6,
     BLOCK_TEST          =>  7,
+    REDIRECT_TEST       =>108,
 };
 
 sub init_our_variables () {
@@ -202,7 +203,7 @@ sub token_starts_new_test ($) {
     my $token = shift;
     my @new_test_directives = ('set header', 'fetch test',
          'trusted cgi request', 'request header', 'method test',
-         'blocked url', 'url');
+         'blocked url', 'url', 'redirected url');
 
     foreach my $new_test_directive (@new_test_directives) {
         return 1 if $new_test_directive eq $token;
@@ -246,45 +247,59 @@ sub enlist_new_test ($$$$$$) {
 
     my ($regression_tests, $token, $value, $si, $ri, $number) = @_;
     my $type;
+    my $executor;
 
     if ($token eq 'set header') {
 
         l(LL_FILE_LOADING, "Header to set: " . $value);
         $type = CLIENT_HEADER_TEST;
+        $executor = \&execute_client_header_regression_test;
 
     } elsif ($token eq 'request header') {
 
         l(LL_FILE_LOADING, "Header to request: " . $value);
         $type = SERVER_HEADER_TEST;
+        $executor = \&execute_server_header_regression_test;
         $$regression_tests[$si][$ri]{'expected-status-code'} = 200;
 
     } elsif ($token eq 'trusted cgi request') {
 
         l(LL_FILE_LOADING, "CGI URL to test in a dumb way: " . $value);
         $type = TRUSTED_CGI_REQUEST;
+        $executor = \&execute_dumb_fetch_test;
         $$regression_tests[$si][$ri]{'expected-status-code'} = 200;
 
     } elsif ($token eq 'fetch test') {
 
         l(LL_FILE_LOADING, "URL to test in a dumb way: " . $value);
         $type = DUMB_FETCH_TEST;
+        $executor = \&execute_dumb_fetch_test;
         $$regression_tests[$si][$ri]{'expected-status-code'} = 200;
 
     } elsif ($token eq 'method test') {
 
         l(LL_FILE_LOADING, "Method to test: " . $value);
         $type = METHOD_TEST;
+        $executor = \&execute_method_test;
         $$regression_tests[$si][$ri]{'expected-status-code'} = 200;
 
     } elsif ($token eq 'blocked url') {
 
         l(LL_FILE_LOADING, "URL to block-test: " . $value);
+        $executor = \&execute_block_test;
         $type = BLOCK_TEST;
 
     } elsif ($token eq 'url') {
 
         l(LL_FILE_LOADING, "Sticky URL to test: " . $value);
         $type = STICKY_ACTIONS_TEST;
+        $executor = \&execute_sticky_actions_test;
+
+    } elsif ($token eq 'redirected url') {
+
+        l(LL_FILE_LOADING, "Redirected URL to test: " . $value);
+        $type = REDIRECT_TEST;
+        $executor = \&execute_redirect_test;
 
     } else {
 
@@ -293,6 +308,7 @@ sub enlist_new_test ($$$$$$) {
 
     $$regression_tests[$si][$ri]{'type'} = $type;
     $$regression_tests[$si][$ri]{'level'} = $type;
+    $$regression_tests[$si][$ri]{'executor'} = $executor;
 
     check_for_forbidden_characters($value);
 
@@ -426,6 +442,11 @@ sub load_action_files ($) {
                 l(LL_FILE_LOADING, "Method: " . $value);
                 $regression_tests[$si][$ri]{'method'} = $value;
 
+            } elsif ($token eq 'redirect destination') {
+
+                l(LL_FILE_LOADING, "Redirect destination: " . $value);
+                $regression_tests[$si][$ri]{'redirect destination'} = $value;
+
             } elsif ($token eq 'url') {
 
                 if (defined $sticky_actions) {
@@ -490,6 +511,8 @@ sub execute_regression_tests () {
 
                 die "Section id mismatch" if ($s != $regression_tests[$s][$r]{'section-id'});
                 die "Regression test id mismatch" if ($r != $regression_tests[$s][$r]{'regression-test-id'});
+                die "Internal error. Test executor missing."
+                    unless defined $regression_tests[$s][$r]{executor};
 
                 my $number = $regression_tests[$s][$r]{'number'};
                 my $skip_reason = get_skip_reason($regression_tests[$s][$r]);
@@ -502,7 +525,7 @@ sub execute_regression_tests () {
 
                 } else {
 
-                    my $result = execute_regression_test($regression_tests[$s][$r]);
+                    my $result = $regression_tests[$s][$r]{executor}($regression_tests[$s][$r]);
 
                     log_result($regression_tests[$s][$r], $result, $tests);
 
@@ -640,45 +663,6 @@ sub register_dependency ($$) {
     }
 }
 
-# XXX: somewhat misleading name
-sub execute_regression_test ($) {
-
-    my $test = shift;
-    my $result = 0;
-
-    if ($test->{'type'} == CLIENT_HEADER_TEST) {
-
-        $result = execute_client_header_regression_test($test);
-
-    } elsif ($test->{'type'} == SERVER_HEADER_TEST) {
-
-        $result = execute_server_header_regression_test($test);
-
-    } elsif ($test->{'type'} == DUMB_FETCH_TEST
-          or $test->{'type'} == TRUSTED_CGI_REQUEST) {
-
-        $result = execute_dumb_fetch_test($test);
-
-    } elsif ($test->{'type'} == METHOD_TEST) {
-
-        $result = execute_method_test($test);
-
-    } elsif ($test->{'type'} == BLOCK_TEST) {
-
-        $result = execute_block_test($test);
-
-    } elsif ($test->{'type'} == STICKY_ACTIONS_TEST) {
-
-        $result = execute_sticky_actions_test($test);
-
-    } else {
-
-        die "Unsupported test type detected: " . $test->{'type'};
-    }
-
-    return $result;
-}
-
 sub execute_method_test ($) {
 
     my $test = shift;
@@ -699,6 +683,51 @@ sub execute_method_test ($) {
     $status_code = get_status_code($buffer_ref);
 
     return check_status_code_result($status_code, $expected_status_code);
+}
+
+sub execute_redirect_test ($) {
+
+    my $test = shift;
+    my $buffer_ref;
+    my $status_code;
+
+    my $curl_parameters = '';
+    my $url = $test->{'data'};
+    my $redirect_destination;
+    my $expected_redirect_destination = $test->{'redirect destination'};
+
+    # XXX: Check if a redirect actualy applies before doing the request.
+    #      otherwise the test may hit a real server in failure cases.
+
+    $curl_parameters .= '--head ';
+
+    $curl_parameters .= quote($url);
+
+    $buffer_ref = get_page_with_curl($curl_parameters);
+    $status_code = get_status_code($buffer_ref);
+
+    if ($status_code ne "302") {
+        l(LL_VERBOSE_FAILURE,
+          "Ooops. Expected redirect to: '" . $expected_redirect_destination
+          . "' but got a response with status code: " . $status_code);
+        return 0;
+    }
+    foreach (@{$buffer_ref}) {
+        if (/^Location: (.*)\r\n/) {
+            $redirect_destination = $1;
+            last;
+        }
+    }
+
+    my $success = ($redirect_destination eq $expected_redirect_destination);
+
+    unless ($success) {
+        l(LL_VERBOSE_FAILURE,
+          "Ooops. Expected redirect to: '" . $expected_redirect_destination
+          . "' but the redirect leads to: '" . $redirect_destination. "'");
+    }
+
+    return $success;
 }
 
 sub execute_dumb_fetch_test ($) {
@@ -789,7 +818,10 @@ sub get_final_results ($) {
         next unless ($final_results_reached);
         last if (m@</td>@);
 
-        if (m@<br>([-+])<a.*>([^>]*)</a>(?: (\{.*\}))?@) {
+        # Privoxy versions before 3.0.16 add a space
+        # between action name and parameters, therefore
+        # the " ?".
+        if (m@<br>([-+])<a.*>([^>]*)</a>(?: ?(\{.*\}))?@) {
             my $action = $1.$2;
             my $parameter = $3;
             
@@ -1369,6 +1401,13 @@ sub log_result ($$) {
             $message .= ' and URL: ';
             $message .= quote($test->{'data'});
 
+        } elsif ($test->{'type'} == REDIRECT_TEST) {
+
+            $message .= ' Redirected URL: ';
+            $message .= quote($test->{'data'});
+            $message .= ' and redirect destination: ';
+            $message .= quote($test->{'redirect destination'});
+
         } else {
 
             die "Incomplete support for test type " . $test->{'type'} .  " detected.";
@@ -1446,7 +1485,7 @@ sub parse_cli_options () {
         'fuzzer-address=s'   => \$cli_options{'fuzzer-address'},
         'fuzzer-feeding'     => \$cli_options{'fuzzer-feeding'},
         'header-fuzzing'     => \$cli_options{'header-fuzzing'},
-        'help'               => sub {help},
+        'help'               => \&help,
         'level=s'            => \$cli_options{'level'},
         'loops=s'            => \$cli_options{'loops'},
         'max-level=s'        => \$cli_options{'max-level'},
@@ -1458,7 +1497,7 @@ sub parse_cli_options () {
         'test-number=s'      => \$cli_options{'test-number'},
         'verbose'            => \$cli_options{'verbose'},
         'version'            => sub {print_version && exit(0)}
-    );
+    ) or exit(1);
     $log_level |= $cli_options{'debug'};
 }
 
@@ -1619,6 +1658,11 @@ To verify that a specific set of actions is applied to an URL, use:
 The sticky actions will be checked for all URLs below it
 until the next sticky actions directive.
 
+To verify that requests for a URL get redirected, use:
+
+    # Redirected URL = http://www.example.com/redirect-me
+    # Redirect Destination = http://www.example.org/redirected
+
 =head1 TEST LEVELS
 
 All tests have test levels to let the user
@@ -1626,9 +1670,15 @@ control which ones to execute (see I<OPTIONS> below).
 Test levels are either set with the B<Level> directive,
 or implicitly through the test type.
 
-Block tests default to level 7, fetch tests to level 6,
-"Sticky Actions" tests default to level 5, tests for trusted CGI
-requests to level 3 and client-header-action tests to level 1.
+Redirect tests default to level 108, block tests to level 7,
+fetch tests to level 6, "Sticky Actions" tests default to
+level 5, tests for trusted CGI requests to level 3 and
+client-header-action tests to level 1.
+
+The current redirect test level is above the default
+max-level value as failed tests will result in outgoing
+connections. Use the B<--max-level> option to run them
+as well.
 
 =head1 OPTIONS
 

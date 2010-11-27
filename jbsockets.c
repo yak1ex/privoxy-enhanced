@@ -1,4 +1,4 @@
-const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.65 2009/07/22 22:27:16 fabiankeil Exp $";
+const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.72 2010/02/15 15:14:10 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/jbsockets.c,v $
@@ -101,7 +101,6 @@ const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.65 2009/07/22 22:27:16 fabian
 #include "jbsockets.h"
 #include "filters.h"
 #include "errlog.h"
-#include "miscutil.h"
 
 /* Mac OSX doesn't define AI_NUMERICSESRV */
 #ifndef AI_NUMERICSERV
@@ -169,11 +168,16 @@ jb_socket connect_to(const char *host, int portnum, struct client_state *csp)
    memset((char *)&hints, 0, sizeof(hints));
    hints.ai_family = AF_UNSPEC;
    hints.ai_socktype = SOCK_STREAM;
-   hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV; /* avoid service look-up */
+   hints.ai_flags = AI_NUMERICSERV; /* avoid service look-up */
+#ifdef AI_ADDRCONFIG
+   hints.ai_flags |= AI_ADDRCONFIG;
+#endif
    if ((retval = getaddrinfo(host, service, &hints, &result)))
    {
       log_error(LOG_LEVEL_INFO,
          "Can not resolve %s: %s", host, gai_strerror(retval));
+      /* XXX: Should find a better way to propagate this error. */
+      errno = EINVAL;
       csp->http->host_ip_addr_str = strdup("unknown");
       return(JB_INVALID_SOCKET);
    }
@@ -565,7 +569,7 @@ int read_socket(jb_socket fd, char *buf, int len)
 #elif defined(__BEOS__) || defined(AMIGA) || defined(__OS2__)
    return(recv(fd, buf, (size_t)len, 0));
 #else
-   return(read(fd, buf, (size_t)len));
+   return((int)read(fd, buf, (size_t)len));
 #endif
 }
 
@@ -586,6 +590,7 @@ int read_socket(jb_socket fd, char *buf, int len)
  *********************************************************************/
 int data_is_available(jb_socket fd, int seconds_to_wait)
 {
+   char buf[10];
    fd_set rfds;
    struct timeval timeout;
    int n;
@@ -606,7 +611,7 @@ int data_is_available(jb_socket fd, int seconds_to_wait)
    /*
     * XXX: Do we care about the different error conditions?
     */
-   return (n == 1);
+   return ((n == 1) && (1 == recv(fd, buf, 1, MSG_PEEK)));
 }
 
 
@@ -687,7 +692,7 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
    }
 
    memset(&hints, 0, sizeof(struct addrinfo));
-   if ((hostnam == NULL) || !strcmpic(hostnam, "localhost"))
+   if (hostnam == NULL)
    {
       /*
        * XXX: This is a hack. The right thing to do
@@ -702,7 +707,10 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
       hints.ai_family = AF_UNSPEC;
    }
    hints.ai_socktype = SOCK_STREAM;
-   hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
+   hints.ai_flags = AI_PASSIVE;
+#ifdef AI_ADDRCONFIG
+   hints.ai_flags |= AI_ADDRCONFIG;
+#endif
    hints.ai_protocol = 0; /* Realy any stream protocol or TCP only */
    hints.ai_canonname = NULL;
    hints.ai_addr = NULL;
@@ -1036,6 +1044,12 @@ int accept_connection(struct client_state * csp, jb_socket fd)
 #else
    do
    {
+#if defined(FEATURE_ACCEPT_FILTER) && defined(SO_ACCEPTFILTER)
+      struct accept_filter_arg af_options;
+      bzero(&af_options, sizeof(af_options));
+      strlcpy(af_options.af_name, "httpready", sizeof(af_options.af_name));
+      setsockopt(fd, SOL_SOCKET, SO_ACCEPTFILTER, &af_options, sizeof(af_options));
+#endif
       afd = accept (fd, (struct sockaddr *) &client, &c_length);
    } while (afd < 1 && errno == EINTR);
    if (afd < 0)

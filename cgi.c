@@ -1,4 +1,4 @@
-const char cgi_rcs[] = "$Id: cgi.c,v 1.109 2008/07/26 09:40:27 fabiankeil Exp $";
+const char cgi_rcs[] = "$Id: cgi.c,v 1.114 2008/12/04 18:15:04 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/cgi.c,v $
@@ -38,6 +38,26 @@ const char cgi_rcs[] = "$Id: cgi.c,v 1.109 2008/07/26 09:40:27 fabiankeil Exp $"
  *
  * Revisions   :
  *    $Log: cgi.c,v $
+ *    Revision 1.114  2008/12/04 18:15:04  fabiankeil
+ *    Fix some cparser warnings.
+ *
+ *    Revision 1.113  2008/09/04 08:13:58  fabiankeil
+ *    Prepare for critical sections on Windows by adding a
+ *    layer of indirection before the pthread mutex functions.
+ *
+ *    Revision 1.112  2008/08/31 16:08:12  fabiankeil
+ *    "View the request headers" isn't more equal than the other
+ *    menu items and thus doesn't need a trailing dot either.
+ *
+ *    Revision 1.111  2008/08/31 15:59:02  fabiankeil
+ *    There's no reason to let remote toggling support depend
+ *    on FEATURE_CGI_EDIT_ACTIONS, so make sure it doesn't.
+ *
+ *    Revision 1.110  2008/08/31 14:55:43  fabiankeil
+ *    Add a @date@ symbol to include a date(1)-like time string
+ *    in templates. Modified version of the patch Endre Szabo
+ *    submitted in #2026468.
+ *
  *    Revision 1.109  2008/07/26 09:40:27  fabiankeil
  *    Remove the unconditional block in get_http_time().
  *    It's pointless now that it's no longer used to limit
@@ -642,12 +662,12 @@ const char cgi_rcs[] = "$Id: cgi.c,v 1.109 2008/07/26 09:40:27 fabiankeil Exp $"
 #include "miscutil.h"
 #include "cgisimple.h"
 #include "jbsockets.h"
-#ifdef FEATURE_CGI_EDIT_ACTIONS
+#if defined(FEATURE_CGI_EDIT_ACTIONS) || defined(FEATURE_TOGGLE)
 #include "cgiedit.h"
-#endif /* def FEATURE_CGI_EDIT_ACTIONS */
+#endif /* defined(FEATURE_CGI_EDIT_ACTIONS) || defined (FEATURE_TOGGLE) */
 #include "loadcfg.h"
 /* loadcfg.h is for global_toggle_state only */
-#if defined(FEATURE_PTHREAD) || defined(_WIN32) && !defined(_CYGWIN)
+#if defined(FEATURE_PTHREAD) || defined(_WIN32)
 #include "jcc.h"
 /* jcc.h is for mutex semaphore globals only */
 #endif /* def FEATURE_PTHREAD */
@@ -684,13 +704,12 @@ static const struct cgi_dispatcher cgi_dispatchers[] = {
           TRUE }, 
    { "show-request", 
          cgi_show_request,  
-         "View the request headers.",
+         "View the request headers",
          TRUE }, 
    { "show-url-info",
          cgi_show_url_info, 
          "Look up which actions apply to a URL and why",
          TRUE },
-#ifdef FEATURE_CGI_EDIT_ACTIONS
 #ifdef FEATURE_TOGGLE
    { "toggle",
          cgi_toggle, 
@@ -703,6 +722,7 @@ static const struct cgi_dispatcher cgi_dispatchers[] = {
          "View & change the forward class state",
          FALSE },
 #endif /* def FEATURE_FORWARD_CLASS */
+#ifdef FEATURE_CGI_EDIT_ACTIONS
    { "edit-actions", /* Edit the actions list */
          cgi_edit_actions, 
          NULL, FALSE },
@@ -1993,7 +2013,7 @@ void get_http_time(int time_offset, char *buf, size_t buffer_size)
 #endif
 
    assert(buf);
-   assert(buffer_size > 29);
+   assert(buffer_size > (size_t)29);
 
    time(&current_time);
 
@@ -2002,10 +2022,10 @@ void get_http_time(int time_offset, char *buf, size_t buffer_size)
    /* get and save the gmt */
 #if HAVE_GMTIME_R
    t = gmtime_r(&current_time, &dummy);
-#elif FEATURE_PTHREAD || defined(_WIN32) && !defined(_CYGWIN)
-   pthread_mutex_lock(&gmtime_mutex);
+#elif defined(MUTEX_LOCKS_AVAILABLE)
+   privoxy_mutex_lock(&gmtime_mutex);
    t = gmtime(&current_time);
-   pthread_mutex_unlock(&gmtime_mutex);
+   privoxy_mutex_unlock(&gmtime_mutex);
 #else
    t = gmtime(&current_time);
 #endif
@@ -2024,6 +2044,51 @@ void get_http_time(int time_offset, char *buf, size_t buffer_size)
 
 }
 
+/*********************************************************************
+ *
+ * Function    :  get_locale_time
+ *
+ * Description :  Get the time in a date(1)-like format
+ *                according to the current locale - e.g.:
+ *                "Fri Aug 29 19:37:12 CEST 2008"
+ *
+ *                XXX: Should we allow the user to change the format?
+ *
+ * Parameters  :
+ *          1  :  buf         = Destination for result.
+ *          2  :  buffer_size = Size of the buffer above. Must be big
+ *                              enough to hold 29 characters plus a
+ *                              trailing zero.
+ *
+ * Returns     :  N/A
+ *
+ *********************************************************************/
+static void get_locale_time(char *buf, size_t buffer_size)
+{
+   struct tm *timeptr;
+   time_t current_time;
+#if defined(HAVE_LOCALTIME_R)
+   struct tm dummy;
+#endif
+
+   assert(buf);
+   assert(buffer_size > (size_t)29);
+
+   time(&current_time);
+
+#if HAVE_LOCALTIME_R
+   timeptr = localtime_r(&current_time, &dummy);
+#elif FEATURE_PTHREAD
+   privoxy_mutex_lock(&localtime_mutex);
+   timeptr = localtime(&current_time);
+   privoxy_mutex_unlock(&localtime_mutex);
+#else
+   timeptr = localtime(&current_time);
+#endif
+
+   strftime(buf, buffer_size, "%a %b %d %X %Z %Y", timeptr);
+
+}
 
 /*********************************************************************
  *
@@ -2597,7 +2662,7 @@ jb_err template_fill_for_cgi(const struct client_state *csp,
  *********************************************************************/
 struct map *default_exports(const struct client_state *csp, const char *caller)
 {
-   char buf[20];
+   char buf[30];
    jb_err err;
    struct map * exports;
    int local_help_exists = 0;
@@ -2623,6 +2688,8 @@ struct map *default_exports(const struct client_state *csp, const char *caller)
    }
 
    err = map(exports, "version", 1, html_encode(VERSION), 0);
+   get_locale_time(buf, sizeof(buf));
+   if (!err) err = map(exports, "time",          1, html_encode(buf), 0);
    if (!err) err = map(exports, "my-ip-address", 1, html_encode(ip_address ? ip_address : "unknown"), 0);
    freez(ip_address);
    if (!err) err = map(exports, "my-hostname",   1, html_encode(hostname ? hostname : "unknown"), 0);
@@ -2716,7 +2783,7 @@ jb_err map_block_killer(struct map *exports, const char *name)
 
    assert(exports);
    assert(name);
-   assert(strlen(name) < 490);
+   assert(strlen(name) < (size_t)490);
 
    snprintf(buf, sizeof(buf), "if-%s-start.*if-%s-end", name, name);
    return map(exports, buf, 1, "", 1);
@@ -2746,7 +2813,7 @@ jb_err map_block_keep(struct map *exports, const char *name)
 
    assert(exports);
    assert(name);
-   assert(strlen(name) < 490);
+   assert(strlen(name) < (size_t)490);
 
    snprintf(buf, sizeof(buf), "if-%s-start", name);
    err = map(exports, buf, 1, "", 1);
@@ -2793,7 +2860,7 @@ jb_err map_conditional(struct map *exports, const char *name, int choose_first)
 
    assert(exports);
    assert(name);
-   assert(strlen(name) < 480);
+   assert(strlen(name) < (size_t)480);
 
    snprintf(buf, sizeof(buf), (choose_first
       ? "else-not-%s@.*@endif-%s"

@@ -1,6 +1,6 @@
 #ifndef JCC_H_INCLUDED
 #define JCC_H_INCLUDED
-#define JCC_H_VERSION "$Id: jcc.h,v 1.26 2009/05/16 13:27:20 fabiankeil Exp $"
+#define JCC_H_VERSION "$Id: jcc.h,v 1.28 2010/01/03 12:37:14 fabiankeil Exp $"
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/jcc.h,v $
@@ -56,7 +56,7 @@ extern struct file_list    files[1];
 #ifdef unix
 extern const char *pidfile;
 #endif
-extern int no_daemon;
+extern int daemon_mode;
 
 #ifdef FEATURE_GRACEFUL_TERMINATION
 extern int g_terminate;
@@ -104,9 +104,9 @@ extern privoxy_mutex_t rand_mutex;
 /* Functions */
 
 #ifdef __MINGW32__
-int real_main(int argc, const char *argv[]);
+int real_main(int argc, char **argv);
 #else
-int main(int argc, const char *argv[]);
+int main(int argc, char **argv);
 #endif
 
 /* Revision control strings from this header and associated .c file */

@@ -1,4 +1,4 @@
-const char parsers_rcs[] = "$Id: parsers.c,v 1.202 2009/07/19 11:48:32 fabiankeil Exp $";
+const char parsers_rcs[] = "$Id: parsers.c,v 1.210 2009/12/25 11:39:26 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/parsers.c,v $
@@ -158,6 +158,7 @@ static jb_err server_save_content_length(struct client_state *csp, char **header
 static jb_err server_keep_alive(struct client_state *csp, char **header);
 static jb_err server_proxy_connection(struct client_state *csp, char **header);
 static jb_err client_keep_alive(struct client_state *csp, char **header);
+static jb_err client_save_content_length(struct client_state *csp, char **header);
 #endif /* def FEATURE_CONNECTION_KEEP_ALIVE */
 
 static jb_err client_host_adder       (struct client_state *csp);
@@ -211,6 +212,7 @@ static const struct parsers client_patterns[] = {
    { "if-modified-since:",       18,   client_if_modified_since },
 #ifdef FEATURE_CONNECTION_KEEP_ALIVE
    { "Keep-Alive:",              11,   client_keep_alive },
+   { "Content-Length:",          15,   client_save_content_length },
 #else
    { "Keep-Alive:",              11,   crumble },
 #endif
@@ -596,7 +598,7 @@ jb_err decompress_iob(struct client_state *csp)
 
    assert(bufsize >= skip_size);
    memcpy(buf, csp->iob->buf, skip_size);
-   zstr.avail_out = bufsize - skip_size;
+   zstr.avail_out = (uInt)(bufsize - skip_size);
    zstr.next_out  = (Bytef *)buf + skip_size;
 
    /* Try to decompress the whole stream in one shot. */
@@ -654,7 +656,7 @@ jb_err decompress_iob(struct client_state *csp)
           * buffer, which may be in a location different from
           * the old one.
           */
-         zstr.avail_out += bufsize - oldbufsize;
+         zstr.avail_out += (uInt)(bufsize - oldbufsize);
          zstr.next_out   = (Bytef *)tmpbuf + bufsize - zstr.avail_out;
 
          /*
@@ -663,7 +665,6 @@ jb_err decompress_iob(struct client_state *csp)
           */
          assert(zstr.avail_out == tmpbuf + bufsize - (char *)zstr.next_out);
          assert((char *)zstr.next_out == tmpbuf + ((char *)oldnext_out - buf));
-         assert(zstr.avail_out > 0U);
 
          buf = tmpbuf;
       }
@@ -1761,6 +1762,76 @@ static jb_err client_keep_alive(struct client_state *csp, char **header)
 
    return JB_ERR_OK;
 }
+
+
+/*********************************************************************
+ *
+ * Function    :  get_content_length
+ *
+ * Description :  Gets the content length specified in a
+ *                Content-Length header.
+ *
+ * Parameters  :
+ *          1  :  header = The Content-Length header.
+ *          2  :  length = Storage to return the value.
+ *
+ * Returns     :  JB_ERR_OK on success, or
+ *                JB_ERR_PARSE if no value is recognized.
+ *
+ *********************************************************************/
+static jb_err get_content_length(const char *header, unsigned long long *length)
+{
+   assert(header[14] == ':');
+
+#ifdef _WIN32
+   assert(sizeof(unsigned long long) > 4);
+   if (1 != sscanf(header+14, ": %I64u", length))
+#else
+   if (1 != sscanf(header+14, ": %llu", length))
+#endif
+   {
+      return JB_ERR_PARSE;
+   }
+
+   return JB_ERR_OK;
+}
+
+
+/*********************************************************************
+ *
+ * Function    :  client_save_content_length
+ *
+ * Description :  Save the Content-Length sent by the client.
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *          2  :  header = On input, pointer to header to modify.
+ *                On output, pointer to the modified header, or NULL
+ *                to remove the header.  This function frees the
+ *                original string if necessary.
+ *
+ * Returns     :  JB_ERR_OK on success, or
+ *                JB_ERR_MEMORY on out-of-memory error.
+ *
+ *********************************************************************/
+static jb_err client_save_content_length(struct client_state *csp, char **header)
+{
+   unsigned long long content_length = 0;
+
+   assert(*(*header+14) == ':');
+
+   if (JB_ERR_OK != get_content_length(*header, &content_length))
+   {
+      log_error(LOG_LEVEL_ERROR, "Crunching invalid header: %s", *header);
+      freez(*header);
+   }
+   else
+   {
+      csp->expected_client_content_length = content_length;
+   }
+
+   return JB_ERR_OK;
+}
 #endif /* def FEATURE_CONNECTION_KEEP_ALIVE */
 
 
@@ -2228,11 +2299,7 @@ static jb_err server_save_content_length(struct client_state *csp, char **header
 
    assert(*(*header+14) == ':');
 
-#ifdef _WIN32
-   if (1 != sscanf(*header+14, ": %I64u", &content_length))
-#else
-   if (1 != sscanf(*header+14, ": %llu", &content_length))
-#endif
+   if (JB_ERR_OK != get_content_length(*header, &content_length))
    {
       log_error(LOG_LEVEL_ERROR, "Crunching invalid header: %s", *header);
       freez(*header);
@@ -3774,8 +3841,7 @@ static jb_err server_http(struct client_state *csp, char **header)
  * Function    :  server_set_cookie
  *
  * Description :  Handle the server "cookie" header properly.
- *                Log cookie to the jar file.  Then "crunch",
- *                accept or rewrite it to a session cookie.
+ *                Crunch, accept or rewrite it to a session cookie.
  *                Called from `sed'.
  *
  *                TODO: Allow the user to specify a new expiration
@@ -3852,6 +3918,17 @@ static jb_err server_set_cookie(struct client_state *csp, char **header)
          if ((strncmpic(cur_tag, "expires=", 8) == 0) && *(cur_tag + 8))
          {
             char *expiration_date = cur_tag + 8; /* Skip "[Ee]xpires=" */
+
+            if ((expiration_date[0] == '"')
+             && (expiration_date[1] != '\0'))
+            {
+               /*
+                * Skip quotation mark. RFC 2109 10.1.2 seems to hint
+                * that the expiration date isn't supposed to be quoted,
+                * but some servers do it anyway.
+                */
+               expiration_date++;
+            }
 
             /* Did we detect the date properly? */
             if (JB_ERR_OK != parse_header_time(expiration_date, &cookie_time))

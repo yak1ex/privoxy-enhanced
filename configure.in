@@ -79,7 +79,7 @@ dnl =================================================================
 VERSION_MAJOR=3
 VERSION_MINOR=0
 VERSION_POINT=17
-PATCHLEVEL=0
+PATCHLEVEL=1
 CODE_STATUS="stable"
 
 dnl CODE_STATUS can be "alpha", "beta", or "stable", and will be

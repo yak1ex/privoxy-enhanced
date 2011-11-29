@@ -1274,7 +1274,11 @@ jb_err cgi_show_url_info(struct client_state *csp,
 
          for (; (b != NULL) && (matches != NULL); b = b->next)
          {
+#ifdef FEATURE_REQUIRED_TAG
+            if ((b->rtags == NULL || match_req_tag_list(b->rtags, csp->tags)) && url_match(b->url, url_to_query))
+#else
             if (url_match(b->url, url_to_query))
+#endif
             {
                string_append(&matches, "<tr><td>{");
                string_join  (&matches, actions_to_html(csp, b->action));

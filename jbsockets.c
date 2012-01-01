@@ -53,6 +53,10 @@ const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.110 2011/11/18 23:53:26 fabia
 #include <windows.h>
 #include <sys/timeb.h>
 #include <io.h>
+#ifdef socklen_t
+#undef socklen_t
+#endif
+#include <ws2tcpip.h>
 
 #else
 

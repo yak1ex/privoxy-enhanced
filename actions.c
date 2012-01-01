@@ -1,4 +1,4 @@
-const char actions_rcs[] = "$Id: actions.c,v 1.59 2010/05/26 23:01:47 ler762 Exp $";
+const char actions_rcs[] = "$Id: actions.c,v 1.73 2011/09/18 14:43:07 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/actions.c,v $
@@ -6,7 +6,7 @@ const char actions_rcs[] = "$Id: actions.c,v 1.59 2010/05/26 23:01:47 ler762 Exp
  * Purpose     :  Declares functions to work with actions files
  *                Functions declared include: FIXME
  *
- * Copyright   :  Written by and Copyright (C) 2001-2008 the SourceForge
+ * Copyright   :  Written by and Copyright (C) 2001-2011 the
  *                Privoxy team. http://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
@@ -437,7 +437,7 @@ jb_err get_action_token(char **line, char **name, char **value)
  *********************************************************************/
 static int action_used_to_be_valid(const char *action)
 {
-   static const char *formerly_valid_actions[] = {
+   static const char * const formerly_valid_actions[] = {
       "inspect-jpegs",
       "kill-popups",
       "send-vanilla-wafer",
@@ -525,7 +525,7 @@ jb_err get_actions(char *line,
 
                   if ((value == NULL) || (*value == '\0'))
                   {
-                     if (0 != strcmpic(action->name, "block"))
+                     if (0 == strcmpic(action->name, "+block"))
                      {
                         /*
                          * XXX: Temporary backwards compatibility hack.
@@ -1072,6 +1072,108 @@ int load_action_files(struct client_state *csp)
    return 0;
 }
 
+
+/*********************************************************************
+ *
+ * Function    :  referenced_filters_are_missing
+ *
+ * Description :  Checks if any filters of a certain type referenced
+ *                in an action spec are missing.
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *          2  :  cur_action = The action spec to check.
+ *          3  :  multi_index = The index where to look for the filter.
+ *          4  :  filter_type = The filter type the caller is interested in.
+ *
+ * Returns     :  0 => All referenced filters exists, everything else is an error.
+ *
+ *********************************************************************/
+static int referenced_filters_are_missing(const struct client_state *csp,
+   const struct action_spec *cur_action, int multi_index, enum filter_type filter_type)
+{
+   int i;
+   struct file_list *fl;
+   struct re_filterfile_spec *b;
+   struct list_entry *filtername;
+
+   for (filtername = cur_action->multi_add[multi_index]->first;
+        filtername; filtername = filtername->next)
+   {
+      int filter_found = 0;
+      for (i = 0; i < MAX_AF_FILES; i++)
+      {
+         fl = csp->rlist[i];
+         if ((NULL == fl) || (NULL == fl->f))
+         {
+            continue;
+         }
+
+         for (b = fl->f; b; b = b->next)
+         {
+            if (b->type != filter_type)
+            {
+               continue;
+            }
+            if (strcmp(b->name, filtername->str) == 0)
+            {
+               filter_found = 1;
+            }
+         }
+      }
+      if (!filter_found)
+      {
+         log_error(LOG_LEVEL_ERROR, "Missing filter '%s'", filtername->str);
+         return 1;
+      }
+   }
+
+   return 0;
+
+}
+
+
+/*********************************************************************
+ *
+ * Function    :  action_spec_is_valid
+ *
+ * Description :  Should eventually figure out if an action spec
+ *                is valid, but currently only checks that the
+ *                referenced filters are accounted for.
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *          2  :  cur_action = The action spec to check.
+ *
+ * Returns     :  0 => No problems detected, everything else is an error.
+ *
+ *********************************************************************/
+static int action_spec_is_valid(struct client_state *csp, const struct action_spec *cur_action)
+{
+   struct {
+      int multi_index;
+      enum filter_type filter_type;
+   } filter_map[] = {
+      {ACTION_MULTI_FILTER, FT_CONTENT_FILTER},
+      {ACTION_MULTI_CLIENT_HEADER_FILTER, FT_CLIENT_HEADER_FILTER},
+      {ACTION_MULTI_SERVER_HEADER_FILTER, FT_SERVER_HEADER_FILTER},
+      {ACTION_MULTI_CLIENT_HEADER_TAGGER, FT_CLIENT_HEADER_TAGGER},
+      {ACTION_MULTI_SERVER_HEADER_TAGGER, FT_SERVER_HEADER_TAGGER}
+   };
+   int errors = 0;
+   int i;
+
+   for (i = 0; i < SZ(filter_map); i++)
+   {
+      errors += referenced_filters_are_missing(csp, cur_action,
+         filter_map[i].multi_index, filter_map[i].filter_type);
+   }
+
+   return errors;
+
+}
+
+
 /*********************************************************************
  *
  * Function    :  load_one_actions_file
@@ -1094,21 +1196,23 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
     * Note: Keep these in the order they occur in the file, they are
     * sometimes tested with <=
     */
-#define MODE_START_OF_FILE 1
-#define MODE_SETTINGS      2
-#define MODE_DESCRIPTION   3
-#define MODE_ALIAS         4
-#define MODE_ACTIONS       5
+   enum {
+      MODE_START_OF_FILE = 1,
+      MODE_SETTINGS      = 2,
+      MODE_DESCRIPTION   = 3,
+      MODE_ALIAS         = 4,
 #ifdef FEATURE_REQUIRED_TAG
-#define MODE_REQUIRED_TAGS 6
+      MODE_ACTIONS       = 5,
+      MODE_REQUIRED_TAGS = 6
+#else
+      MODE_ACTIONS       = 5
 #endif
-
-   int mode = MODE_START_OF_FILE;
+   } mode;
 
    FILE *fp;
    struct url_actions *last_perm;
    struct url_actions *perm;
-   char  buf[BUFFER_SIZE];
+   char  *buf;
    struct file_list *fs;
    struct action_spec * cur_action = NULL;
    int cur_action_used = 0;
@@ -1118,6 +1222,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
    struct req_tag_list * cur_req_tag = NULL;
    int cur_req_tag_used = 0;
 #endif /* def FEATURE_REQUIRED_TAG */
+   mode = MODE_START_OF_FILE;
 
    if (!check_file_changed(current_actions_file[fileid], csp->config->actions_file[fileid], &fs))
    {
@@ -1150,7 +1255,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
 
    log_error(LOG_LEVEL_INFO, "Loading actions file: %s", csp->config->actions_file[fileid]);
 
-   while (read_config_line(buf, sizeof(buf), fp, &linenum) != NULL)
+   while (read_config_line(fp, &linenum, &buf) != NULL)
    {
       if (*buf == '{')
       {
@@ -1166,7 +1271,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
                /* too short */
                fclose(fp);
                log_error(LOG_LEVEL_FATAL,
-                  "can't load actions file '%s': invalid line (%lu): %s", 
+                  "can't load actions file '%s': invalid line (%lu): %s",
                   csp->config->actions_file[fileid], linenum, buf);
                return 1; /* never get here */
             }
@@ -1285,11 +1390,11 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
          {
             /* It's an actions block */
 
-            char  actions_buf[BUFFER_SIZE];
+            char *actions_buf;
             char * end;
 
             /* set mode */
-            mode    = MODE_ACTIONS;
+            mode = MODE_ACTIONS;
 
             /* free old action */
             if (cur_action)
@@ -1312,8 +1417,23 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
             }
             init_action(cur_action);
 
-            /* trim { */
-            strlcpy(actions_buf, buf + 1, sizeof(actions_buf));
+            /*
+             * Copy the buffer before messing with it as we may need the
+             * unmodified version in for the fatal error messages. Given
+             * that this is not a common event, we could instead simply
+             * read the line again.
+             *
+             * buf + 1 to skip the leading '{'
+             */
+            actions_buf = strdup(buf + 1);
+            if (actions_buf == NULL)
+            {
+               fclose(fp);
+               log_error(LOG_LEVEL_FATAL,
+                  "can't load actions file '%s': out of memory",
+                  csp->config->actions_file[fileid]);
+               return 1; /* never get here */
+            }
 
             /* check we have a trailing } and then trim it */
             end = actions_buf + strlen(actions_buf) - 1;
@@ -1321,8 +1441,9 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
             {
                /* No closing } */
                fclose(fp);
-               log_error(LOG_LEVEL_FATAL,
-                  "can't load actions file '%s': invalid line (%lu): %s",
+               freez(actions_buf);
+               log_error(LOG_LEVEL_FATAL, "can't load actions file '%s': "
+                  "Missing trailing '}' in action section starting at line (%lu): %s",
                   csp->config->actions_file[fileid], linenum, buf);
                return 1; /* never get here */
             }
@@ -1335,11 +1456,21 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
             {
                /* error */
                fclose(fp);
-               log_error(LOG_LEVEL_FATAL,
-                  "can't load actions file '%s': invalid line (%lu): %s",
+               freez(actions_buf);
+               log_error(LOG_LEVEL_FATAL, "can't load actions file '%s': "
+                  "can't completely parse the action section starting at line (%lu): %s",
                   csp->config->actions_file[fileid], linenum, buf);
                return 1; /* never get here */
             }
+
+            if (action_spec_is_valid(csp, cur_action))
+            {
+               log_error(LOG_LEVEL_ERROR, "Invalid action section in file '%s', "
+                  "starting at line %lu: %s",
+                  csp->config->actions_file[fileid], linenum, buf);
+            }
+
+            freez(actions_buf);
          }
       }
       else if (mode == MODE_SETTINGS)
@@ -1363,8 +1494,8 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
                          csp->config->actions_file[fileid]);
                return 1; /* never get here */
             }
-            
-            num_fields = ssplit(version_string, ".", fields, 3, TRUE, FALSE);
+
+            num_fields = ssplit(version_string, ".", fields, SZ(fields), TRUE, FALSE);
 
             if (num_fields < 1 || atoi(fields[0]) == 0)
             {
@@ -1473,7 +1604,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
       }
       else if (mode == MODE_ACTIONS)
       {
-         /* it's a URL pattern */
+         /* it's an URL pattern */
 
          /* allocate a new node */
          if ((perm = zalloc(sizeof(*perm))) == NULL)
@@ -1493,7 +1624,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
          {
             fclose(fp);
             log_error(LOG_LEVEL_FATAL,
-               "can't load actions file '%s': line %lu: cannot create URL pattern from: %s",
+               "can't load actions file '%s': line %lu: cannot create URL or TAG pattern from: %s",
                csp->config->actions_file[fileid], linenum, buf);
             return 1; /* never get here */
          }
@@ -1513,7 +1644,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
          /* oops - please have a {} line as 1st line in file. */
          fclose(fp);
          log_error(LOG_LEVEL_FATAL,
-            "can't load actions file '%s': first needed line (%lu) is invalid: %s",
+            "can't load actions file '%s': line %lu should begin with a '{': %s",
             csp->config->actions_file[fileid], linenum, buf);
          return 1; /* never get here */
       }
@@ -1551,6 +1682,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
             csp->config->actions_file[fileid], mode);
          return 1; /* never get here */
       }
+      freez(buf);
    }
 
    fclose(fp);
@@ -1590,7 +1722,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
  *
  * Description :  Converts a actionsfile entry from the internal
  *                structure into a text line.  The output is split
- *                into one line for each action with line continuation. 
+ *                into one line for each action with line continuation.
  *
  * Parameters  :
  *          1  :  action = The action to format.
@@ -1675,7 +1807,7 @@ char * actions_to_text(const struct action_spec *action)
  * Function    :  actions_to_html
  *
  * Description :  Converts a actionsfile entry from numeric form
- *                ("mask" and "add") to a <br>-seperated HTML string
+ *                ("mask" and "add") to a <br>-separated HTML string
  *                in which each action is linked to its chapter in
  *                the user manual.
  *
@@ -1781,12 +1913,12 @@ char * actions_to_html(const struct client_state *csp,
  *
  * Function    :  current_actions_to_html
  *
- * Description :  Converts a curren action spec to a <br> seperated HTML
+ * Description :  Converts a curren action spec to a <br> separated HTML
  *                text in which each action is linked to its chapter in
  *                the user manual.
  *
  * Parameters  :
- *          1  :  csp    = Client state (for config) 
+ *          1  :  csp    = Client state (for config)
  *          2  :  action = Current action spec to be converted
  *
  * Returns     :  A string.  Caller must free it.

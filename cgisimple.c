@@ -63,6 +63,9 @@ const char cgisimple_rcs[] = "$Id: cgisimple.c,v 1.111 2011/09/04 11:10:56 fabia
 #include "parsers.h"
 #include "urlmatch.h"
 #include "errlog.h"
+#ifdef FEATURE_REQUIRED_TAG
+#include "requiredtag.h"
+#endif
 
 const char cgisimple_h_rcs[] = CGISIMPLE_H_VERSION;
 

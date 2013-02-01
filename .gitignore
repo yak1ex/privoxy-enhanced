@@ -1,0 +1,13 @@
+/GNUmakefile
+/autom4te.cache
+/config.h
+/config.h.in
+/config.log
+/config.status
+/configure
+/default.action
+/doc/source/ldp.dsl
+w32.res
+*.BAK
+*.exe
+*.o

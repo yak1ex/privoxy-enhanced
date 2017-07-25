@@ -1,4 +1,4 @@
-const char miscutil_rcs[] = "$Id: miscutil.c,v 1.78 2012/11/24 13:58:17 fabiankeil Exp $";
+const char miscutil_rcs[] = "$Id: miscutil.c,v 1.82 2016/07/23 23:05:15 ler762 Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/miscutil.c,v $
@@ -8,7 +8,7 @@ const char miscutil_rcs[] = "$Id: miscutil.c,v 1.78 2012/11/24 13:58:17 fabianke
  *                to deserve their own file but don't really fit in
  *                any other file.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2012 the
+ * Copyright   :  Written by and Copyright (C) 2001-2016 the
  *                Privoxy team. http://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
@@ -95,6 +95,40 @@ void *zalloc(size_t size)
 
 /*********************************************************************
  *
+ * Function    :  zalloc_or_die
+ *
+ * Description :  zalloc wrapper that either succeeds or causes
+ *                program termination.
+ *
+ *                Useful in situations were the string length is
+ *                "small" and zalloc() failures couldn't be handled
+ *                better anyway. In case of debug builds, failures
+ *                trigger an assert().
+ *
+ * Parameters  :
+ *          1  :  size = Size of memory chunk to return.
+ *
+ * Returns     :  Pointer to newly malloc'd memory chunk.
+ *
+ *********************************************************************/
+void *zalloc_or_die(size_t size)
+{
+   void *buffer;
+
+   buffer = zalloc(size);
+   if (buffer == NULL)
+   {
+      assert(buffer != NULL);
+      log_error(LOG_LEVEL_FATAL, "Out of memory in zalloc_or_die().");
+      exit(1);
+   }
+
+   return(buffer);
+
+}
+
+/*********************************************************************
+ *
  * Function    :  strdup_or_die
  *
  * Description :  strdup wrapper that either succeeds or causes
@@ -150,6 +184,14 @@ char *strdup_or_die(const char *str)
 void *malloc_or_die(size_t buffer_size)
 {
    char *new_buf;
+
+   if (buffer_size == 0)
+   {
+      log_error(LOG_LEVEL_ERROR,
+         "malloc_or_die() called with buffer size 0");
+      assert(buffer_size != 0);
+      buffer_size = 4096;
+   }
 
    new_buf = malloc(buffer_size);
 
@@ -851,6 +893,16 @@ time_t timegm(struct tm *tm)
          strcat(old_zone, zone);
          putenv(old_zone);
 #ifdef _WIN32
+         /* http://man7.org/linux/man-pages/man3/putenv.3.html
+          *   int putenv(char *string);
+          *     The string pointed to by string becomes part of the environment, so altering the
+          *     string changes the environment.
+          * In other words, the memory pointed to by *string is used until
+          *   a) another call to putenv() with the same e-var name
+          *   b) the program exits
+          *
+          * Windows e-vars don't work that way, so let's not leak memory.
+          */
          free(old_zone);
 #endif /* def _WIN32 */
       }

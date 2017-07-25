@@ -1,4 +1,4 @@
-const char cgi_rcs[] = "$Id: cgi.c,v 1.158 2012/12/07 12:45:20 fabiankeil Exp $";
+const char cgi_rcs[] = "$Id: cgi.c,v 1.165 2016/05/03 13:22:30 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/cgi.c,v $
@@ -100,6 +100,12 @@ static const struct cgi_dispatcher cgi_dispatchers[] = {
          cgi_show_version,
          "View the source code version numbers",
           TRUE },
+#ifdef FEATURE_CLIENT_TAGS
+   { "client-tags",
+         cgi_show_client_tags,
+         "View or toggle the tags that can be set based on the clients address",
+          FALSE },
+#endif
    { "show-request",
          cgi_show_request,
          "View the request headers",
@@ -495,9 +501,12 @@ static struct http_response *dispatch_known_cgi(struct client_state * csp,
    if (*query_args_start == '/')
    {
       *query_args_start++ = '\0';
-      if ((param_list = new_map()))
-      {
-         map(param_list, "file", 1, url_decode(query_args_start), 0);
+      param_list = new_map();
+      err = map(param_list, "file", 1, url_decode(query_args_start), 0);
+      if (JB_ERR_OK != err) {
+         free(param_list);
+         free(path_copy);
+         return cgi_error_memory();
       }
    }
    else
@@ -631,11 +640,7 @@ static struct map *parse_cgi_parameters(char *argstring)
    }
    vector = malloc_or_die(max_segments * sizeof(char *));
 
-   if (NULL == (cgi_params = new_map()))
-   {
-      freez(vector);
-      return NULL;
-   }
+   cgi_params = new_map();
 
    /*
     * IE 5 does, of course, violate RFC 2316 Sect 4.1 and sends
@@ -808,8 +813,7 @@ jb_err get_number_param(struct client_state *csp,
                         unsigned *pvalue)
 {
    const char *param;
-   char ch;
-   unsigned value;
+   char *endptr;
 
    assert(csp);
    assert(parameters);
@@ -824,35 +828,11 @@ jb_err get_number_param(struct client_state *csp,
       return JB_ERR_CGI_PARAMS;
    }
 
-   /* We don't use atoi because I want to check this carefully... */
-
-   value = 0;
-   while ((ch = *param++) != '\0')
+   *pvalue = (unsigned int)strtol(param, &endptr, 0);
+   if (*endptr != '\0')
    {
-      if ((ch < '0') || (ch > '9'))
-      {
-         return JB_ERR_CGI_PARAMS;
-      }
-
-      ch = (char)(ch - '0');
-
-      /* Note:
-       *
-       * <limits.h> defines UINT_MAX
-       *
-       * (UINT_MAX - ch) / 10 is the largest number that
-       *     can be safely multiplied by 10 then have ch added.
-       */
-      if (value > ((UINT_MAX - (unsigned)ch) / 10U))
-      {
-         return JB_ERR_CGI_PARAMS;
-      }
-
-      value = value * 10 + (unsigned)ch;
+      return JB_ERR_CGI_PARAMS;
    }
-
-   /* Success */
-   *pvalue = value;
 
    return JB_ERR_OK;
 
@@ -1396,7 +1376,7 @@ char *add_help_link(const char *item,
    }
    else
    {
-      string_append(&result, "http://");
+      string_append(&result, "https://");
       string_append(&result, CGI_SITE_2_HOST);
       string_append(&result, "/user-manual/");
    }
@@ -2162,10 +2142,6 @@ struct map *default_exports(const struct client_state *csp, const char *caller)
    assert(csp);
 
    exports = new_map();
-   if (exports == NULL)
-   {
-      return NULL;
-   }
 
    if (csp->config->hostname)
    {

@@ -1,4 +1,4 @@
-const char loadcfg_rcs[] = "$Id: loadcfg.c,v 1.137 2013/03/07 14:08:49 fabiankeil Exp $";
+const char loadcfg_rcs[] = "$Id: loadcfg.c,v 1.153 2016/05/22 12:43:07 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/loadcfg.c,v $
@@ -8,7 +8,7 @@ const char loadcfg_rcs[] = "$Id: loadcfg.c,v 1.137 2013/03/07 14:08:49 fabiankei
  *                routine to load the configuration and the global
  *                variables it writes to.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2009 the
+ * Copyright   :  Written by and Copyright (C) 2001-2016 the
  *                Privoxy team. http://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
@@ -85,6 +85,9 @@ const char loadcfg_rcs[] = "$Id: loadcfg.c,v 1.137 2013/03/07 14:08:49 fabiankei
 #include "urlmatch.h"
 #include "cgi.h"
 #include "gateway.h"
+#ifdef FEATURE_CLIENT_TAGS
+#include "client-tags.h"
+#endif
 
 const char loadcfg_h_rcs[] = LOADCFG_H_VERSION;
 
@@ -124,6 +127,8 @@ static struct file_list *current_configfile = NULL;
 #define hash_allow_cgi_request_crunching  258915987U /* "allow-cgi-request-crunching" */
 #define hash_buffer_limit                1881726070U /* "buffer-limit */
 #define hash_client_header_order         2701453514U /* "client-header-order" */
+#define hash_client_specific_tag         3353703383U /* "client-specific-tag" */
+#define hash_client_tag_lifetime          647957580U /* "client-tag-lifetime" */
 #define hash_compression_level           2464423563U /* "compression-level" */
 #define hash_confdir                        1978389U /* "confdir" */
 #define hash_connection_sharing          1348841265U /* "connection-sharing" */
@@ -157,9 +162,11 @@ static struct file_list *current_configfile = NULL;
 #define hash_split_large_cgi_forms        671658948U /* "split-large-cgi-forms" */
 #define hash_suppress_blocklists         1948693308U /* "suppress-blocklists" */
 #define hash_templdir                      11067889U /* "templdir" */
+#define hash_temporary_directory         1824125181U /* "temporary-directory" */
 #define hash_tolerate_pipelining         1360286620U /* "tolerate-pipelining" */
 #define hash_toggle                          447966U /* "toggle" */
 #define hash_trust_info_url               430331967U /* "trust-info-url" */
+#define hash_trust_x_forwarded_for       2971537414U /* "trust-x-forwarded-for" */
 #define hash_trustfile                     56494766U /* "trustfile" */
 #define hash_usermanual                  1416668518U /* "user-manual" */
 #define hash_activity_animation          1817904738U /* "activity-animation" */
@@ -175,6 +182,9 @@ static struct file_list *current_configfile = NULL;
 
 
 static void savearg(char *command, char *argument, struct configuration_spec * config);
+#ifdef FEATURE_CLIENT_TAGS
+static void free_client_specific_tags(struct client_tag_spec *tag_list);
+#endif
 
 /*********************************************************************
  *
@@ -209,7 +219,7 @@ static void unload_configfile (void * data)
    while (cur_fwd != NULL)
    {
       struct forward_spec * next_fwd = cur_fwd->next;
-      free_url_spec(cur_fwd->url);
+      free_pattern_spec(cur_fwd->url);
 
       freez(cur_fwd->gateway_host);
       freez(cur_fwd->forward_host);
@@ -222,6 +232,9 @@ static void unload_configfile (void * data)
    freez(config->logdir);
    freez(config->templdir);
    freez(config->hostname);
+#ifdef FEATURE_EXTERNAL_FILTERS
+   freez(config->temporary_directory);
+#endif
 
    for (i = 0; i < MAX_LISTENING_SOCKETS; i++)
    {
@@ -249,6 +262,10 @@ static void unload_configfile (void * data)
    list_remove_all(config->trust_info);
 #endif /* def FEATURE_TRUST */
 
+#ifdef FEATURE_CLIENT_TAGS
+   free_client_specific_tags(config->client_tags);
+#endif
+
    freez(config);
 }
 
@@ -275,6 +292,126 @@ void unload_current_config_file(void)
    }
 }
 #endif
+
+
+#ifdef FEATURE_CLIENT_TAGS
+/*********************************************************************
+ *
+ * Function    :  register_tag
+ *
+ * Description :  Registers a client-specific-tag and its description
+ *
+ * Parameters  :
+ *          1  :  config: The tag list
+ *          2  :  name:  The name of the client-specific-tag
+ *          3  :  description: The human-readable description for the tag
+ *
+ * Returns     :  N/A
+ *
+ *********************************************************************/
+static void register_tag(struct client_tag_spec *tag_list,
+   const char *name, const char *description)
+{
+   struct client_tag_spec *new_tag;
+   struct client_tag_spec *last_tag;
+
+   last_tag = tag_list;
+   while (last_tag->next != NULL)
+   {
+      last_tag = last_tag->next;
+   }
+   if (last_tag->name == NULL)
+   {
+      /* First entry */
+      new_tag = last_tag;
+   }
+   else
+   {
+      new_tag = zalloc_or_die(sizeof(struct client_tag_spec));
+   }
+   new_tag->name = strdup_or_die(name);
+   new_tag->description = strdup_or_die(description);
+   if (new_tag != last_tag)
+   {
+      last_tag->next = new_tag;
+   }
+}
+
+
+/*********************************************************************
+ *
+ * Function    :  free_client_specific_tags
+ *
+ * Description :  Frees client-specific tags and their descriptions
+ *
+ * Parameters  :
+ *          1  :  tag_list: The tag list to free
+ *
+ * Returns     :  N/A
+ *
+ *********************************************************************/
+static void free_client_specific_tags(struct client_tag_spec *tag_list)
+{
+   struct client_tag_spec *this_tag;
+   struct client_tag_spec *next_tag;
+
+   next_tag = tag_list;
+   do
+   {
+      this_tag = next_tag;
+      next_tag = next_tag->next;
+
+      freez(this_tag->name);
+      freez(this_tag->description);
+
+      if (this_tag != tag_list)
+      {
+         freez(this_tag);
+      }
+   } while (next_tag != NULL);
+}
+#endif /* def FEATURE_CLIENT_TAGS */
+
+
+/*********************************************************************
+ *
+ * Function    :  parse_numeric_value
+ *
+ * Description :  Parse the value of a directive that can only have
+ *                a single numeric value. Terminates with a fatal error
+ *                if the value is NULL or not numeric.
+ *
+ * Parameters  :
+ *          1  :  name:  The name of the directive. Used for log messages.
+ *          2  :  value: The value to parse
+ *
+ *
+ * Returns     :  The numerical value as integer
+ *
+ *********************************************************************/
+static int parse_numeric_value(const char *name, const char *value)
+{
+   int number;
+   char *endptr;
+
+   assert(name != NULL);
+   assert(value != NULL);
+
+   if ((value == NULL) || (*value == '\0'))
+   {
+      log_error(LOG_LEVEL_FATAL, "Directive %s used without argument", name);
+   }
+
+   number = (int)strtol(value, &endptr, 0);
+   if (*endptr != '\0')
+   {
+      log_error(LOG_LEVEL_FATAL,
+         "Directive '%s' used with non-numerical value: '%s'", name, value);
+   }
+
+   return number;
+
+}
 
 
 /*********************************************************************
@@ -439,15 +576,7 @@ struct configuration_spec * load_config(void)
    global_toggle_state = 1;
 #endif /* def FEATURE_TOGGLE */
 
-   fs->f = config = (struct configuration_spec *)zalloc(sizeof(*config));
-
-   if (NULL == config)
-   {
-      freez(fs->filename);
-      freez(fs);
-      log_error(LOG_LEVEL_FATAL, "can't allocate memory for configuration");
-      return NULL;
-   }
+   fs->f = config = zalloc_or_die(sizeof(*config));
 
    /*
     * This is backwards from how it's usually done.
@@ -468,6 +597,10 @@ struct configuration_spec * load_config(void)
    config->usermanual                = strdup(USER_MANUAL_URL);
    config->proxy_args                = strdup("");
    config->forwarded_connect_retries = 0;
+#ifdef FEATURE_CLIENT_TAGS
+   config->client_tag_lifetime       = 60;
+#endif
+   config->trust_x_forwarded_for     = 0;
    /*
     * 128 client sockets ought to be enough for everybody who can't
     * be bothered to read the documentation to figure out how to
@@ -619,7 +752,7 @@ struct configuration_spec * load_config(void)
  * buffer-limit n
  * *************************************************************************/
          case hash_buffer_limit :
-            config->buffer_limit = (size_t)(1024 * atoi(arg));
+            config->buffer_limit = (size_t)(1024 * parse_numeric_value(cmd, arg));
             break;
 
 /* *************************************************************************
@@ -629,6 +762,60 @@ struct configuration_spec * load_config(void)
             list_remove_all(config->ordered_client_headers);
             parse_client_header_order(config->ordered_client_headers, arg);
             break;
+
+/* *************************************************************************
+ * client-specific-tag tag-name description
+ * *************************************************************************/
+#ifdef FEATURE_CLIENT_TAGS
+         case hash_client_specific_tag:
+            {
+               char *name;
+               char *description;
+
+               name = arg;
+               description = strstr(arg, " ");
+               if (description == NULL)
+               {
+                  log_error(LOG_LEVEL_FATAL,
+                     "client-specific-tag '%s' lacks a description.", name);
+               }
+               *description = '\0';
+               /*
+                * The length is limited because we don't want truncated
+                * HTML caused by the cgi interface using static buffer
+                * sizes.
+                */
+               if (strlen(name) > CLIENT_TAG_LENGTH_MAX)
+               {
+                  log_error(LOG_LEVEL_FATAL,
+                     "client-specific-tag '%s' is longer than %d characters.",
+                     name, CLIENT_TAG_LENGTH_MAX);
+               }
+               description++;
+               register_tag(config->client_tags, name, description);
+            }
+            break;
+#endif /* def FEATURE_CLIENT_TAGS */
+
+/* *************************************************************************
+ * client-tag-lifetime ttl
+ * *************************************************************************/
+#ifdef FEATURE_CLIENT_TAGS
+         case hash_client_tag_lifetime:
+         {
+            int ttl = parse_numeric_value(cmd, arg);
+            if (0 <= ttl)
+            {
+               config->client_tag_lifetime = (unsigned)ttl;
+            }
+            else
+            {
+               log_error(LOG_LEVEL_FATAL,
+                  "client-tag-lifetime can't be negative.");
+            }
+            break;
+         }
+#endif /* def FEATURE_CLIENT_TAGS */
 
 /* *************************************************************************
  * confdir directory-name
@@ -643,25 +830,19 @@ struct configuration_spec * load_config(void)
  * *************************************************************************/
 #ifdef FEATURE_COMPRESSION
          case hash_compression_level :
-            if (*arg != '\0')
+         {
+            int compression_level = parse_numeric_value(cmd, arg);
+            if (-1 <= compression_level && compression_level <= 9)
             {
-               int compression_level = atoi(arg);
-               if (-1 <= compression_level && compression_level <= 9)
-               {
-                  config->compression_level = compression_level;;
-               }
-               else
-               {
-                  log_error(LOG_LEVEL_FATAL,
-                     "Invalid compression-level value: %s", arg);
-               }
+               config->compression_level = compression_level;
             }
             else
             {
                log_error(LOG_LEVEL_FATAL,
-                  "Invalid compression-level directive. Compression value missing");
+                  "Invalid compression-level value: %s", arg);
             }
             break;
+         }
 #endif
 
 /* *************************************************************************
@@ -685,7 +866,7 @@ struct configuration_spec * load_config(void)
  * Specifies debug level, multiple values are ORed together.
  * *************************************************************************/
          case hash_debug :
-            config->debug |= atoi(arg);
+            config->debug |= parse_numeric_value(cmd, arg);
             break;
 
 /* *************************************************************************
@@ -693,20 +874,19 @@ struct configuration_spec * load_config(void)
  * *************************************************************************/
 #ifdef FEATURE_CONNECTION_KEEP_ALIVE
          case hash_default_server_timeout :
-            if (*arg != '\0')
+         {
+            int timeout = parse_numeric_value(cmd, arg);
+            if (0 <= timeout)
             {
-               int timeout = atoi(arg);
-               if (0 <= timeout)
-               {
-                  config->default_server_timeout = (unsigned int)timeout;
-               }
-               else
-               {
-                  log_error(LOG_LEVEL_FATAL,
-                     "Invalid default-server-timeout value: %s", arg);
-               }
+               config->default_server_timeout = (unsigned int)timeout;
+            }
+            else
+            {
+               log_error(LOG_LEVEL_FATAL,
+                  "Invalid default-server-timeout value: %s", arg);
             }
             break;
+         }
 #endif
 
 /* *************************************************************************
@@ -728,14 +908,7 @@ struct configuration_spec * load_config(void)
             }
 
             /* allocate a new node */
-            cur_acl = (struct access_control_list *) zalloc(sizeof(*cur_acl));
-
-            if (cur_acl == NULL)
-            {
-               log_error(LOG_LEVEL_FATAL, "can't allocate memory for configuration");
-               /* Never get here - LOG_LEVEL_FATAL causes program exit */
-               break;
-            }
+            cur_acl = zalloc_or_die(sizeof(*cur_acl));
             cur_acl->action = ACL_DENY;
 
             if (acl_addr(vec[0], cur_acl->src) < 0)
@@ -926,24 +1099,18 @@ struct configuration_spec * load_config(void)
             }
 
             /* allocate a new node */
-            cur_fwd = zalloc(sizeof(*cur_fwd));
-            if (cur_fwd == NULL)
-            {
-               log_error(LOG_LEVEL_FATAL, "can't allocate memory for configuration");
-               /* Never get here - LOG_LEVEL_FATAL causes program exit */
-               break;
-            }
-
+            cur_fwd = zalloc_or_die(sizeof(*cur_fwd));
             cur_fwd->type = SOCKS_NONE;
 
             /* Save the URL pattern */
-            if (create_url_spec(cur_fwd->url, vec[0]))
+            if (create_pattern_spec(cur_fwd->url, vec[0]))
             {
                log_error(LOG_LEVEL_ERROR, "Bad URL specifier for forward "
                      "directive in configuration file.");
                string_append(&config->proxy_args,
                   "<br>\nWARNING: Bad URL specifier for "
                   "forward directive in configuration file.");
+               freez(cur_fwd);
                break;
             }
 
@@ -981,24 +1148,18 @@ struct configuration_spec * load_config(void)
             }
 
             /* allocate a new node */
-            cur_fwd = zalloc(sizeof(*cur_fwd));
-            if (cur_fwd == NULL)
-            {
-               log_error(LOG_LEVEL_FATAL, "can't allocate memory for configuration");
-               /* Never get here - LOG_LEVEL_FATAL causes program exit */
-               break;
-            }
-
+            cur_fwd = zalloc_or_die(sizeof(*cur_fwd));
             cur_fwd->type = SOCKS_4;
 
             /* Save the URL pattern */
-            if (create_url_spec(cur_fwd->url, vec[0]))
+            if (create_pattern_spec(cur_fwd->url, vec[0]))
             {
                log_error(LOG_LEVEL_ERROR, "Bad URL specifier for forward-socks4 "
                      "directive in configuration file.");
                string_append(&config->proxy_args,
                   "<br>\nWARNING: Bad URL specifier for "
                   "forward-socks4 directive in configuration file.");
+               freez(cur_fwd);
                break;
             }
 
@@ -1040,22 +1201,19 @@ struct configuration_spec * load_config(void)
 
             if (vec_count != 3)
             {
-               log_error(LOG_LEVEL_ERROR, "Wrong number of parameters for "
-                     "forward-socks4a directive in configuration file.");
+               log_error(LOG_LEVEL_ERROR,
+                  "Wrong number of parameters for %s in configuration file.",
+                  cmd);
                string_append(&config->proxy_args,
-                  "<br>\nWARNING: Wrong number of parameters for "
-                  "forward-socks4a directive in configuration file.");
+                  "<br>\nWARNING: Wrong number of parameters for ");
+               string_append(&config->proxy_args, cmd);
+               string_append(&config->proxy_args,
+                  "directive in configuration file.");
                break;
             }
 
             /* allocate a new node */
-            cur_fwd = zalloc(sizeof(*cur_fwd));
-            if (cur_fwd == NULL)
-            {
-               log_error(LOG_LEVEL_FATAL, "can't allocate memory for configuration");
-               /* Never get here - LOG_LEVEL_FATAL causes program exit */
-               break;
-            }
+            cur_fwd = zalloc_or_die(sizeof(*cur_fwd));
 
             if (directive_hash == hash_forward_socks4a)
             {
@@ -1072,13 +1230,17 @@ struct configuration_spec * load_config(void)
             }
 
             /* Save the URL pattern */
-            if (create_url_spec(cur_fwd->url, vec[0]))
+            if (create_pattern_spec(cur_fwd->url, vec[0]))
             {
-               log_error(LOG_LEVEL_ERROR, "Bad URL specifier for forward-socks4a "
-                     "directive in configuration file.");
+               log_error(LOG_LEVEL_ERROR,
+                  "Bad URL specifier for %s in configuration file.",
+                  cmd);
                string_append(&config->proxy_args,
-                  "<br>\nWARNING: Bad URL specifier for "
-                  "forward-socks4a directive in configuration file.");
+                  "<br>\nWARNING: Bad URL specifier for ");
+               string_append(&config->proxy_args, cmd);
+               string_append(&config->proxy_args,
+                  "directive in configuration file.");
+               freez(cur_fwd);
                break;
             }
 
@@ -1109,7 +1271,7 @@ struct configuration_spec * load_config(void)
  * forwarded-connect-retries n
  * *************************************************************************/
          case hash_forwarded_connect_retries :
-            config->forwarded_connect_retries = atoi(arg);
+            config->forwarded_connect_retries = parse_numeric_value(cmd, arg);
             break;
 
 /* *************************************************************************
@@ -1149,20 +1311,19 @@ struct configuration_spec * load_config(void)
  * *************************************************************************/
 #ifdef FEATURE_CONNECTION_KEEP_ALIVE
          case hash_keep_alive_timeout :
-            if (*arg != '\0')
+         {
+            int timeout = parse_numeric_value(cmd, arg);
+            if (0 < timeout)
             {
-               int timeout = atoi(arg);
-               if (0 < timeout)
-               {
-                  config->feature_flags |= RUNTIME_FEATURE_CONNECTION_KEEP_ALIVE;
-                  config->keep_alive_timeout = (unsigned int)timeout;
-               }
-               else
-               {
-                  config->feature_flags &= ~RUNTIME_FEATURE_CONNECTION_KEEP_ALIVE;
-               }
+               config->feature_flags |= RUNTIME_FEATURE_CONNECTION_KEEP_ALIVE;
+               config->keep_alive_timeout = (unsigned int)timeout;
+            }
+            else
+            {
+               config->feature_flags &= ~RUNTIME_FEATURE_CONNECTION_KEEP_ALIVE;
             }
             break;
+         }
 #endif
 
 /* *************************************************************************
@@ -1215,15 +1376,46 @@ struct configuration_spec * load_config(void)
  * max-client-connections number
  * *************************************************************************/
          case hash_max_client_connections :
-            if (*arg != '\0')
+         {
+            int max_client_connections = parse_numeric_value(cmd, arg);
+
+#ifndef _WIN32
+            /*
+             * Reject values below 1 for obvious reasons and values above
+             * FD_SETSIZE/2 because Privoxy needs two sockets to serve
+             * client connections that need forwarding.
+             *
+             * We ignore the fact that the first three file descriptors
+             * are usually set to /dev/null, one is used for logging
+             * and yet another file descriptor is required to load
+             * config files.
+             */
+            if ((max_client_connections < 1) || (FD_SETSIZE/2 < max_client_connections))
             {
-               int max_client_connections = atoi(arg);
-               if (0 <= max_client_connections)
-               {
-                  config->max_client_connections = max_client_connections;
-               }
+               log_error(LOG_LEVEL_FATAL, "max-client-connections value %d"
+                  " is invalid. Value needs to be above 1 and below %d"
+                  " (FD_SETSIZE/2).", max_client_connections, FD_SETSIZE/2);
             }
+#else
+            /*
+             * The Windows libc uses FD_SETSIZE for an array used
+             * by select(), but has no problems with file descriptors
+             * above the limit as long as no more than FD_SETSIZE are
+             * passed to select().
+             * https://msdn.microsoft.com/en-us/library/windows/desktop/ms739169%28v=vs.85%29.aspx
+             *
+             * XXX: Do OS/2, Amiga etc. belong here as well?
+             */
+            if (max_client_connections < 1)
+            {
+               log_error(LOG_LEVEL_FATAL, "max-client-connections value"
+                  " has to be a number above 1. %d is invalid.",
+                  max_client_connections);
+            }
+#endif
+            config->max_client_connections = max_client_connections;
             break;
+         }
 
 /* *************************************************************************
  * permit-access source-ip[/significant-bits] [dest-ip[/significant-bits]]
@@ -1245,14 +1437,7 @@ struct configuration_spec * load_config(void)
             }
 
             /* allocate a new node */
-            cur_acl = (struct access_control_list *) zalloc(sizeof(*cur_acl));
-
-            if (cur_acl == NULL)
-            {
-               log_error(LOG_LEVEL_FATAL, "can't allocate memory for configuration");
-               /* Never get here - LOG_LEVEL_FATAL causes program exit */
-               break;
-            }
+            cur_acl = zalloc_or_die(sizeof(*cur_acl));
             cur_acl->action = ACL_PERMIT;
 
             if (acl_addr(vec[0], cur_acl->src) < 0)
@@ -1317,30 +1502,28 @@ struct configuration_spec * load_config(void)
             break;
 
 /* *************************************************************************
- * single-threaded
+ * single-threaded 0|1
  * *************************************************************************/
          case hash_single_threaded :
-            config->multi_threaded = 0;
+            config->multi_threaded =  0 == parse_toggle_state(cmd, arg);
             break;
 
 /* *************************************************************************
  * socket-timeout numer_of_seconds
  * *************************************************************************/
          case hash_socket_timeout :
-            if (*arg != '\0')
+         {
+            int socket_timeout = parse_numeric_value(cmd, arg);
+            if (0 <= socket_timeout)
             {
-               int socket_timeout = atoi(arg);
-               if (0 <= socket_timeout)
-               {
-                  config->socket_timeout = socket_timeout;
-               }
-               else
-               {
-                  log_error(LOG_LEVEL_FATAL,
-                     "Invalid socket-timeout: '%s'", arg);
-               }
+               config->socket_timeout = socket_timeout;
+            }
+            else
+            {
+               log_error(LOG_LEVEL_FATAL, "Invalid socket-timeout: '%s'", arg);
             }
             break;
+         }
 
 /* *************************************************************************
  * split-large-cgi-forms
@@ -1363,6 +1546,16 @@ struct configuration_spec * load_config(void)
             freez(config->templdir);
             config->templdir = make_path(NULL, arg);
             break;
+
+#ifdef FEATURE_EXTERNAL_FILTERS
+/* *************************************************************************
+ * temporary-directory directory-name
+ * *************************************************************************/
+         case hash_temporary_directory :
+            freez(config->temporary_directory);
+            config->temporary_directory = make_path(NULL, arg);
+            break;
+#endif
 
 /* *************************************************************************
  * tolerate-pipelining (0|1)
@@ -1395,6 +1588,13 @@ struct configuration_spec * load_config(void)
             enlist(config->trust_info, arg);
             break;
 #endif /* def FEATURE_TRUST */
+
+/* *************************************************************************
+ * trust-x-forwarded-for (0|1)
+ * *************************************************************************/
+         case hash_trust_x_forwarded_for :
+            config->trust_x_forwarded_for = parse_toggle_state(cmd, arg);
+            break;
 
 /* *************************************************************************
  * trustfile filename
@@ -1477,7 +1677,7 @@ struct configuration_spec * load_config(void)
  * log-font-size n
  * *************************************************************************/
          case hash_log_font_size :
-            g_nFontSize = atoi(arg);
+            g_nFontSize = parse_numeric_value(cmd, arg);
             break;
 
 /* *************************************************************************
@@ -1491,7 +1691,7 @@ struct configuration_spec * load_config(void)
  * log-max-lines n
  * *************************************************************************/
          case hash_log_max_lines :
-            g_nMaxBufferLines = atoi(arg);
+            g_nMaxBufferLines = parse_numeric_value(cmd, arg);
             break;
 
 /* *************************************************************************
@@ -1704,7 +1904,7 @@ struct configuration_spec * load_config(void)
     *
     * Need to set up a fake csp, so they can get to the config.
     */
-   fake_csp = (struct client_state *) zalloc (sizeof(*fake_csp));
+   fake_csp = zalloc_or_die(sizeof(*fake_csp));
    fake_csp->config = config;
 
    if (run_loader(fake_csp))

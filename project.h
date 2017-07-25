@@ -1,7 +1,7 @@
 #ifndef PROJECT_H_INCLUDED
 #define PROJECT_H_INCLUDED
 /** Version string. */
-#define PROJECT_H_VERSION "$Id: project.h,v 1.196 2013/03/07 14:08:50 fabiankeil Exp $"
+#define PROJECT_H_VERSION "$Id: project.h,v 1.216 2016/05/25 10:50:55 fabiankeil Exp $"
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/project.h,v $
@@ -10,7 +10,7 @@
  *                project.  Does not define any variables or functions
  *                (though it does declare some macros).
  *
- * Copyright   :  Written by and Copyright (C) 2001-2012 the
+ * Copyright   :  Written by and Copyright (C) 2001-2014 the
  *                Privoxy team. http://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
@@ -108,10 +108,6 @@
 #endif
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef _WIN32
 
 typedef SOCKET jb_socket;
@@ -141,16 +137,19 @@ typedef int jb_socket;
  * A standard error code.  This should be JB_ERR_OK or one of the JB_ERR_xxx
  * series of errors.
  */
-typedef int jb_err;
+enum privoxy_err
+{
+   JB_ERR_OK         = 0, /**< Success, no error                        */
+   JB_ERR_MEMORY     = 1, /**< Out of memory                            */
+   JB_ERR_CGI_PARAMS = 2, /**< Missing or corrupt CGI parameters        */
+   JB_ERR_FILE       = 3, /**< Error opening, reading or writing a file */
+   JB_ERR_PARSE      = 4, /**< Error parsing file                       */
+   JB_ERR_MODIFIED   = 5, /**< File has been modified outside of the
+                               CGI actions editor.                      */
+   JB_ERR_COMPRESS   = 6  /**< Error on decompression                   */
+};
 
-#define JB_ERR_OK         0 /**< Success, no error                        */
-#define JB_ERR_MEMORY     1 /**< Out of memory                            */
-#define JB_ERR_CGI_PARAMS 2 /**< Missing or corrupt CGI parameters        */
-#define JB_ERR_FILE       3 /**< Error opening, reading or writing a file */
-#define JB_ERR_PARSE      4 /**< Error parsing file                       */
-#define JB_ERR_MODIFIED   5 /**< File has been modified outside of the
-                                 CGI actions editor.                      */
-#define JB_ERR_COMPRESS   6 /**< Error on decompression                   */
+typedef enum privoxy_err jb_err;
 
 /**
  * This macro is used to free a pointer that may be NULL.
@@ -199,14 +198,6 @@ typedef int jb_err;
  * real fix ready for inclusion.
  */
 #define HOSTENT_BUFFER_SIZE 2048
-
-/**
- * Do not use.  Originally this was so that you can
- * say "while (FOREVER) { ...do something... }".
- * However, this gives a warning with some compilers (e.g. VC++).
- * Instead, use "for (;;) { ...do something... }".
- */
-#define FOREVER 1
 
 /**
  * Default TCP/IP address to listen on, as a string.
@@ -335,7 +326,6 @@ enum crunch_reason
  */
 struct http_response
 {
-  enum crunch_reason crunch_reason; /**< Why the response was generated in the first place. */
   char  *status;                    /**< HTTP status (string). */
   struct list headers[1];           /**< List of header lines. */
   char  *head;                      /**< Formatted http response head. */
@@ -344,17 +334,11 @@ struct http_response
   size_t content_length;            /**< Length of body, REQUIRED if binary body. */
   int    is_static;                 /**< Nonzero if the content will never change and
                                          should be cached by the browser (e.g. images). */
+  enum crunch_reason crunch_reason; /**< Why the response was generated in the first place. */
 };
 
-/**
- * A URL or a tag pattern.
- */
 struct url_spec
 {
-   /** The string which was parsed to produce this url_spec.
-       Used for debugging or display only.  */
-   char  *spec;
-
 #ifdef FEATURE_EXTENDED_HOST_PATTERNS
    regex_t *host_regex;/**< Regex for host matching                          */
 #else
@@ -367,17 +351,25 @@ struct url_spec
    char  *port_list;   /**< List of acceptable ports, or NULL to match all ports */
 
    regex_t *preg;      /**< Regex for matching path part                      */
-   regex_t *tag_regex; /**< Regex for matching tags                           */
 };
 
 /**
- * If you declare a static url_spec, this is the value to initialize it to zero.
+ * A URL or a tag pattern.
  */
-#ifndef FEATURE_EXTENDED_HOST_PATTERNS
-#define URL_SPEC_INITIALIZER { NULL, NULL, NULL, 0, 0, NULL, NULL, NULL }
-#else
-#define URL_SPEC_INITIALIZER { NULL, NULL, NULL, NULL, NULL }
-#endif /* def FEATURE_EXTENDED_HOST_PATTERNS */
+struct pattern_spec
+{
+   /** The string which was parsed to produce this pattern_spec.
+       Used for debugging or display only.  */
+   char  *spec;
+
+   union
+   {
+      struct url_spec url_spec;
+      regex_t *tag_regex;
+   } pattern;
+
+   unsigned int flags; /**< Bitmap with various pattern properties. */
+};
 
 /**
  * Constant for host part matching in URLs.  If set, indicates that the start of
@@ -396,6 +388,20 @@ struct url_spec
  */
 #define ANCHOR_RIGHT 2
 
+/** Pattern spec bitmap: It's an URL pattern. */
+#define PATTERN_SPEC_URL_PATTERN          0x00000001UL
+
+/** Pattern spec bitmap: It's a TAG pattern. */
+#define PATTERN_SPEC_TAG_PATTERN          0x00000002UL
+
+/** Pattern spec bitmap: It's a NO-REQUEST-TAG pattern. */
+#define PATTERN_SPEC_NO_REQUEST_TAG_PATTERN 0x00000004UL
+
+/** Pattern spec bitmap: It's a NO-RESPONSE-TAG pattern. */
+#define PATTERN_SPEC_NO_RESPONSE_TAG_PATTERN 0x00000008UL
+
+/** Pattern spec bitmap: It's a CLIENT-TAG pattern. */
+#define PATTERN_SPEC_CLIENT_TAG_PATTERN      0x00000010UL
 
 /**
  * An I/O buffer.  Holds a string which can be appended to, and can have data
@@ -563,7 +569,9 @@ struct iob
 /** Index into current_action_spec::multi[] for server-header tags to apply. */
 #define ACTION_MULTI_SERVER_HEADER_TAGGER    5
 /** Number of multi-string actions. */
-#define ACTION_MULTI_COUNT                   6
+#define ACTION_MULTI_EXTERNAL_FILTER         6
+/** Number of multi-string actions. */
+#define ACTION_MULTI_COUNT                   7
 
 
 /**
@@ -600,7 +608,7 @@ struct action_spec
    unsigned long add;  /**< Actions to add.  A bit set to "1" means add action.    */
 
    /**
-    * Paramaters for those actions that require them.
+    * Parameters for those actions that require them.
     * Each entry is valid if & only if the corresponding entry in "flags" is
     * set.
     */
@@ -627,7 +635,7 @@ struct action_spec
  */
 struct url_actions
 {
-   struct url_spec url[1];     /**< The URL or tag pattern. */
+   struct pattern_spec url[1]; /**< The URL or tag pattern. */
 
    struct action_spec *action; /**< Action settings that might be shared with
                                     the list entry before or after the current
@@ -637,7 +645,7 @@ struct url_actions
 };
 
 enum forwarder_type {
-   /**< Don't use a SOCKS server               */
+   /**< Don't use a SOCKS server, forward to a HTTP proxy directly */
    SOCKS_NONE =  0,
    /**< original SOCKS 4 protocol              */
    SOCKS_4    = 40,
@@ -647,6 +655,12 @@ enum forwarder_type {
    SOCKS_5    = 50,
    /**< Like SOCKS5, but uses non-standard Tor extensions (currently only optimistic data) */
    SOCKS_5T,
+   /**<
+    * Don't use a SOCKS server, forward to the specified webserver.
+    * The difference to SOCKS_NONE is that a request line without
+    * full URL is sent.
+    */
+   FORWARD_WEBSERVER,
 };
 
 /*
@@ -720,11 +734,6 @@ struct reusable_connection
  * Flag for csp->flags: Set if we are toggled on (FEATURE_TOGGLE).
  */
 #define CSP_FLAG_TOGGLED_ON 0x20U
-
-/**
- * Flag for csp->flags: Set if we answered the request ourselve.
- */
-#define CSP_FLAG_CRUNCHED   0x40U
 
 /**
  * Flag for csp->flags: Set if an acceptable Connection header
@@ -843,19 +852,29 @@ struct reusable_connection
  */
 #define CSP_FLAG_CHUNKED_CLIENT_BODY                0x01000000U
 
+/**
+ * Flag for csp->flags: Set if the client set the Expect header
+ */
+#define CSP_FLAG_UNSUPPORTED_CLIENT_EXPECTATION     0x02000000U
+
+/**
+ * Flag for csp->flags: Set if we answered the request ourselve.
+ */
+#define CSP_FLAG_CRUNCHED                           0x04000000U
+
 
 /*
  * Flags for use in return codes of child processes
  */
 
 /**
- * Flag for process return code: Set if exiting porcess has been toggled
+ * Flag for process return code: Set if exiting process has been toggled
  * during its lifetime.
  */
 #define RC_FLAG_TOGGLED   0x10
 
 /**
- * Flag for process return code: Set if exiting porcess has blocked its
+ * Flag for process return code: Set if exiting process has blocked its
  * request.
  */
 #define RC_FLAG_BLOCKED   0x20
@@ -908,6 +927,10 @@ struct client_state
    unsigned long ip_addr_long;
 #endif /* def HAVE_RFC2553 */
 
+   /** The host name and port (as a string of the form '<hostname>:<port>')
+       of the server socket to which the client connected. */
+   char *listen_addr_str;
+
    /** The URL that was requested */
    struct http_request http[1];
 
@@ -930,6 +953,17 @@ struct client_state
 
    /** List of all tags that apply to this request */
    struct list tags[1];
+
+#ifdef FEATURE_CLIENT_TAGS
+   /** List of all tags that apply to this client (assigned based on address) */
+   struct list client_tags[1];
+   /** The address of the client the request (presumably) came from.
+    *  Either the address returned by accept(), or the address provided
+    *  with the X-Forwarded-For header, provided Privoxy has been configured
+    *  to use it.
+    */
+   char *client_address;
+#endif
 
    /** MIME-Type key, see CT_* above */
    unsigned int content_type;
@@ -1064,9 +1098,9 @@ struct file_list
  */
 struct block_spec
 {
-   struct url_spec url[1];   /**< The URL pattern              */
-   int    reject;            /**< FIXME: Please document this! */
-   struct block_spec *next;  /**< Next entry in linked list    */
+   struct pattern_spec url[1]; /**< The URL pattern              */
+   int    reject;              /**< FIXME: Please document this! */
+   struct block_spec *next;    /**< Next entry in linked list    */
 };
 
 /**
@@ -1082,7 +1116,7 @@ struct block_spec
 struct forward_spec
 {
    /** URL pattern that this forward_spec is for. */
-   struct url_spec url[1];
+   struct pattern_spec url[1];
 
    /** Connection type.  Must be SOCKS_NONE, SOCKS_4, SOCKS_4A or SOCKS_5. */
    enum forwarder_type type;
@@ -1104,11 +1138,6 @@ struct forward_spec
 };
 
 
-/**
- * Initializer for a static struct forward_spec.
- */
-#define FORWARD_SPEC_INITIALIZER { { URL_SPEC_INITIALIZER }, 0, NULL, 0, NULL, 0, NULL }
-
 /* Supported filter types */
 enum filter_type
 {
@@ -1117,9 +1146,17 @@ enum filter_type
    FT_SERVER_HEADER_FILTER = 2,
    FT_CLIENT_HEADER_TAGGER = 3,
    FT_SERVER_HEADER_TAGGER = 4,
+#ifdef FEATURE_EXTERNAL_FILTERS
+   FT_EXTERNAL_CONTENT_FILTER = 5,
+#endif
    FT_INVALID_FILTER       = 42,
 };
+
+#ifdef FEATURE_EXTERNAL_FILTERS
+#define MAX_FILTER_TYPES        6
+#else
 #define MAX_FILTER_TYPES        5
+#endif
 
 /**
  * This struct represents one filter (one block) from
@@ -1183,6 +1220,15 @@ struct access_control_list
 /** Maximum number of loaders (actions, re_filter, ...) */
 #define NLOADERS 8
 
+/**
+ * This struct represents a client-spcific-tag and it's description
+ */
+struct client_tag_spec
+{
+   char *name;        /**< Name from "client-specific-tag bla" directive */
+   char *description; /**< Description from "client-specific-tag-description " directive */
+   struct client_tag_spec *next; /**< The pointer for chaining. */
+};
 
 /** configuration_spec::feature_flags: CGI actions editor. */
 #define RUNTIME_FEATURE_CGI_EDIT_ACTIONS             1U
@@ -1236,21 +1282,7 @@ struct configuration_spec
    /** Nonzero to enable multithreading. */
    int multi_threaded;
 
-   /**
-    * Bitmask of features that can be enabled/disabled through the config
-    * file.  Currently defined bits:
-    *
-    * - RUNTIME_FEATURE_CGI_EDIT_ACTIONS
-    * - RUNTIME_FEATURE_CGI_TOGGLE
-    * - RUNTIME_FEATURE_HTTP_TOGGLE
-    * - RUNTIME_FEATURE_SPLIT_LARGE_FORMS
-    * - RUNTIME_FEATURE_ACCEPT_INTERCEPTED_REQUESTS
-    * - RUNTIME_FEATURE_ENFORCE_BLOCKS
-    * - RUNTIME_FEATURE_CGI_CRUNCHING
-    * - RUNTIME_FEATURE_CONNECTION_KEEP_ALIVE
-    * - RUNTIME_FEATURE_CONNECTION_SHARING
-    * - RUNTIME_FEATURE_EMPTY_DOC_RETURNS_OK
-    */
+   /** Bitmask of features that can be controlled through the config file. */
    unsigned feature_flags;
 
    /** The log file name. */
@@ -1261,6 +1293,11 @@ struct configuration_spec
 
    /** The directory for customized CGI templates. */
    const char *templdir;
+
+#ifdef FEATURE_EXTERNAL_FILTERS
+   /** The template used to create temporary files. */
+   const char *temporary_directory;
+#endif
 
    /** The log file directory. */
    const char *logdir;
@@ -1310,9 +1347,17 @@ struct configuration_spec
    struct list trust_info[1];
 
    /** FIXME: DOCME: Document this. */
-   struct url_spec *trust_list[MAX_TRUSTED_REFERRERS];
+   struct pattern_spec *trust_list[MAX_TRUSTED_REFERRERS];
 
 #endif /* def FEATURE_TRUST */
+
+#ifdef FEATURE_CLIENT_TAGS
+   struct client_tag_spec client_tags[1];
+
+   /* Maximum number of seconds a temporarily enabled tag stays enabled. */
+   unsigned int client_tag_lifetime;
+#endif /* def FEATURE_CLIENT_TAGS */
+   int trust_x_forwarded_for;
 
 #ifdef FEATURE_ACL
 
@@ -1361,10 +1406,9 @@ struct configuration_spec
 /** Calculates the number of elements in an array, using sizeof. */
 #define SZ(X)  (sizeof(X) / sizeof(*X))
 
-#ifdef FEATURE_FORCE_LOAD
-/** The force load URL prefix. */
+/** The force load URL prefix. Not behind an ifdef because
+  * it's always used for the show-status page. */
 #define FORCE_PREFIX "/PRIVOXY-FORCE"
-#endif /* def FEATURE_FORCE_LOAD */
 
 #ifdef FEATURE_NO_GIFS
 /** The MIME type for images ("image/png" or "image/gif"). */
@@ -1379,7 +1423,7 @@ struct configuration_spec
  */
 
 /** URL for the Privoxy home page. */
-#define HOME_PAGE_URL     "http://www.privoxy.org/"
+#define HOME_PAGE_URL     "https://www.privoxy.org/"
 
 /** URL for the Privoxy user manual. */
 #define USER_MANUAL_URL   HOME_PAGE_URL VERSION "/user-manual/"
@@ -1408,10 +1452,6 @@ struct configuration_spec
  * INCLUDES the trailing slash.
  */
 #define CGI_PREFIX  "http://" CGI_SITE_2_HOST CGI_SITE_2_PATH "/"
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 #endif /* ndef PROJECT_H_INCLUDED */
 

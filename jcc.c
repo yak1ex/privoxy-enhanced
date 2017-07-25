@@ -1,4 +1,4 @@
-const char jcc_rcs[] = "$Id: jcc.c,v 1.424 2013/03/01 17:38:34 fabiankeil Exp $";
+const char jcc_rcs[] = "$Id: jcc.c,v 1.446 2016/05/25 10:54:01 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/jcc.c,v $
@@ -6,7 +6,7 @@ const char jcc_rcs[] = "$Id: jcc.c,v 1.424 2013/03/01 17:38:34 fabiankeil Exp $"
  * Purpose     :  Main file.  Contains main() method, main loop, and
  *                the main connection-handling function.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2012 the
+ * Copyright   :  Written by and Copyright (C) 2001-2016 the
  *                Privoxy team. http://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
@@ -115,6 +115,9 @@ const char jcc_rcs[] = "$Id: jcc.c,v 1.424 2013/03/01 17:38:34 fabiankeil Exp $"
 #include "cgi.h"
 #include "loadcfg.h"
 #include "urlmatch.h"
+#ifdef FEATURE_CLIENT_TAGS
+#include "client-tags.h"
+#endif
 
 const char jcc_h_rcs[] = JCC_H_VERSION;
 const char project_h_rcs[] = PROJECT_H_VERSION;
@@ -182,6 +185,13 @@ privoxy_mutex_t log_mutex;
 privoxy_mutex_t log_init_mutex;
 privoxy_mutex_t connection_reuse_mutex;
 
+#ifdef FEATURE_EXTERNAL_FILTERS
+privoxy_mutex_t external_filter_mutex;
+#endif
+#ifdef FEATURE_CLIENT_TAGS
+privoxy_mutex_t client_tags_mutex;
+#endif
+
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_GETHOSTBYNAME_R)
 privoxy_mutex_t resolver_mutex;
 #endif /* !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_GETHOSTBYNAME_R) */
@@ -208,12 +218,10 @@ static int received_hup_signal = 0;
 
 /* HTTP snipplets. */
 static const char CSUCCEED[] =
-   "HTTP/1.1 200 Connection established\r\n"
-   "Proxy-Agent: Privoxy/" VERSION "\r\n\r\n";
+   "HTTP/1.1 200 Connection established\r\n\r\n";
 
 static const char CHEADER[] =
    "HTTP/1.1 400 Invalid header received from client\r\n"
-   "Proxy-Agent: Privoxy " VERSION "\r\n"
    "Content-Type: text/plain\r\n"
    "Connection: close\r\n\r\n"
    "Invalid header received from client.\r\n";
@@ -233,7 +241,6 @@ static const char GOPHER_RESPONSE[] =
 /* XXX: should be a template */
 static const char MISSING_DESTINATION_RESPONSE[] =
    "HTTP/1.1 400 Bad request received from client\r\n"
-   "Proxy-Agent: Privoxy " VERSION "\r\n"
    "Content-Type: text/plain\r\n"
    "Connection: close\r\n\r\n"
    "Bad request. Privoxy was unable to extract the destination.\r\n";
@@ -241,7 +248,6 @@ static const char MISSING_DESTINATION_RESPONSE[] =
 /* XXX: should be a template */
 static const char INVALID_SERVER_HEADERS_RESPONSE[] =
    "HTTP/1.1 502 Server or forwarder response invalid\r\n"
-   "Proxy-Agent: Privoxy " VERSION "\r\n"
    "Content-Type: text/plain\r\n"
    "Connection: close\r\n\r\n"
    "Bad response. The server or forwarder response doesn't look like HTTP.\r\n";
@@ -249,31 +255,33 @@ static const char INVALID_SERVER_HEADERS_RESPONSE[] =
 /* XXX: should be a template */
 static const char MESSED_UP_REQUEST_RESPONSE[] =
    "HTTP/1.1 400 Malformed request after rewriting\r\n"
-   "Proxy-Agent: Privoxy " VERSION "\r\n"
    "Content-Type: text/plain\r\n"
    "Connection: close\r\n\r\n"
    "Bad request. Messed up with header filters.\r\n";
 
 static const char TOO_MANY_CONNECTIONS_RESPONSE[] =
    "HTTP/1.1 503 Too many open connections\r\n"
-   "Proxy-Agent: Privoxy " VERSION "\r\n"
    "Content-Type: text/plain\r\n"
    "Connection: close\r\n\r\n"
    "Maximum number of open connections reached.\r\n";
 
 static const char CLIENT_CONNECTION_TIMEOUT_RESPONSE[] =
    "HTTP/1.1 504 Connection timeout\r\n"
-   "Proxy-Agent: Privoxy " VERSION "\r\n"
    "Content-Type: text/plain\r\n"
    "Connection: close\r\n\r\n"
    "The connection timed out because the client request didn't arrive in time.\r\n";
 
 static const char CLIENT_BODY_PARSE_ERROR_RESPONSE[] =
    "HTTP/1.1 400 Failed reading client body\r\n"
-   "Proxy-Agent: Privoxy " VERSION "\r\n"
    "Content-Type: text/plain\r\n"
    "Connection: close\r\n\r\n"
    "Failed parsing or buffering the chunk-encoded client body.\r\n";
+
+static const char UNSUPPORTED_CLIENT_EXPECTATION_ERROR_RESPONSE[] =
+   "HTTP/1.1 417 Expecting too much\r\n"
+   "Content-Type: text/plain\r\n"
+   "Connection: close\r\n\r\n"
+   "Privoxy detected an unsupported Expect header value.\r\n";
 
 /* A function to crunch a response */
 typedef struct http_response *(*crunch_func_ptr)(struct client_state *);
@@ -430,6 +438,40 @@ static int client_protocol_is_unsupported(const struct client_state *csp, char *
    }
 
    return FALSE;
+}
+
+
+/*********************************************************************
+ *
+ * Function    :  client_has_unsupported_expectations
+ *
+ * Description :  Checks if the client used an unsupported expectation
+ *                in which case an error message is delivered.
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *
+ * Returns     :  TRUE if an error response has been generated, or
+ *                FALSE if the request doesn't look invalid.
+ *
+ *********************************************************************/
+static int client_has_unsupported_expectations(const struct client_state *csp)
+{
+   if ((csp->flags & CSP_FLAG_UNSUPPORTED_CLIENT_EXPECTATION))
+   {
+      log_error(LOG_LEVEL_ERROR,
+         "Rejecting request from client %s with unsupported Expect header value",
+         csp->ip_addr_str);
+      log_error(LOG_LEVEL_CLF,
+         "%s - - [%T] \"%s\" 417 0", csp->ip_addr_str, csp->http->cmd);
+      write_socket(csp->cfd, UNSUPPORTED_CLIENT_EXPECTATION_ERROR_RESPONSE,
+         strlen(UNSUPPORTED_CLIENT_EXPECTATION_ERROR_RESPONSE));
+
+      return TRUE;
+   }
+
+   return FALSE;
+
 }
 
 
@@ -873,7 +915,7 @@ static void build_request_line(struct client_state *csp, const struct forward_sp
    *request_line = strdup(http->gpc);
    string_append(request_line, " ");
 
-   if (fwd->forward_host)
+   if (fwd->forward_host && fwd->type != FORWARD_WEBSERVER)
    {
       string_append(request_line, http->url);
    }
@@ -919,11 +961,6 @@ static jb_err change_request_destination(struct client_state *csp)
    {
       log_error(LOG_LEVEL_ERROR, "Couldn't parse rewritten request: %s.",
          jb_err_to_string(err));
-   }
-   else
-   {
-      /* XXX: ocmd is a misleading name */
-      http->ocmd = strdup_or_die(http->cmd);
    }
 
    return err;
@@ -1293,7 +1330,7 @@ enum chunk_status
  *
  * Function    :  chunked_body_is_complete
  *
- * Description :  Figures out wheter or not a chunked body is complete.
+ * Description :  Figures out whether or not a chunked body is complete.
  *
  *                Currently it always starts at the beginning of the
  *                buffer which is somewhat wasteful and prevents Privoxy
@@ -1348,12 +1385,15 @@ static enum chunk_status chunked_body_is_complete(struct iob *iob, size_t *lengt
       {
          return CHUNK_STATUS_PARSE_ERROR;
       }
-      /*
-       * Skip "\r\n", the chunk data and another "\r\n".
-       * Moving p to either the beginning of the next chunk-size
-       * or one byte beyond the end of the chunked data.
-       */
-      p += 2 + chunksize + 2;
+      /* Move beyond the chunkdata. */
+      p += 2 + chunksize;
+
+      /* There should be another "\r\n" to skip */
+      if (memcmp(p, "\r\n", 2))
+      {
+         return CHUNK_STATUS_PARSE_ERROR;
+      }
+      p += 2;
    } while (chunksize > 0U);
 
    *length = (size_t)(p - iob->cur);
@@ -1422,6 +1462,70 @@ static jb_err receive_chunked_client_request_body(struct client_state *csp)
 
 }
 
+
+#ifdef FEATURE_FORCE_LOAD
+/*********************************************************************
+ *
+ * Function    :  force_required
+ *
+ * Description : Checks a request line to see if it contains
+ *               the FORCE_PREFIX. If it does, it is removed
+ *               unless enforcing requests has beend disabled.
+ *
+ * Parameters  :
+ *          1  :  request_line = HTTP request line
+ *
+ * Returns     :  TRUE if force is required, FALSE otherwise.
+ *
+ *********************************************************************/
+static int force_required(const struct client_state *csp, char *request_line)
+{
+   char *p;
+
+   p = strstr(request_line, "http://");
+   if (p != NULL)
+   {
+      /* Skip protocol */
+      p += strlen("http://");
+   }
+   else
+   {
+      /* Intercepted request usually don't specify the protocol. */
+      p = request_line;
+   }
+
+   /* Go to the beginning of the path */
+   p = strstr(p, "/");
+   if (p == NULL)
+   {
+      /*
+       * If the path is missing the request line is invalid and we
+       * are done here. The client-visible rejection happens later on.
+       */
+      return 0;
+   }
+
+   if (0 == strncmpic(p, FORCE_PREFIX, strlen(FORCE_PREFIX) - 1))
+   {
+      if (!(csp->config->feature_flags & RUNTIME_FEATURE_ENFORCE_BLOCKS))
+      {
+         /* XXX: Should clean more carefully */
+         strclean(request_line, FORCE_PREFIX);
+         log_error(LOG_LEVEL_FORCE,
+            "Enforcing request: \"%s\".", request_line);
+
+         return 1;
+      }
+      log_error(LOG_LEVEL_FORCE,
+         "Ignored force prefix in request: \"%s\".", request_line);
+   }
+
+   return 0;
+
+}
+#endif /* def FEATURE_FORCE_LOAD */
+
+
 /*********************************************************************
  *
  * Function    :  receive_client_request
@@ -1469,23 +1573,9 @@ static jb_err receive_client_request(struct client_state *csp)
    }
 
 #ifdef FEATURE_FORCE_LOAD
-   /*
-    * If this request contains the FORCE_PREFIX and blocks
-    * aren't enforced, get rid of it and set the force flag.
-    */
-   if (strstr(req, FORCE_PREFIX))
+   if (force_required(csp, req))
    {
-      if (csp->config->feature_flags & RUNTIME_FEATURE_ENFORCE_BLOCKS)
-      {
-         log_error(LOG_LEVEL_FORCE,
-            "Ignored force prefix in request: \"%s\".", req);
-      }
-      else
-      {
-         strclean(req, FORCE_PREFIX);
-         log_error(LOG_LEVEL_FORCE, "Enforcing request: \"%s\".", req);
-         csp->flags |= CSP_FLAG_FORCED;
-      }
+      csp->flags |= CSP_FLAG_FORCED;
    }
 #endif /* def FEATURE_FORCE_LOAD */
 
@@ -1588,6 +1678,12 @@ static jb_err receive_client_request(struct client_state *csp)
       }
    }
 
+#ifdef FEATURE_CLIENT_TAGS
+   /* XXX: If the headers were enlisted sooner, passing csp would do. */
+   set_client_address(csp, headers);
+   get_tag_list_for_client(csp->client_tags, csp->client_address);
+#endif
+
    /*
     * Determine the actions for this URL
     */
@@ -1603,17 +1699,13 @@ static jb_err receive_client_request(struct client_state *csp)
       get_url_actions(csp, http);
    }
 
-   /*
-    * Save a copy of the original request for logging
-    */
-   http->ocmd = strdup_or_die(http->cmd);
    enlist(csp->headers, http->cmd);
 
    /* Append the previously read headers */
-   list_append_list_unique(csp->headers, headers);
+   err = list_append_list_unique(csp->headers, headers);
    destroy_list(headers);
 
-   return JB_ERR_OK;
+   return err;
 
 }
 
@@ -1673,9 +1765,12 @@ static jb_err parse_client_request(struct client_state *csp)
    err = sed(csp, FILTER_CLIENT_HEADERS);
    if (JB_ERR_OK != err)
    {
-      /* XXX: Should be handled in sed(). */
-      assert(err == JB_ERR_PARSE);
-      log_error(LOG_LEVEL_FATAL, "Failed to parse client headers.");
+      log_error(LOG_LEVEL_ERROR, "Failed to parse client request from %s.",
+         csp->ip_addr_str);
+      log_error(LOG_LEVEL_CLF, "%s - - [%T] \"%s\" 400 0",
+         csp->ip_addr_str, csp->http->cmd);
+      write_socket(csp->cfd, CHEADER, strlen(CHEADER));
+      return JB_ERR_PARSE;
    }
    csp->flags |= CSP_FLAG_CLIENT_HEADER_PARSING_DONE;
 
@@ -1695,6 +1790,11 @@ static jb_err parse_client_request(struct client_state *csp)
          "Invalid request line after applying header filters.");
       free_http_request(http);
 
+      return JB_ERR_PARSE;
+   }
+
+   if (client_has_unsupported_expectations(csp))
+   {
       return JB_ERR_PARSE;
    }
 
@@ -1889,7 +1989,7 @@ static void chat(struct client_state *csp)
 
       if (csp->server_connection.sfd == JB_INVALID_SOCKET)
       {
-         if (fwd->type != SOCKS_NONE)
+         if ((fwd->type != SOCKS_NONE) && (fwd->type != FORWARD_WEBSERVER))
          {
             /* Socks error. */
             rsp = error_response(csp, "forwarding-failed");
@@ -1908,6 +2008,21 @@ static void chat(struct client_state *csp)
          {
             send_crunch_response(csp, rsp);
          }
+
+         /*
+          * Temporary workaround to prevent already-read client
+          * bodies from being parsed as new requests. For now we
+          * err on the safe side and throw all the following
+          * requests under the bus, even if no client body has been
+          * buffered. A compliant client will repeat the dropped
+          * requests on an untainted connection.
+          *
+          * The proper fix is to discard the no longer needed
+          * client body in the buffer (if there is one) and to
+          * continue parsing the bytes that follow.
+          */
+         drain_and_close_socket(csp->cfd);
+         csp->cfd = JB_INVALID_SOCKET;
 
          return;
       }
@@ -2553,7 +2668,13 @@ static void chat(struct client_state *csp)
              */
             if (JB_ERR_OK != sed(csp, FILTER_SERVER_HEADERS))
             {
-               log_error(LOG_LEVEL_FATAL, "Failed to parse server headers.");
+               log_error(LOG_LEVEL_CLF,
+                  "%s - - [%T] \"%s\" 502 0", csp->ip_addr_str, http->cmd);
+               write_socket(csp->cfd, INVALID_SERVER_HEADERS_RESPONSE,
+                  strlen(INVALID_SERVER_HEADERS_RESPONSE));
+               free_http_request(http);
+               mark_server_socket_tainted(csp);
+               return;
             }
             hdr = list_to_text(csp->headers);
             if (hdr == NULL)
@@ -2692,8 +2813,6 @@ static void chat(struct client_state *csp)
  *********************************************************************/
 static void prepare_csp_for_next_request(struct client_state *csp)
 {
-   unsigned int toggled_on_flag_set = (0 != (csp->flags & CSP_FLAG_TOGGLED_ON));
-
    csp->content_type = 0;
    csp->content_length = 0;
    csp->expected_content_length = 0;
@@ -2704,6 +2823,10 @@ static void prepare_csp_for_next_request(struct client_state *csp)
    free_http_request(csp->http);
    destroy_list(csp->headers);
    destroy_list(csp->tags);
+#ifdef FEATURE_CLIENT_TAGS
+   destroy_list(csp->client_tags);
+   freez(csp->client_address);
+#endif
    free_current_action(csp->action);
    if (NULL != csp->fwd)
    {
@@ -2712,7 +2835,9 @@ static void prepare_csp_for_next_request(struct client_state *csp)
    }
    /* XXX: Store per-connection flags someplace else. */
    csp->flags = (CSP_FLAG_ACTIVE | CSP_FLAG_REUSED_CLIENT_CONNECTION);
-   if (toggled_on_flag_set)
+#ifdef FEATURE_TOGGLE
+   if (global_toggle_state)
+#endif /* def FEATURE_TOGGLE */
    {
       csp->flags |= CSP_FLAG_TOGGLED_ON;
    }
@@ -3134,6 +3259,12 @@ static void initialize_mutexes(void)
    privoxy_mutex_init(&log_mutex);
    privoxy_mutex_init(&log_init_mutex);
    privoxy_mutex_init(&connection_reuse_mutex);
+#ifdef FEATURE_EXTERNAL_FILTERS
+   privoxy_mutex_init(&external_filter_mutex);
+#endif
+#ifdef FEATURE_CLIENT_TAGS
+   privoxy_mutex_init(&client_tags_mutex);
+#endif
 
    /*
     * XXX: The assumptions below are a bit naive
@@ -3444,7 +3575,7 @@ int main(int argc, char **argv)
    cgi_init_error_messages();
 
    /*
-    * If runnig on unix and without the --nodaemon
+    * If running on unix and without the --no-daemon
     * option, become a daemon. I.e. fork, detach
     * from tty and get process group leadership
     */
@@ -3517,6 +3648,13 @@ int main(int argc, char **argv)
          }
          close(fd);
       }
+
+#ifdef FEATURE_EXTERNAL_FILTERS
+      for (fd = 0; fd < 3; fd++)
+      {
+         mark_socket_for_close_on_execute(fd);
+      }
+#endif
 
       chdir("/");
 
@@ -3643,7 +3781,7 @@ int main(int argc, char **argv)
  *                on failure.
  *
  * Parameters  :
- *          1  :  haddr = Host addres to bind to. Use NULL to bind to
+ *          1  :  haddr = Host address to bind to. Use NULL to bind to
  *                        INADDR_ANY.
  *          2  :  hport = Specifies port to bind to.
  *
@@ -3847,16 +3985,18 @@ static void listen_loop(void)
       }
 #endif
 
-      csp_list = (struct client_states *)zalloc(sizeof(*csp_list));
-      if (NULL == csp_list)
-      {
-         log_error(LOG_LEVEL_FATAL,
-            "malloc(%d) for csp_list failed: %E", sizeof(*csp_list));
-         continue;
-      }
+      csp_list = zalloc_or_die(sizeof(*csp_list));
       csp = &csp_list->csp;
 
-      log_error(LOG_LEVEL_CONNECT, "Listening for new connections ... ");
+      log_error(LOG_LEVEL_CONNECT,
+         "Waiting for the next client connection. Currently active threads: %d",
+         active_threads);
+
+      /*
+       * This config may be outdated, but for accept_connection()
+       * it's fresh enough.
+       */
+      csp->config = config;
 
       if (!accept_connection(csp, bfds))
       {
@@ -3914,9 +4054,11 @@ static void listen_loop(void)
       if (block_acl(NULL,csp))
       {
          log_error(LOG_LEVEL_CONNECT,
-            "Connection from %s on socket %d dropped due to ACL", csp->ip_addr_str, csp->cfd);
+            "Connection from %s on %s (socket %d) dropped due to ACL",
+            csp->ip_addr_str, csp->listen_addr_str, csp->cfd);
          close_socket(csp->cfd);
          freez(csp->ip_addr_str);
+         freez(csp->listen_addr_str);
          freez(csp_list);
          continue;
       }
@@ -3932,6 +4074,7 @@ static void listen_loop(void)
             strlen(TOO_MANY_CONNECTIONS_RESPONSE));
          close_socket(csp->cfd);
          freez(csp->ip_addr_str);
+         freez(csp->listen_addr_str);
          freez(csp_list);
          continue;
       }
@@ -4110,7 +4253,8 @@ static void listen_loop(void)
              * XXX: If you assume ...
              */
             log_error(LOG_LEVEL_ERROR,
-               "Unable to take any additional connections: %E");
+               "Unable to take any additional connections: %E. Active threads: %d",
+               active_threads);
             write_socket(csp->cfd, TOO_MANY_CONNECTIONS_RESPONSE,
                strlen(TOO_MANY_CONNECTIONS_RESPONSE));
             close_socket(csp->cfd);

@@ -67,7 +67,7 @@
 #  unstable:
 #    This is an alpha or beta Privoxy release
 #  have-adminaddr-info:
-#    An e-mail address for the local Privoxy adminstrator has
+#    An e-mail address for the local Privoxy administrator has
 #    been specified and is available through the "admin-address"
 #    symbol
 #  have-proxy-info:
@@ -111,7 +111,7 @@
   <title>Privoxy@@my-hostname@: Proxy Status</title>
   <meta http-equiv="Content-Style-Type" content="text/css">
   <meta http-equiv="Content-Script-Type" content="text/javascript">
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name="robots" content="noindex,nofollow">
   <link rel="stylesheet" type="text/css" href="@default-cgi@send-stylesheet">
   <link rel="shortcut icon" href="@default-cgi@favicon.ico" type="image/x-icon">
@@ -224,6 +224,11 @@
             </tr>
 
             <tr>
+              <td><code>FEATURE_64_BIT_TIME_T</code></td>
+              <td>@if-FEATURE_64_BIT_TIME_T-then@ Yes @else-not-FEATURE_64_BIT_TIME_T@ No @endif-FEATURE_64_BIT_TIME_T@</td>
+              <td>Dates before 1970 and after 2038 are (hopefully) supported.</td>
+            </tr>
+            <tr>
               <td><code>FEATURE_ACCEPT_FILTER</code></td>
               <td>@if-FEATURE_ACCEPT_FILTER-then@ Yes @else-not-FEATURE_ACCEPT_FILTER@ No @endif-FEATURE_ACCEPT_FILTER@</td>
               <td>Support for FreeBSD's accf_http(9) which is also available on some other BSDs.</td>
@@ -240,6 +245,13 @@
                  href="@default-cgi@edit-actions">@else-not-FEATURE_CGI_EDIT_ACTIONS@
                  @endif-FEATURE_CGI_EDIT_ACTIONS@web-based actions file
                  editor@if-FEATURE_CGI_EDIT_ACTIONS-then@</a>@else-not-FEATURE_CGI_EDIT_ACTIONS@@endif-FEATURE_CGI_EDIT_ACTIONS@.</td>
+            </tr>
+            <tr>
+              <td><code>FEATURE_CLIENT_TAGS</code></td>
+              <td>@if-FEATURE_CLIENT_TAGS-then@ Yes @else-not-FEATURE_CLIENT_TAGS@ No @endif-FEATURE_CLIENT_TAGS@</td>
+              <td>
+               Allows clients to request to be tagged.
+              </td>
             </tr>
             <tr>
               <td><code>FEATURE_COMPRESSION</code></td>
@@ -265,6 +277,14 @@
               </td>
             </tr>
             <tr>
+              <td><code>FEATURE_DYNAMIC_PCRE</code></td>
+              <td>@if-FEATURE_DYNAMIC_PCRE-then@ Yes @else-not-FEATURE_DYNAMIC_PCRE@ No @endif-FEATURE_DYNAMIC_PCRE@</td>
+              <td>Dynamically link to the PCRE library. This is set automatically
+               by <code>./configure</code> if you do not have libpcre installed.
+               Dynamically linking to an external libpcre is recommended as the one that is distributed
+               with Privoxy itself is outdated and lacks various features and bug-fixes you may be interested in.</td>
+            </tr>
+            <tr>
               <td><code>FEATURE_FAST_REDIRECTS</code></td>
               <td>@if-FEATURE_FAST_REDIRECTS-then@ Yes @else-not-FEATURE_FAST_REDIRECTS@ No @endif-FEATURE_FAST_REDIRECTS@</td>
               <td>Allows the +fast-redirects action, to bypass redirect and logging scripts.</td>
@@ -273,7 +293,7 @@
               <td><code>FEATURE_FORCE_LOAD</code></td>
               <td>@if-FEATURE_FORCE_LOAD-then@ Yes @else-not-FEATURE_FORCE_LOAD@ No @endif-FEATURE_FORCE_LOAD@</td>
               <td>Allows bypassing all filtering for a single page using the prefix
-                  <q><code>@FORCE_PREFIX@</code></q>.</td>
+                  <q><code>@force-prefix@</code></q>.</td>
             </tr>
             <tr>
               <td><code>FEATURE_GRACEFUL_TERMINATION</code></td>
@@ -335,20 +355,6 @@
               <td>@if-FEATURE_ZLIB-then@ Yes @else-not-FEATURE_ZLIB@ No @endif-FEATURE_ZLIB@</td>
               <td>Allows to decompress gzip and zlib compressed documents for filtering.
                 Requires external zlib library and hasn't been tested on all platforms.</td>
-            </tr>
-            <tr>
-              <td><code>STATIC_PCRE</code></td>
-              <td>@if-STATIC_PCRE-then@ Yes @else-not-STATIC_PCRE@ No @endif-STATIC_PCRE@</td>
-              <td>Use the supplied statically-linked PCRE library. This is set automatically
-               by <code>./configure</code> if you do not have the libpcre installed.
-               Dynamically linking to an external libpcre is recommended as the internal
-               one is outdated and lacks various features and bug-fixes you may be interested in.</td>
-            </tr>
-            <tr>
-              <td><code>STATIC_PCRS</code></td>
-              <td>@if-STATIC_PCRS-then@ Yes @else-not-STATIC_PCRS@ No @endif-STATIC_PCRS@</td>
-              <td>Use the supplied statically-linked PCRS library.  This is set automatically
-               by <code>./configure</code> if you do not have the libpcrs installed.</td>
             </tr>
           </table>
       </td>

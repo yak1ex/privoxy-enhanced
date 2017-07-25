@@ -1,6 +1,486 @@
 --------------------------------------------------------------------
 ChangeLog for Privoxy
 --------------------------------------------------------------------
+*** Version 3.0.26 stable ***
+
+- Bug fixes:
+  - Fixed crashes with "listen-addr :8118" (SF Bug #902).
+    The regression was introduced in 3.0.25 beta and reported
+    by Marvin Renich in Debian bug #834941.
+
+- General improvements:
+  - Log when privoxy is toggled on or off via cgi interface.
+  - Highlight the "Info: Now toggled " on/off log message
+    in the Windows log viewer.
+  - Highlight the loading actions/filter file log message
+    in the Windows log viewer.
+  - Mention client-specific tags on the toggle page as a
+    potentionally more appropriate alternative.
+
+- Documentation improvements:
+  - Update download section on the homepage.
+    The downloads are available from the website now.
+  - Add sponsor FAQ.
+  - Remove obsolete reference to mailing lists hosted at SourceForge.
+  - Update the "Before the Release" section of the developer manual.
+
+- Infrastructure improvements:
+  - Add perl script to generate an RSS feed for the packages
+    Submitted by "Unknown".
+
+- Build system improvements:
+  - strptime.h: fix a compiler warning about ambiguous else.
+  - configure.in: Check for Docbook goo on the BSDs as well.
+  - GNUMakefile.in: Let the dok-user target remove temporary files.
+
+*** Version 3.0.25 beta ***
+
+- Bug fixes:
+  - Always use the current toggle state for new requests.
+    Previously new requests on reused connections inherited
+    the toggle state from the previous request even though
+    the toggle state could have changed.
+    Reported by Robert Klemme.
+  - Fixed two buffer-overflows in the (deprecated) static
+    pcre code. These bugs are not considered security issues
+    as the input is trusted.
+    Found with afl-fuzz and ASAN.
+
+- General improvements:
+  - Added support for client-specific tags which allow Privoxy
+    admins to pre-define tags that are set for all requests from
+    clients that previously opted in through the CGI interface.
+    They are useful in multi-user setups where admins may
+    want to allow users to disable certain actions and filters
+    for themselves without affecting others.
+    In single-user setups they are useful to allow more fine-grained
+    toggling. For example to disable request blocking while still
+    crunching cookies, or to disable experimental filters only.
+    This is an experimental feature, the syntax and behaviour may
+    change in future versions.
+    Sponsored by Robert Klemme.
+  - Dynamic filters and taggers now support a $listen-address variable
+    which contains the address the request came in on.
+    For external filters the variable is called $PRIVOXY_LISTEN_ADDRESS.
+    Original patch contributed by pursievro.
+  - Add client-header-tagger 'listen-address'.
+  - Include the listen-address in the log message when logging new requests.
+    Patch contributed by pursievro.
+  - Turn invalid max-client-connections values into fatal errors.
+  - The show-status page now shows whether or not dates before 1970
+    and after 2038 are expected to be handled properly.
+    This is mainly useful for Privoxy-Regression-Test but could
+    also come handy when dealing with time-related support requests.
+  - On Mac OS X the thread id in log messages are more likely to
+    be unique now.
+  - When complaining about missing filters, the filter type is logged
+    as well.
+  - A couple of harmless coverity warnings were silenced
+    (CID #161202, CID #161203, CID #161211).
+
+- Action file improvements:
+  - Filtering is disabled for Range requests to let download resumption
+    and Windows updates work with the default configuration.
+  - Unblock ".ardmediathek.de/".
+    Reported by ThTomate in #932.
+
+- Documentation improvements:
+  - Add FAQ entry for crashes caused by memory limits.
+  - Remove obsolete FAQ entry about a bug in PHP 4.2.3.
+  - Mention the new mailing lists were appropriate.
+    As the archives have not been migrated, continue to
+    mention the archives at SF in the contacting section
+    for now.
+  - Note that the templates should be adjusted if Privoxy is
+    running as intercepting proxy without getting all requests.
+  - A bunch of links were converted to https://.
+  - Rephrase onion service paragraph to make it more obvious
+    that Tor is involved and that the whole website (and not
+    just the homepage) is available as onion service.
+  - Streamline the "More information" section on the homepage further
+    by additionally ditching the link to the 'See also' section
+    of the user manual. The section contains mostly links that are
+    directly reachable from the homepage already and the rest is
+    not significant enough to get a link from the homepage.
+  - Change the add-header{} example to set the DNT header
+    and use a complete section to make copy and pasting
+    more convenient.
+    Add a comment to make it obvious that adding the
+    header is not recommended for obvious reasons.
+    Using the DNT header as example was suggested by
+    Leo Wzukw.
+  - Streamline the support-and-service template
+    Instead of linking to the various support trackers
+    (whose URLs hopefully change soon), link to the
+    contact section of the user manual to increase the
+    chances that users actually read it.
+  - Add a FAQ entry for tainted sockets.
+  - More sections in the documentation have stable URLs now.
+  - FAQ: Explain why 'ping config.privoxy.org' is not expected
+    to reach a local Privoxy installation.
+  - Note that donations done through Zwiebelfreunde e.V. currently
+    can't be checked automatically.
+  - Updated section regarding starting Privoxy under OS X.
+  - Use dedicated start instructions for FreeBSD and ElectroBSD.
+  - Removed release instructions for AIX. They haven't been working
+    for years and unsurprisingly nobody seems to care.
+  - Removed obsolete reference to the solaris-dist target.
+  - Updated the release instructions for FreeBSD.
+  - Removed unfinished release instructions for Amiga OS and HP-UX 11.
+  - Added a pointer to the Cygwin Time Machine for getting the last release of
+    Cygwin version 1.5 to use for building Privoxy on Windows.
+  - Various typos have been fixed.
+
+- Infrastructure improvements:
+  - The website is no longer hosted at SourceForge and
+    can be reached through https now.
+  - The mailing lists at SourceForge have been deprecated,
+    you can subscribe to the new ones at: https://lists.privoxy.org/
+  - Migrating the remaining services from SourceForge is
+    work in progress (TODO list item #53).
+
+- Build system improvements:
+  - Add configure argument to optimistically redefine FD_SETSIZE
+    with the intent to change the maximum number of client
+    connections Privoxy can handle. Only works with some libcs.
+    Sponsored by Robert Klemme.
+  - Let the tarball-dist target skip files in ".git".
+  - Let the tarball-dist target work in cwds other than current.
+  - Make the 'clean' target faster when run from a git repository.
+  - Include tools in the generic distribution.
+  - Let the gen-dist target work in cwds other than current.
+  - Sort find output that is used for distribution tarballs
+    to get reproducible results.
+  - Don't add '-src' to the name of the tar ball generated by the
+    gen-dist target. The package isn't a source distribution but a
+    binary package.
+    While at it, use a variable for the name to reduce the chances
+    that the various references get out of sync and fix the gen-upload
+    target which was looking in the wrong directory.
+  - Add regression-tests.action to the files that are distributed.
+  - The gen-dist target which was broken since 2002 (r1.92) has been fixed.
+  - Remove genclspec.sh which has been obsolete since 2009.
+  - Remove obsolete reference to Redhat spec file.
+  - Remove the obsolete announce target which has been commented out years ago.
+  - Let rsync skip files if the checksums match.
+
+- Privoxy-Regression-Test:
+  - Add a "Default level offset" directive which can be used to
+    change the default level by a given value.
+    This directive affects all tests located after it until the end
+    of the file or a another "Default level offset" directive is reached.
+    The purpose of this directive is to make it more convenient to skip
+    similar tests in a given file without having to remove or disable
+    the tests completely.
+  - Let test level 17 depend on FEATURE_64_BIT_TIME_T
+    instead of FEATURE_PTHREAD which has no direct connection
+    to the time_t size.
+  - Fix indentation in perldoc examples.
+  - Don't overlook directives in the first line of the action file.
+  - Bump version to 0.7.
+  - Fix detection of the Privoxy version now that https://
+    is used for the website.
+
+*** Version 3.0.24 stable ***
+
+- Security fixes (denial of service):
+  - Prevent invalid reads in case of corrupt chunk-encoded content.
+    CVE-2016-1982. Bug discovered with afl-fuzz and AddressSanitizer.
+  - Remove empty Host headers in client requests.
+    Previously they would result in invalid reads. CVE-2016-1983.
+    Bug discovered with afl-fuzz and AddressSanitizer.
+
+- Bug fixes:
+  - When using socks5t, send the request body optimistically as well.
+    Previously the request body wasn't guaranteed to be sent at all
+    and the error message incorrectly blamed the server.
+    Fixes #1686 reported by Peter Müller and G4JC.
+  - Fixed buffer scaling in execute_external_filter() that could lead
+    to crashes. Submitted by Yang Xia in #892.
+  - Fixed crashes when executing external filters on platforms like
+    Mac OS X. Reported by Jonathan McKenzie on ijbswa-users@.
+  - Properly parse ACL directives with ports when compiled with HAVE_RFC2553.
+    Previously the port wasn't removed from the host and in case of
+    'permit-access 127.0.0.1 example.org:80' Privoxy would try (and fail)
+    to resolve "example.org:80" instead of example.org.
+    Reported by Pak Chan on ijbswa-users@.
+  - Check requests more carefully before serving them forcefully
+    when blocks aren't enforced. Privoxy always adds the force token
+    at the beginning of the path, but would previously accept it anywhere
+    in the request line. This could result in requests being served that
+    should be blocked. For example in case of pages that were loaded with
+    force and contained JavaScript to create additionally requests that
+    embed the origin URL (thus inheriting the force prefix).
+    The bug is not considered a security issue and the fix does not make
+    it harder for remote sites to intentionally circumvent blocks if
+    Privoxy isn't configured to enforce them.
+    Fixes #1695 reported by Korda.
+  - Normalize the request line in intercepted requests to make rewriting
+    the destination more convenient. Previously rewrites for intercepted
+    requests were expected to fail unless $hostport was being used, but
+    they failed "the wrong way" and would result in an out-of-memory
+    message (vanilla host patterns) or a crash (extended host patterns).
+    Reported by "Guybrush Threepwood" in #1694.
+  - Enable socket lingering for the correct socket.
+    Previously it was repeatedly enabled for the listen socket
+    instead of for the accepted socket. The bug was found by
+    code inspection and did not cause any (reported) issues.
+  - Detect and reject parameters for parameter-less actions.
+    Previously they were silently ignored.
+  - Fixed invalid reads in internal and outdated pcre code.
+    Found with afl-fuzz and AddressSanitizer.
+  - Prevent invalid read when loading invalid action files.
+    Found with afl-fuzz and AddressSanitizer.
+  - Windows build: Use the correct function to close the event handle.
+    It's unclear if this bug had a negative impact on Privoxy's behaviour.
+    Reported by Jarry Xu in #891.
+  - In case of invalid forward-socks5(t) directives, use the
+    correct directive name in the error messages. Previously they
+    referred to forward-socks4t failures.
+    Reported by Joel Verhagen in #889.
+
+- General improvements:
+  - Set NO_DELAY flag for the accepting socket. This significantly reduces
+    the latency if the operating system is not configured to set the flag
+    by default. Reported by Johan Sintorn in #894.
+  - Allow to build with mingw x86_64. Submitted by Rustam Abdullaev in #135.
+  - Introduce the new forwarding type 'forward-webserver'.
+    Currently it is only supported by the forward-override{} action and
+    there's no config directive with the same name. The forwarding type
+    is similar to 'forward', but the request line only contains the path
+    instead of the complete URL.
+  - The CGI editor no longer treats 'standard.action' special.
+    Nowadays the official "standards" are part of default.action
+    and there's no obvious reason to disallow editing them through
+    the cgi editor anyway (if the user decided that the lack of
+    authentication isn't an issue in her environment).
+  - Improved error messages when rejecting intercepted requests
+    with unknown destination.
+  - A couple of log messages now include the number of active threads.
+  - Removed non-standard Proxy-Agent headers in HTTP snipplets
+    to make testing more convenient.
+  - Include the error code for pcre errors Privoxy does not recognize.
+  - Config directives with numerical arguments are checked more carefully.
+  - Privoxy's malloc() wrapper has been changed to prevent zero-size
+    allocations which should only occur as the result of bugs.
+  - Various cosmetic changes.
+
+- Action file improvements:
+  - Unblock ".deutschlandradiokultur.de/".
+    Reported by u302320 in #924.
+  - Add two fast-redirect exceptions for "yandex.ru".
+  - Disable filter{banners-by-size} for ".plasmaservice.de/".
+  - Unblock "klikki.fi/adv/".
+  - Block requests for "resources.infolinks.com/".
+    Reported by "Black Rider" on ijbswa-users@.
+  - Block a bunch of criteo domains.
+    Reported by Black Rider.
+  - Block "abs.proxistore.com/abe/".
+    Reported by Black Rider.
+  - Disable filter{banners-by-size} for ".black-mosquito.org/".
+  - Disable fast-redirects for "disqus.com/".
+
+- Documentation improvements:
+  - FAQ: Explicitly point fingers at ASUS as an example of a
+    company that has been reported to force malware based on
+    Privoxy upon its customers.
+  - Correctly document the action type for a bunch of "multi-value"
+    actions that were incorrectly documented to be "parameterized".
+    Reported by Gregory Seidman on ijbswa-users@.
+  - Fixed the documented type of the forward-override{} action
+    which is obviously 'parameterized'.
+
+- Website improvements:
+  - Users who don't trust binaries served by SourceForge
+    can get them from a mirror. Migrating away from SourceForge
+    is planned for 2016 (TODO list item #53).
+  - The website is now available as onion service
+    (http://jvauzb4sb3bwlsnc.onion/).
+
+*** Version 3.0.23 stable ***
+
+- Bug fixes:
+  - Fixed a DoS issue in case of client requests with incorrect
+    chunk-encoded body. When compiled with assertions enabled
+    (the default) they could previously cause Privoxy to abort().
+    Reported by Matthew Daley. CVE-2015-1380.
+  - Fixed multiple segmentation faults and memory leaks in the
+    pcrs code. This fix also increases the chances that an invalid
+    pcrs command is rejected as such. Previously some invalid commands
+    would be loaded without error. Note that Privoxy's pcrs sources
+    (action and filter files) are considered trustworthy input and
+    should not be writable by untrusted third-parties. CVE-2015-1381.
+  - Fixed an 'invalid read' bug which could at least theoretically
+    cause Privoxy to crash. So far, no crashes have been observed.
+    CVE-2015-1382.
+  - Compiles with --disable-force again. Reported by Kai Raven.
+  - Client requests with body that can't be delivered no longer
+    cause pipelined requests behind them to be rejected as invalid.
+    Reported by Basil Hussain.
+
+- General improvements:
+  - If a pcrs command is rejected as invalid, Privoxy now logs
+    the cause of the problem as text. Previously the pcrs error
+    code was logged.
+  - The tests are less likely to cause false positives.
+
+- Action file improvements:
+  - '.sify.com/' is no longer blocked. Apparently it is not actually
+    a pure tracking site (anymore?). Reported by Andrew on ijbswa-users@.
+  - Unblock banners on .amnesty.de/ which aren't ads.
+
+- Documentation improvements:
+  - The 'Would you like to donate?' section now also contains
+    a "Paypal" address.
+  - The list of supported operating systems has been updated.
+  - The existence of the SF support and feature trackers has been
+    deemphasized because they have been broken for months.
+    Most of the time the mailing lists still work.
+  - The claim that default.action updates are sometimes released
+    on their own has been removed. It hasn't happened in years.
+  - Explicitly mention that Tor's port may deviate from the default
+    when using a bundle. Requested by Andrew on ijbswa-users@.
+
+*** Version 3.0.22 stable ***
+
+- Bug fixes:
+  - Fixed a memory leak when rejecting client connections due to
+    the socket limit being reached (CID 66382). This affected
+    Privoxy 3.0.21 when compiled with IPv6 support (on most
+    platforms this is the default). CVE-2015-1030.
+  - Fixed an immediate-use-after-free bug (CID 66394) and two
+    additional unconfirmed use-after-free complaints made by
+    Coverity scan (CID 66391, CID 66376). CVE-2015-1031.
+  - Actually show the FORCE_PREFIX value on the show-status page.
+  - Properly deal with Keep-Alive headers with timeout= parameters
+    If the timeout still can't be parsed, use the configured
+    timeout instead of preventing the client from keeping the
+    connection alive. Fixes #3615312/#870 reported by Bernard Guillot.
+  - Not using any filter files no longer results in warning messages
+    unless an action file is referencing header taggers or filters.
+    Reported by Stefan Kurtz in #3614835.
+  - Fixed a bug that prevented Privoxy from reusing some reusable
+    connections. Two bit masks with different purpose unintentionally
+    shared the same bit.
+  - A couple of additional bugs were discovered by Coverity Scan.
+    The fixes that are not expected to affect users are not explicitly
+    mentioned here, for details please have a look at the CVS logs.
+
+- General improvements:
+  - Introduced negative tag patterns NO-REQUEST-TAG and NO-RESPONSE-TAG.
+    They apply if no matching tag is found after parsing client or
+    server headers.
+  - Add support for external filters which allow to process the
+    response body with a script or program written in any language
+    the platform supports. External filters are enabled with
+    +external-filter{} after they have been defined in one of the
+    filter files with a header line starting with "EXTERNAL-FILTER:".
+    External filter support is experimental, not compiled by default
+    and known not to work on all platforms.
+  - Add support for the 'PATCH' method as defined in RFC5789.
+  - Reject requests with unsupported Expect header values.
+    Fixes a couple of Co-Advisor tests.
+  - Normalize the HTTP-version in forwarded requests and responses.
+    This is an explicit RFC 2616 MUST and RFC 7230 mandates that
+    intermediaries send their own HTTP-version in forwarded
+    messages.
+  - Server 'Keep-Alive' headers are no longer forwarded. From a user's
+    point of view it doesn't really matter, but RFC 2616 (obsolete)
+    mandates that the header is removed and this fixes a Co-Advisor
+    complaint.
+  - Change declared template file encoding to UTF-8. The templates
+    already used a subset of UTF-8 anyway and changing the declaration
+    allows to properly display UTF-8 characters used in the action files.
+    This change may require existing action files with ISO-8859-1
+    characters that aren't valid UTF-8 to be converted to UTF-8.
+    Requested by Sam Chen in #582.
+  - Do not pass rejected keep-alive timeouts to the server. It might
+    not have caused any problems (we know of), but doing the right
+    thing shouldn't hurt either.
+  - Let log_error() use its own buffer size #define to make changing
+    the log buffer size slightly less inconvenient.
+  - Turned single-threaded into a "proper" toggle directive with arguments.
+  - CGI templates no longer enforce new windows for some links.
+  - Remove an undocumented workaround ('HOST' header removal) for
+    an Apple iTunes bug that according to #729900 got fixed in 2003.
+
+- Action file improvements:
+  - The pattern 'promotions.' is no longer being blocked.
+    Reported by rakista in #3608540.
+  - Disable fast-redirects for .microsofttranslator.com/.
+  - Disable filter{banners-by-size} for .dgb-tagungszentren.de/.
+  - Add adn.speedtest.net as a site-specific unblocker.
+    Support request #3612908.
+  - Disable filter{banners-by-size} for creativecommons.org/.
+  - Block requests to data.gosquared.com/. Reported by cbug in #3613653.
+  - Unblock .conrad./newsletter/. Reported by David Bo in #3614238.
+  - Unblock .bundestag.de/.
+  - Unblock .rote-hilfe.de/.
+  - Disable fast-redirects for .facebook.com/plugins/like.php.
+  - Unblock Stackexchange popup URLs that aren't used to serve ads.
+    Reported by David Wagner in #3615179.
+  - Disable fast-redirects for creativecommons.org/.
+  - Unblock .stopwatchingus.info/.
+  - Block requests for .adcash.com/script/.
+    Reported by Tyrexionibus in #3615289.
+  - Disable HTML filters if the response was tagged as JavaScript.
+    Filtering JavaScript code with filters intended to deal with HTML
+    is usually a waste of time and, more importantly, may break stuff.
+  - Use a custom redirect{} for .washingtonpost.com/wp-apps/imrs\.php\?src=
+    Previously enabling the 'Advanced' settings (or manually enabling
+    +fast-redirects{}) prevented some images from being loaded properly.
+  - Unblock "adina*." Fixes #919 reported by Morton A. Goldberg.
+  - Block '/.*DigiAd'.
+  - Unblock 'adele*.'. Reported by Adele Lime in #1663.
+  - Disable banners-by-size for kggp.de/.
+
+- Filter file improvements & bug fixes:
+  - Decrease the chances that js-annoyances creates invalid JavaScript.
+    Submitted by John McGowan on ijbswa-users@.
+  - Let the msn filter hide 'related' ads again.
+  - Remove a stray '1' in the 'html-annoyances' filter.
+  - Prevent img-reorder from messing up img tags with empty src
+    attributes. Fixes #880 reported by Duncan.
+
+- Documentation improvements:
+  - Updated the 'Would you like to donate?' section.
+  - Note that invalid forward-override{} parameter syntax isn't
+    detected until the parameter is used.
+  - Add another +redirect{} example: a shortcut for illumos bugs.
+  - Make it more obvious that many operating systems support log
+    rotation out of the box.
+  - Fixed dead links. Reported by Mark Nelson in #3614557.
+  - Rephrased the 'Why is the configuration so complicated?' answer
+    to be slightly less condescending. Anonymously suggested in #3615122.
+  - Be more explicit about accept-intercepted-requests's lack of MITM support.
+  - Make 'demoronizer' FAQ entries more generic.
+  - Add an example hostname to the --pre-chroot-nslookup description.
+  - Add an example for a host pattern that matches an IP address.
+  - Rename the 'domain pattern' to 'host pattern' as it may
+    contain IP addresses as well.
+  - Recommend forward-socks5t when using Tor. It seems to work fine and
+    modifying the Tor configuration to profit from it hasn't been necessary
+    for a while now.
+  - Add another redirect{} example to stress that redirect loops can
+    and should be avoided.
+  - The usual spelling and grammar fixes. Parts of them were
+    reported by Reuben Thomas in #3615276.
+  - Mention the PCRS option letters T and D in the filter section.
+  - Clarify that handle-as-empty-doc-returns-ok is still useful
+    and will not be removed without replacement.
+  - Note that security issues shouldn't be reported using the bug tracker.
+  - Clarify what Privoxy does if both +block{} and +redirect{} apply.
+  - Removed the obsolete bookmarklets section.
+
+- Build system improvements:
+  - Let --with-group properly deal with secondary groups.
+    Patch submitted by Anatoly Arzhnikov in #3615187.
+  - Fix web-actions target.
+  - Add a web-faq target that only updates the FAQ on the webserver.
+  - Remove already-commented-out non-portable DOSFILTER alternatives.
+  - Remove the obsolete targets dok-put and dok-get.
+  - Add a sf-shell target.
+
 *** Version 3.0.21 stable ***
 
 - Bug fixes:
@@ -10,7 +490,7 @@ ChangeLog for Privoxy
     the limit to be reached.
   - Proxy authentication headers are removed unless the new directive
     enable-proxy-authentication-forwarding is used. Forwarding the
-    headers potentionally allows malicious sites to trick the user
+    headers potentially allows malicious sites to trick the user
     into providing them with login information.
     Reported by Chris John Riley.
   - Compiles on OS/2 again now that unistd.h is only included
@@ -1759,8 +2239,8 @@ being a mix of "U.S. English", "U.K. English" and "Irish English".
 
 
 ----------------------------------------------------------------------
-Copyright   :  Written by and Copyright (C) 2001-2013 the
-               Privoxy team. http://www.privoxy.org/
+Copyright   :  Written by and Copyright (C) 2001-2016 the
+               Privoxy team. https://www.privoxy.org/
 
                Based on the Internet Junkbuster originally written
                by and Copyright (C) 1997 Anonymous Coders and

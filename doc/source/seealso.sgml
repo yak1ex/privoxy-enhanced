@@ -3,9 +3,9 @@
 
  Purpose     :  Entity included in other project documents.
 
- $Id: seealso.sgml,v 2.14 2012/06/19 12:48:54 fabiankeil Exp $
+ $Id: seealso.sgml,v 2.16 2016/05/03 13:22:13 fabiankeil Exp $
 
- Copyright (C) 2001-2009 Privoxy Developers http://www.privoxy.org/
+ Copyright (C) 2001-2009 Privoxy Developers https://www.privoxy.org/
  See LICENSE.
 
  ======================================================================
@@ -36,21 +36,21 @@
  <simplelist>
   <member>
    <ulink
-   url="http://www.privoxy.org/">http://www.privoxy.org/</ulink>,
+   url="https://www.privoxy.org/">https://www.privoxy.org/</ulink>,
    the <application>Privoxy</application> Home page.
   </member>
  </simplelist>
  <simplelist>
   <member>
    <ulink
-   url="http://www.privoxy.org/faq/">http://www.privoxy.org/faq/</ulink>,
+   url="https://www.privoxy.org/faq/">https://www.privoxy.org/faq/</ulink>,
    the <application>Privoxy</application> FAQ.
   </member>
  </simplelist>
  <simplelist>
   <member>
    <ulink
-   url="http://www.privoxy.org/developer-manual/">http://www.privoxy.org/developer-manual/</ulink>,
+   url="https://www.privoxy.org/developer-manual/">https://www.privoxy.org/developer-manual/</ulink>,
    the <application>Privoxy</application> developer manual.
   </member>
  </simplelist>
@@ -84,7 +84,7 @@
  </simplelist>
  <simplelist>
   <member>
-   <ulink url="http://www.pps.jussieu.fr/~jch/software/polipo/">http://www.pps.jussieu.fr/~jch/software/polipo/</ulink>,
+   <ulink url="http://www.pps.univ-paris-diderot.fr/~jch/software/polipo/">http://www.pps.univ-paris-diderot.fr/~jch/software/polipo/</ulink>,
    <application>Polipo</application> is a caching proxy with advanced features
    like pipelining, multiplexing and caching of partial instances. In many setups
    it can be used as <application>Squid</application> replacement.

@@ -63,7 +63,7 @@
 #  unstable:
 #    this is an alpha or beta release of the proxy software
 #  have-adminaddr-info:
-#    An e-mail address for the local Privoxy adminstrator has
+#    An e-mail address for the local Privoxy administrator has
 #    been specified and is available through the "admin-address"
 #    symbol
 #  have-proxy-info:
@@ -82,7 +82,7 @@
   <title>404 - No such Domain (Privoxy@@my-hostname@)</title>
   <meta http-equiv="Content-Style-Type" content="text/css">
   <meta http-equiv="Content-Script-Type" content="text/javascript">
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name="robots" content="noindex,nofollow">
   <link rel="shortcut icon" href="@default-cgi@error-favicon.ico">
   <style type="text/css">

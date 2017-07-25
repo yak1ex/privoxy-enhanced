@@ -38,9 +38,11 @@ Former Privoxy Team Members:
  Stefan Waldherr
 
 Thanks to the many people who have tested Privoxy, reported bugs, provided
-patches, made suggestions or contributed in some way. These include (in
-alphabetical order):
+patches, made suggestions, donated or contributed in some other way. These
+include (in alphabetical order):
 
+ Rustam Abdullaev
+ Anatoly Arzhnikov
  Ken Arromdee
  Natxo Asenjo
  Devin Bayer
@@ -51,10 +53,14 @@ alphabetical order):
  Reiner Buehl
  Andrew J. Caines
  Clifford Caoile
+ Edward Carrel
+ Pak Chan
  Wan-Teh Chang
+ Sam Chen
  Ramkumar Chinchani
  Billy Crook
  Frédéric Crozat
+ Matthew Daley
  Michael T. Davis
  Markus Dittrich
  Mattes Dolak
@@ -66,12 +72,15 @@ alphabetical order):
  Matthew Fischer
  Dean Gaudet
  Stephen Gildea
+ John McGowan
  Lizik Grelier
  Daniel Griscom
  Felix Gröbert
+ Bernard Guillot
  Jeff H.
  Tim H.
  Aaron Hamid
+ Basil Hussain
  Darel Henman
  Magnus Holmgren
  Eric M. Hopper
@@ -83,7 +92,10 @@ alphabetical order):
  Julien Joubert
  Ralf Jungblut
  Petr Kadlec
+ Robert Klemme
  Steven Kolins
+ Korda
+ Stefan Kurtz
  Zeno Kugy
  David Laight
  Bert van Leeuwen
@@ -96,18 +108,28 @@ alphabetical order):
  Raphael Marichez
  Francois Marier
  Angelina Matson
+ Jonathan McKenzie
  David Mediavilla
+ J. Momberger
  Raphael Moll
+ Mathew Murphy
  Amuro Namie
+ Mark Nelson
  Adam Piggott
  Petr Písar
  Dan Price
+ Kai Raven
  Roberto Ragusa
  Félix Rauch
+ Marvin Renich
+ Chris John Riley
  Maynard Riley
  Andreas Rutkauskas
  Bart Schelstraete
+ Gregory Seidman
+ Atman Sense
  Chung-chieh Shan
+ Benjamin C. Wiley Sittler
  Simon South
  Dan Stahlke
  Oliver Stoeneberg
@@ -115,15 +137,22 @@ alphabetical order):
  Spinor S.
  Peter Thoenen
  Martin Thomas
+ Reuben Thomas
+ Guybrush Threepwood
+ Joel Verhagen
  Bobby G. Vinyard
  Jochen Voss
+ David Wagner
  Glenn Washburn
  Song Weijia
  Jörg Weinmann
  Darren Wiebe
  Anduin Withers
+ Yang Xia
+ Jarry Xu
  Oliver Yeoh
  Jamie Zawinski
+ Eduard Wulff
 
 Privoxy is based in part on code originally developed by Junkbusters Corp. and
 Anonymous Coders.
@@ -139,6 +168,6 @@ GNU C Library written by Ulrich Drepper.
 
 If we've missed you off this list, please let us know!
 
- Privoxy team. http://www.privoxy.org/
- <ijbswa-developers@lists.sourceforge.net>
+ Privoxy team. https://www.privoxy.org/
+ <privoxy-devel@lists.privoxy.org>
 

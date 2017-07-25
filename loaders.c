@@ -1,4 +1,4 @@
-const char loaders_rcs[] = "$Id: loaders.c,v 1.95 2013/01/13 15:38:14 fabiankeil Exp $";
+const char loaders_rcs[] = "$Id: loaders.c,v 1.105 2016/05/25 10:50:55 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/loaders.c,v $
@@ -8,7 +8,7 @@ const char loaders_rcs[] = "$Id: loaders.c,v 1.95 2013/01/13 15:38:14 fabiankeil
  *                the list of active loaders, and to automatically
  *                unload files that are no longer in use.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2012 the
+ * Copyright   :  Written by and Copyright (C) 2001-2014 the
  *                Privoxy team. http://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
@@ -182,6 +182,10 @@ unsigned int sweep(void)
          last_active->next = client_list->next;
 
          freez(csp->ip_addr_str);
+#ifdef FEATURE_CLIENT_TAGS
+         freez(csp->client_address);
+#endif
+         freez(csp->listen_addr_str);
          freez(csp->client_iob->buf);
          freez(csp->iob->buf);
          freez(csp->error_message);
@@ -288,15 +292,8 @@ int check_file_changed(const struct file_list * current,
       return 0;
    }
 
-   fs = (struct file_list *)zalloc(sizeof(struct file_list));
-   if (fs == NULL)
-   {
-      /* Out of memory error */
-      return 1;
-   }
-
-
-   fs->filename = strdup(filename);
+   fs = zalloc_or_die(sizeof(struct file_list));
+   fs->filename = strdup_or_die(filename);
    fs->lastmodified = statbuf->st_mtime;
 
    if (fs->filename == NULL)
@@ -537,30 +534,15 @@ jb_err edit_read_line(FILE *fp,
 
    if (raw_out)
    {
-      raw = strdup("");
-      if (NULL == raw)
-      {
-         return JB_ERR_MEMORY;
-      }
+      raw = strdup_or_die("");
    }
    if (prefix_out)
    {
-      prefix = strdup("");
-      if (NULL == prefix)
-      {
-         freez(raw);
-         return JB_ERR_MEMORY;
-      }
+      prefix = strdup_or_die("");
    }
    if (data_out)
    {
-      data = strdup("");
-      if (NULL == data)
-      {
-         freez(raw);
-         freez(prefix);
-         return JB_ERR_MEMORY;
-      }
+      data = strdup_or_die("");
    }
 
    /* Main loop.  Loop while we need more data & it's not EOF. */
@@ -652,15 +634,12 @@ jb_err edit_read_line(FILE *fp,
       if (*linestart)
       {
          is_empty = 0;
-         if (data)
+         if (string_append(&data, linestart))
          {
-            if (string_append(&data, linestart))
-            {
-               freez(raw);
-               freez(prefix);
-               free(linebuf);
-               return JB_ERR_MEMORY;
-            }
+            freez(raw);
+            freez(prefix);
+            free(linebuf);
+            return JB_ERR_MEMORY;
          }
       }
 
@@ -779,7 +758,7 @@ static void unload_trustfile(void *f)
    {
       next = cur->next;
 
-      free_url_spec(cur->url);
+      free_pattern_spec(cur->url);
       free(cur);
 
       cur = next;
@@ -829,7 +808,7 @@ int load_trustfile(struct client_state *csp)
    FILE *fp;
 
    struct block_spec *b, *bl;
-   struct url_spec **tl;
+   struct pattern_spec **tl;
 
    char *buf = NULL;
    int reject, trusted;
@@ -848,11 +827,7 @@ int load_trustfile(struct client_state *csp)
       goto load_trustfile_error;
    }
 
-   fs->f = bl = (struct block_spec *)zalloc(sizeof(*bl));
-   if (bl == NULL)
-   {
-      goto load_trustfile_error;
-   }
+   fs->f = bl = zalloc_or_die(sizeof(*bl));
 
    if ((fp = fopen(csp->config->trustfile, "r")) == NULL)
    {
@@ -895,11 +870,7 @@ int load_trustfile(struct client_state *csp)
       }
 
       /* allocate a new node */
-      if ((b = zalloc(sizeof(*b))) == NULL)
-      {
-         fclose(fp);
-         goto load_trustfile_error;
-      }
+      b = zalloc_or_die(sizeof(*b));
 
       /* add it to the list */
       b->next  = bl->next;
@@ -908,7 +879,7 @@ int load_trustfile(struct client_state *csp)
       b->reject = reject;
 
       /* Save the URL pattern */
-      if (create_url_spec(b->url, buf))
+      if (create_pattern_spec(b->url, buf))
       {
          fclose(fp);
          goto load_trustfile_error;
@@ -1014,7 +985,7 @@ static void unload_re_filterfile(void *f)
  *********************************************************************/
 void unload_forward_spec(struct forward_spec *fwd)
 {
-   free_url_spec(fwd->url);
+   free_pattern_spec(fwd->url);
    freez(fwd->gateway_host);
    freez(fwd->forward_host);
    free(fwd);
@@ -1170,6 +1141,12 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
       {
          new_filter = FT_SERVER_HEADER_TAGGER;
       }
+#ifdef FEATURE_EXTERNAL_FILTERS
+      else if (strncmp(buf, "EXTERNAL-FILTER:", 16) == 0)
+      {
+         new_filter = FT_EXTERNAL_CONTENT_FILTER;
+      }
+#endif
 
       /*
        * If this is the head of a new filter block, make it a
@@ -1177,15 +1154,17 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
        */
       if (new_filter != FT_INVALID_FILTER)
       {
-         new_bl = (struct re_filterfile_spec  *)zalloc(sizeof(*bl));
-         if (new_bl == NULL)
-         {
-            goto load_re_filterfile_error;
-         }
+         new_bl = zalloc_or_die(sizeof(*bl));
          if (new_filter == FT_CONTENT_FILTER)
          {
             new_bl->name = chomp(buf + 7);
          }
+#ifdef FEATURE_EXTERNAL_FILTERS
+         else if (new_filter == FT_EXTERNAL_CONTENT_FILTER)
+         {
+            new_bl->name = chomp(buf + 16);
+         }
+#endif
          else
          {
             new_bl->name = chomp(buf + 21);
@@ -1202,15 +1181,16 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
             new_bl->description = html_encode(chomp(new_bl->description));
             if (NULL == new_bl->description)
             {
-               new_bl->description = strdup("Out of memory while encoding this filter's description to HTML");
+               new_bl->description = strdup_or_die("Out of memory while "
+                  "encoding filter description to HTML");
             }
          }
          else
          {
-            new_bl->description = strdup("No description available for this filter");
+            new_bl->description = strdup_or_die("No description available");
          }
 
-         new_bl->name = strdup(chomp(new_bl->name));
+         new_bl->name = strdup_or_die(chomp(new_bl->name));
 
          /*
           * If this is the first filter block, chain it
@@ -1234,12 +1214,33 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
          continue;
       }
 
-      /*
-       * Else, save the expression, make it a pcrs_job
-       * and chain it into the current filter's joblist
-       */
+#ifdef FEATURE_EXTERNAL_FILTERS
+      if ((bl != NULL) && (bl->type == FT_EXTERNAL_CONTENT_FILTER))
+      {
+         /* Save the code as "pattern", but do not compile anything. */
+         if (bl->patterns->first != NULL)
+         {
+            log_error(LOG_LEVEL_FATAL, "External filter '%s' contains several jobss. "
+               "Did you forget to escape a line break?",
+               bl->name);
+         }
+         error = enlist(bl->patterns, buf);
+         if (JB_ERR_MEMORY == error)
+         {
+            log_error(LOG_LEVEL_FATAL,
+               "Out of memory while enlisting external filter code \'%s\' for filter %s.",
+               buf, bl->name);
+         }
+         freez(buf);
+         continue;
+      }
+#endif
       if (bl != NULL)
       {
+         /*
+          * Save the expression, make it a pcrs_job
+          * and chain it into the current filter's joblist
+          */
          error = enlist(bl->patterns, buf);
          if (JB_ERR_MEMORY == error)
          {
@@ -1281,7 +1282,8 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
          if ((dummy = pcrs_compile_command(buf, &error)) == NULL)
          {
             log_error(LOG_LEVEL_ERROR,
-               "Adding re_filter job \'%s\' to filter %s failed with error %d.", buf, bl->name, error);
+               "Adding re_filter job \'%s\' to filter %s failed: %s",
+               buf, bl->name, pcrs_strerror(error));
             freez(buf);
             continue;
          }

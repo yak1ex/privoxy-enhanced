@@ -1,6 +1,6 @@
 #ifndef CGISIMPLE_H_INCLUDED
 #define CGISIMPLE_H_INCLUDED
-#define CGISIMPLE_H_VERSION "$Id: cgisimple.h,v 1.18 2011/09/04 11:10:56 fabiankeil Exp $"
+#define CGISIMPLE_H_VERSION "$Id: cgisimple.h,v 1.20 2016/03/17 10:40:53 fabiankeil Exp $"
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/cgisimple.h,v $
@@ -41,10 +41,6 @@
 
 #include "project.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
  * CGI functions
  */
@@ -72,6 +68,11 @@ extern jb_err cgi_show_version (struct client_state *csp,
 extern jb_err cgi_show_request (struct client_state *csp,
                                 struct http_response *rsp,
                                 const struct map *parameters);
+#ifdef FEATURE_CLIENT_TAGS
+extern jb_err cgi_show_client_tags(struct client_state *csp,
+                                   struct http_response *rsp,
+                                   const struct map *parameters);
+#endif
 extern jb_err cgi_transparent_image (struct client_state *csp,
                                      struct http_response *rsp,
                                      const struct map *parameters);
@@ -101,10 +102,6 @@ extern jb_err cgi_die (struct client_state *csp,
 /* Revision control strings from this header and associated .c file */
 extern const char cgisimple_rcs[];
 extern const char cgisimple_h_rcs[];
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 #endif /* ndef CGISIMPLE_H_INCLUDED */
 

@@ -2576,7 +2576,7 @@ while ((c = *(++ptr)) != 0)
         {
         ptr = save_ptr;
         c = '\\';
-        goto NORMAL_CHAR;
+        goto NORMAL_CHAR2;
         }
       }
     length++;
@@ -2616,7 +2616,7 @@ while ((c = *(++ptr)) != 0)
     or back reference. */
 
     case '{':
-    if (!is_counted_repeat(ptr+1, &compile_block)) goto NORMAL_CHAR;
+    if (!is_counted_repeat(ptr+1, &compile_block)) goto NORMAL_CHAR2;
     ptr = read_repeat_counts(ptr+1, &min, &max, errorptr, &compile_block);
     if (*errorptr != NULL) goto PCRE_ERROR_RETURN;
     if ((min == 0 && (max == 1 || max == -1)) ||
@@ -2968,7 +2968,7 @@ while ((c = *(++ptr)) != 0)
     We won't get a skipped space or a non-data escape or the start of a #
     comment as the first character, so the length can't be zero. */
 
-    NORMAL_CHAR:
+    NORMAL_CHAR2:
     default:
     length += 2;
     runlength = 0;

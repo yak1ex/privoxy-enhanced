@@ -96,7 +96,7 @@ const char jcc_rcs[] = "$Id: jcc.c,v 1.424 2013/03/01 17:38:34 fabiankeil Exp $"
 # endif
 
 # ifndef FD_ZERO
-#  include <select.h>
+#  include <sys/select.h>
 # endif
 
 #endif

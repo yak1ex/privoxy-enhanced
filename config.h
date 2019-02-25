@@ -285,7 +285,7 @@
 /* #undef FEATURE_COMPRESSION */
 
 /* Define to 1 to use zlib to decompress data before filtering. */
-#define FEATURE_ZLIB 1
+/* #define FEATURE_ZLIB 1 */
 
 /* Define to 1 if you have the `access' function. */
 #define HAVE_ACCESS 1

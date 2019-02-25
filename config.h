@@ -270,7 +270,7 @@
 
 /* Define to 'int' if <sys/socket.h> doesn't have it.
  */
-#define socklen_t int
+/* #define socklen_t int */
 
 /* Define if pcre.h must be included as <pcre/pcre.h>
  */

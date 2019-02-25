@@ -185,7 +185,7 @@
 /*
  * Use POSIX threads instead of native threads.
  */
-/* #undef FEATURE_PTHREAD */
+#define FEATURE_PTHREAD
 
 /*
  * Enables statistics function.

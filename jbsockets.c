@@ -78,7 +78,7 @@ const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.123 2013/03/06 21:06:18 diem 
 #include <socket.h>
 #endif
 
-#if defined(__EMX__) || defined (__OS2__)
+#if defined(__EMX__) || defined (__OS2__) || 1
 #include <sys/select.h>  /* OS/2/EMX needs a little help with select */
 #ifdef __OS2__
 #include <nerrno.h>

@@ -535,7 +535,7 @@
 /* #undef size_t */
 
 /* Define to 'int' if <sys/socket.h> doesn't have it. */
-#define socklen_t int
+/* #define socklen_t int */
 
 /*
  * Defined always.

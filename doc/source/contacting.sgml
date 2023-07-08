@@ -1,11 +1,9 @@
 <!--
- File        :  $Source: /cvsroot/ijbswa/current/doc/source/contacting.sgml,v $
+ File        :  doc/source/contacting.sgml
 
  Purpose     :  Entity included in other project documents.
 
- $Id: contacting.sgml,v 2.45 2016/07/28 08:24:59 fabiankeil Exp $
-
- Copyright (C) 2001-2011 Privoxy Developers https://www.privoxy.org/
+ Copyright (C) 2001-2021 Privoxy Developers https://www.privoxy.org/
  See LICENSE.
 
  ======================================================================
@@ -19,7 +17,6 @@
   README
   user-manual
   webserver/index.sgml
-  announce.sgml
 
 -->
 
@@ -65,7 +62,6 @@
   Please be sure to provide the following information when reporting problems
   or requesting support:
 </para>
-<para>
  <itemizedlist>
 
   <listitem>
@@ -99,7 +95,7 @@
   <listitem>
    <para>
     Whether your version of <application>Privoxy</application> is one supplied
-    by the <application>Privoxy</application> developers via SourceForge,
+    by the <application>Privoxy</application> developers,
     or if you got your copy somewhere else.
    </para>
   </listitem>
@@ -128,24 +124,29 @@
     is being used and the following <ulink
     url="../user-manual/config.html#DEBUG">debug options</ulink> are enabled
     (all of them):
-    <literallayout>debug     1 # Log the destination for each request Privoxy let through. See also debug 1024.
+   </para>
+    <literallayout>debug     1 # Log the destination for each request. See also debug 1024.
+            #   See also debug 1024.
 debug     2 # show each connection status
-debug     4 # show I/O status
+debug     4 # show tagging-related messages
 debug     8 # show header parsing
 debug   128 # debug redirects
 debug   256 # debug GIF de-animation
 debug   512 # Common Log Format
-debug  1024 # Log the destination for requests Privoxy didn't let through, and the reason why.
+debug  1024 # Log the destination for requests Privoxy didn't let through,
+            #   and the reason why.
 debug  4096 # Startup banner and warnings.
-debug  8192 # Non-fatal errors</literallayout>
-   </para>
+debug  8192 # Non-fatal errors
+debug 65536 # Log applying actions</literallayout>
    <para>
     If you are having trouble with a filter, please additionally enable
-    <literallayout>debug    64 # debug regular expression filters</literallayout>
-    If you are using Privoxy 3.0.17 or later and suspect that it interprets the
-    request or the response incorrectly, please enable
-    <literallayout>debug 32768 # log all data read from the network</literallayout>
    </para>
+    <literallayout>debug    64 # debug regular expression filters</literallayout>
+   <para>
+    If you suspect that Privoxy interprets the request or the response
+    incorrectly, please enable additionally
+   </para>
+    <literallayout>debug 32768 # log all data read from the network</literallayout>
    <para>
     It's easy for us to ignore log messages that aren't relevant but missing
     log messages may make it impossible to investigate a problem. If you aren't
@@ -157,10 +158,12 @@ debug  8192 # Non-fatal errors</literallayout>
     submit any logfiles you didn't read first. You can mask sensitive information
     as long as it's clear that you removed something.
    </para>
+   <para>
+    Please clear the browser cache before reproducing the problem.
+   </para>
   </listitem>
 
 </itemizedlist>
-</para>
 
 <para>
  You don't have to tell us your actual name when filing a problem
@@ -180,12 +183,6 @@ debug  8192 # Non-fatal errors</literallayout>
  Please don't bother to add an email address when using the tracker.
  If you prefer to communicate through email, just use one of the mailing
  lists directly.
-</para>
-
-<para>
- If you are new to reporting problems, you might be interested in
-  <ulink url="http://www.chiark.greenend.org.uk/~sgtatham/bugs.html"
-  >How to Report Bugs Effectively</ulink>.
 </para>
 
 <para>
@@ -262,8 +259,8 @@ debug  8192 # Non-fatal errors</literallayout>
  Please send feedback on ads that slipped through, innocent images that were
  blocked, sites that don't work properly, and other configuration related problem of
  <filename>default.action</filename> file, to
- <ulink url="https://sourceforge.net/tracker/?group_id=11118&amp;atid=460288">
- https://sourceforge.net/tracker/?group_id=11118&amp;atid=460288</ulink>,
+ <ulink url="https://sourceforge.net/p/ijbswa/actionsfile-feedback/"
+ >https://sourceforge.net/p/ijbswa/actionsfile-feedback/</ulink>,
  the Actions File Tracker.
 </para>
 
@@ -275,7 +272,7 @@ debug  8192 # Non-fatal errors</literallayout>
 <para>
   Before reporting bugs, please make sure that the bug has <emphasis>not already been submitted</emphasis>
   and observe the additional hints at the top of the <ulink
-  url="https://sourceforge.net/tracker/?func=add&amp;group_id=11118&amp;atid=111118">submit
+  url="https://sourceforge.net/p/ijbswa/bugs/">submit
   form</ulink>. If already submitted, please feel free to add any info to the
   original report that might help to solve the issue.
 </para>
@@ -308,14 +305,14 @@ including list archives, at:
 <ulink url="https://lists.privoxy.org/mailman/listinfo">https://lists.privoxy.org/mailman/listinfo</ulink>.
 The lists hosted on privoxy.org have been created in 2016, the previously-used
 lists hosted at SourceForge are deprecated but the archives may still be useful:
-<ulink url="https://sourceforge.net/mail/?group_id=11118">https://sourceforge.net/mail/?group_id=11118</ulink>.
+<ulink url="https://sourceforge.net/p/ijbswa/mailman/">https://sourceforge.net/p/ijbswa/mailman/</ulink>.
 </para>
 </sect2>
 
 <sect2 id="sf-trackers"><title>SourceForge support trackers</title>
 <para>
  The
- <ulink url="https://sourceforge.net/tracker/?group_id=11118&#38;atid=211118">SourceForge support trackers</ulink>
+ <ulink url="https://sourceforge.net/p/ijbswa/support-requests/">SourceForge support trackers</ulink>
  may be used as well, but have various technical problems that are unlikely to
  be fixed anytime soon. If you don't get a timely response, please try the
  mailing list as well.

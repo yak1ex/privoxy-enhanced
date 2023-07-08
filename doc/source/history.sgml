@@ -1,12 +1,10 @@
 <!--
- File        :  $Source: /cvsroot/ijbswa/current/doc/source/history.sgml,v $
+ File        :  doc/source/history.sgml
 
  Purpose     :  Entity included in other project documents.
 
- $Id: history.sgml,v 2.10 2016/05/03 13:22:13 fabiankeil Exp $
-
-  Copyright (C) 2001-2009 Privoxy Developers https://www.privoxy.org/
-  See LICENSE.
+ Copyright (C) 2001-2018 Privoxy Developers https://www.privoxy.org/
+ See LICENSE.
 
  ======================================================================
   This file used for inclusion with other documents only.
@@ -37,7 +35,7 @@
  Junkbuster</application> did not. Version 2.0.2, published in 1998, was
  the last official release, available from Junkbusters Corporation.
  Fortunately, it had been released under the GNU
- <ulink url="http://www.gnu.org/licenses/old-licenses/gpl-2.0.html">GPL</ulink>,
+ <ulink url="https://www.gnu.org/licenses/old-licenses/gpl-2.0.html">GPL</ulink>,
  which allowed further development by others.
 </para>
 

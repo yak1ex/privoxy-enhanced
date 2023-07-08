@@ -1,14 +1,13 @@
 #ifndef SSPLIT_H_INCLUDED
 #define SSPLIT_H_INCLUDED
-#define SSPLIT_H_VERSION "$Id: ssplit.h,v 1.12 2013/11/24 14:23:28 fabiankeil Exp $"
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/ssplit.h,v $
  *
  * Purpose     :  A function to split a string at specified deliminters.
  *
- * Copyright   :  Written by and Copyright (C) 2001 the SourceForge
- *                Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001 members of the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -36,10 +35,6 @@
 
 
 extern int ssplit(char *str, const char *delim, char *vec[], size_t vec_len);
-
-/* Revision control strings from this header and associated .c file */
-extern const char ssplit_rcs[];
-extern const char ssplit_h_rcs[];
 
 #endif /* ndef SSPLIT_H_INCLUDED */
 

@@ -1,4 +1,3 @@
-const char actions_rcs[] = "$Id: actions.c,v 1.97 2016/05/03 13:20:37 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/actions.c,v $
@@ -6,7 +5,7 @@ const char actions_rcs[] = "$Id: actions.c,v 1.97 2016/05/03 13:20:37 fabiankeil
  * Purpose     :  Declares functions to work with actions files
  *
  * Copyright   :  Written by and Copyright (C) 2001-2016 the
- *                Privoxy team. http://www.privoxy.org/
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -56,9 +55,6 @@ const char actions_rcs[] = "$Id: actions.c,v 1.97 2016/05/03 13:20:37 fabiankeil
 #include "cgi.h"
 #include "ssplit.h"
 #include "filters.h"
-
-const char actions_h_rcs[] = ACTIONS_H_VERSION;
-
 
 /*
  * We need the main list of options.
@@ -124,7 +120,10 @@ static const struct action_name action_names[] =
 };
 
 
-static int load_one_actions_file(struct client_state *csp, int fileid);
+#ifndef FUZZ
+static
+#endif
+int load_one_actions_file(struct client_state *csp, int fileid);
 
 
 /*********************************************************************
@@ -548,6 +547,12 @@ jb_err get_actions(char *line,
                         return JB_ERR_PARSE;
                      }
                   }
+#ifdef FEATURE_EXTENDED_STATISTICS
+                  if (0 == strcmpic(action->name, "+block"))
+                  {
+                     register_block_reason_for_statistics(value);
+                  }
+#endif
                   /* FIXME: should validate option string here */
                   freez (cur_action->string[action->index]);
                   cur_action->string[action->index] = strdup(value);
@@ -1106,6 +1111,14 @@ static const char *filter_type_to_string(enum filter_type filter_type)
       return "client-header tagger";
    case FT_SERVER_HEADER_TAGGER:
       return "server-header tagger";
+   case FT_SUPPRESS_TAG:
+      return "suppress tag filter";
+   case FT_CLIENT_BODY_FILTER:
+      return "client body filter";
+   case FT_CLIENT_BODY_TAGGER:
+      return "client body tagger";
+   case FT_ADD_HEADER:
+      return "add-header action";
 #ifdef FEATURE_EXTERNAL_FILTERS
    case FT_EXTERNAL_CONTENT_FILTER:
       return "external content filter";
@@ -1180,7 +1193,8 @@ static int action_spec_is_valid(struct client_state *csp, const struct action_sp
       {ACTION_MULTI_CLIENT_HEADER_FILTER, FT_CLIENT_HEADER_FILTER},
       {ACTION_MULTI_SERVER_HEADER_FILTER, FT_SERVER_HEADER_FILTER},
       {ACTION_MULTI_CLIENT_HEADER_TAGGER, FT_CLIENT_HEADER_TAGGER},
-      {ACTION_MULTI_SERVER_HEADER_TAGGER, FT_SERVER_HEADER_TAGGER}
+      {ACTION_MULTI_SERVER_HEADER_TAGGER, FT_SERVER_HEADER_TAGGER},
+      {ACTION_MULTI_CLIENT_BODY_FILTER, FT_CLIENT_BODY_FILTER}
    };
    int errors = 0;
    int i;
@@ -1200,7 +1214,7 @@ static int action_spec_is_valid(struct client_state *csp, const struct action_sp
  *
  * Function    :  load_one_actions_file
  *
- * Description :  Read and parse a action file and add to files
+ * Description :  Read and parse an action file and add to files
  *                list.
  *
  * Parameters  :
@@ -1210,7 +1224,10 @@ static int action_spec_is_valid(struct client_state *csp, const struct action_sp
  * Returns     :  0 => Ok, everything else is an error.
  *
  *********************************************************************/
-static int load_one_actions_file(struct client_state *csp, int fileid)
+#ifndef FUZZ
+static
+#endif
+int load_one_actions_file(struct client_state *csp, int fileid)
 {
 
    /*
@@ -1631,7 +1648,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
  *
  * Function    :  actions_to_text
  *
- * Description :  Converts a actionsfile entry from the internal
+ * Description :  Converts an actionsfile entry from the internal
  *                structure into a text line.  The output is split
  *                into one line for each action with line continuation.
  *
@@ -1717,7 +1734,7 @@ char * actions_to_text(const struct action_spec *action)
  *
  * Function    :  actions_to_html
  *
- * Description :  Converts a actionsfile entry from numeric form
+ * Description :  Converts an actionsfile entry from numeric form
  *                ("mask" and "add") to a <br>-separated HTML string
  *                in which each action is linked to its chapter in
  *                the user manual.
@@ -1824,7 +1841,7 @@ char * actions_to_html(const struct client_state *csp,
  *
  * Function    :  current_actions_to_html
  *
- * Description :  Converts a curren action spec to a <br> separated HTML
+ * Description :  Converts a current action spec to a <br> separated HTML
  *                text in which each action is linked to its chapter in
  *                the user manual.
  *
@@ -1920,7 +1937,7 @@ char *current_action_to_html(const struct client_state *csp,
  *
  * Function    :  action_to_line_of_text
  *
- * Description :  Converts a action spec to a single text line
+ * Description :  Converts an action spec to a single text line
  *                listing the enabled actions.
  *
  * Parameters  :

@@ -1,11 +1,12 @@
 ######################################################################
 # 
-#  File        :  $Source: /cvsroot/ijbswa/current/user.action,v $
+#  File        :  user.action
 # 
-#  $Id: user.action,v 1.13 2011/11/06 11:36:01 fabiankeil Exp $
-#
 #  Purpose     :  User-maintained actions file, see
-#                 http://www.privoxy.org/user-manual/actions-file.html
+#                 https://www.privoxy.org/user-manual/actions-file.html
+#
+#  Copyright   :  Written by and Copyright (C) 2002-2022 the
+#                 Privoxy team. https://www.privoxy.org/
 #
 ######################################################################
 
@@ -14,7 +15,7 @@
 # safe from updates to default.action.) Later defined actions always
 # take precedence, so anything defined here should have the last word.
 
-# See http://www.privoxy.org/user-manual/actions-file.html, or the 
+# See https://www.privoxy.org/user-manual/actions-file.html, or the
 # comments in default.action, for an explanation of what an "action" is
 # and what each action does.
 
@@ -195,3 +196,17 @@ www.example.com/nasty-ads/sponsor.gif
 #
 #{+block{Facebook "like" and similar tracking URLs.}}
 #www.facebook.com/(extern|plugins)/(login_status|like(box)?|activity|fan)\.php
+
+# Hide cookie and privacy information banner on the Bundeswehr website.
+# The relevant parts seem to work without accepting cookies.
+# {+filter{bundeswehr.de}}
+# .bundeswehr.de/
+
+######### Examples for SSL actions #########
+# Following section enables TLS/SSL filtering for all sites defined by pattern and requested by HTTPS.
+# {+https-inspection}
+# privoxy.org
+
+# Following section turns off certificate verification for all sites defined by pattern.
+# {+ignore-certificate-errors}
+# privoxy.org

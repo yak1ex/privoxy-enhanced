@@ -1,6 +1,5 @@
 #ifndef JCC_H_INCLUDED
 #define JCC_H_INCLUDED
-#define JCC_H_VERSION "$Id: jcc.h,v 1.36 2016/03/17 10:40:53 fabiankeil Exp $"
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/jcc.h,v $
@@ -9,7 +8,7 @@
  *                the main connection-handling function.
  *
  * Copyright   :  Written by and Copyright (C) 2001-2014 the
- *                Privoxy team. http://www.privoxy.org/
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -42,8 +41,13 @@ struct file_list;
 /* Global variables */
 
 #ifdef FEATURE_STATISTICS
+#if defined(FEATURE_PTHREAD) || defined(_WIN32)
+extern unsigned long long number_of_requests_received;
+extern unsigned long long number_of_requests_blocked;
+#else
 extern int urls_read;
 extern int urls_rejected;
+#endif
 #endif /*def FEATURE_STATISTICS*/
 
 extern struct client_states clients[1];
@@ -87,6 +91,14 @@ extern privoxy_mutex_t external_filter_mutex;
 extern privoxy_mutex_t client_tags_mutex;
 #endif
 
+#ifdef FEATURE_STATISTICS
+extern privoxy_mutex_t block_statistics_mutex;
+#endif
+#ifdef FEATURE_EXTENDED_STATISTICS
+extern privoxy_mutex_t filter_statistics_mutex;
+extern privoxy_mutex_t block_reason_statistics_mutex;
+#endif
+
 #ifndef HAVE_GMTIME_R
 extern privoxy_mutex_t gmtime_mutex;
 #endif /* ndef HAVE_GMTIME_R */
@@ -103,6 +115,11 @@ extern privoxy_mutex_t resolver_mutex;
 extern privoxy_mutex_t rand_mutex;
 #endif /* ndef HAVE_RANDOM */
 
+#ifdef FEATURE_HTTPS_INSPECTION
+extern privoxy_mutex_t certificate_mutex;
+extern privoxy_mutex_t ssl_init_mutex;
+#endif
+
 #endif /* FEATURE_PTHREAD */
 
 /* Functions */
@@ -113,9 +130,11 @@ int real_main(int argc, char **argv);
 int main(int argc, char **argv);
 #endif
 
-/* Revision control strings from this header and associated .c file */
-extern const char jcc_rcs[];
-extern const char jcc_h_rcs[];
+#ifdef FUZZ
+extern int fuzz_client_request(struct client_state *csp, char *fuzz_input_file);
+extern int fuzz_server_response(struct client_state *csp, char *fuzz_input_file);
+extern int fuzz_chunked_transfer_encoding(struct client_state *csp, char *fuzz_input_file);
+#endif
 
 #endif /* ndef JCC_H_INCLUDED */
 

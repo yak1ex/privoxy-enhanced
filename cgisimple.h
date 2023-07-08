@@ -1,18 +1,17 @@
 #ifndef CGISIMPLE_H_INCLUDED
 #define CGISIMPLE_H_INCLUDED
-#define CGISIMPLE_H_VERSION "$Id: cgisimple.h,v 1.20 2016/03/17 10:40:53 fabiankeil Exp $"
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/cgisimple.h,v $
  *
  * Purpose     :  Declares functions to intercept request, generate
- *                html or gif answers, and to compose HTTP resonses.
+ *                html or gif answers, and to compose HTTP responses.
  *
  *                Functions declared include:
  *
  *
- * Copyright   :  Written by and Copyright (C) 2001-2007 the SourceForge
- *                Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001-2017 members of the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -62,9 +61,6 @@ extern jb_err cgi_show_status  (struct client_state *csp,
 extern jb_err cgi_show_url_info(struct client_state *csp,
                                 struct http_response *rsp,
                                 const struct map *parameters);
-extern jb_err cgi_show_version (struct client_state *csp,
-                                struct http_response *rsp,
-                                const struct map *parameters);
 extern jb_err cgi_show_request (struct client_state *csp,
                                 struct http_response *rsp,
                                 const struct map *parameters);
@@ -72,6 +68,9 @@ extern jb_err cgi_show_request (struct client_state *csp,
 extern jb_err cgi_show_client_tags(struct client_state *csp,
                                    struct http_response *rsp,
                                    const struct map *parameters);
+extern jb_err cgi_toggle_client_tag(struct client_state *csp,
+                                    struct http_response *rsp,
+                                    const struct map *parameters);
 #endif
 extern jb_err cgi_transparent_image (struct client_state *csp,
                                      struct http_response *rsp,
@@ -85,6 +84,9 @@ extern jb_err cgi_send_default_favicon (struct client_state *csp,
 extern jb_err cgi_send_stylesheet(struct client_state *csp,
                                   struct http_response *rsp,
                                   const struct map *parameters);
+extern jb_err cgi_send_wpad(struct client_state *csp,
+                            struct http_response *rsp,
+                            const struct map *parameters);
 extern jb_err cgi_send_url_info_osd(struct client_state *csp,
                                     struct http_response *rsp,
                                     const struct map *parameters);
@@ -98,10 +100,6 @@ extern jb_err cgi_die (struct client_state *csp,
                        struct http_response *rsp,
                        const struct map *parameters);
 #endif
-
-/* Revision control strings from this header and associated .c file */
-extern const char cgisimple_rcs[];
-extern const char cgisimple_h_rcs[];
 
 #endif /* ndef CGISIMPLE_H_INCLUDED */
 

@@ -1,4 +1,3 @@
-const char loaders_rcs[] = "$Id: loaders.c,v 1.105 2016/05/25 10:50:55 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/loaders.c,v $
@@ -9,7 +8,7 @@ const char loaders_rcs[] = "$Id: loaders.c,v 1.105 2016/05/25 10:50:55 fabiankei
  *                unload files that are no longer in use.
  *
  * Copyright   :  Written by and Copyright (C) 2001-2014 the
- *                Privoxy team. http://www.privoxy.org/
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -47,7 +46,7 @@ const char loaders_rcs[] = "$Id: loaders.c,v 1.105 2016/05/25 10:50:55 fabiankei
 #include <ctype.h>
 #include <assert.h>
 
-#if !defined(_WIN32) && !defined(__OS2__)
+#if !defined(_WIN32)
 #include <unistd.h>
 #endif
 
@@ -63,8 +62,6 @@ const char loaders_rcs[] = "$Id: loaders.c,v 1.105 2016/05/25 10:50:55 fabiankei
 #include "urlmatch.h"
 #include "encode.h"
 
-const char loaders_h_rcs[] = LOADERS_H_VERSION;
-
 /*
  * Currently active files.
  * These are also entered in the main linked list of files.
@@ -74,13 +71,57 @@ const char loaders_h_rcs[] = LOADERS_H_VERSION;
 static struct file_list *current_trustfile      = NULL;
 #endif /* def FEATURE_TRUST */
 
+#ifndef FUZZ
 static int load_one_re_filterfile(struct client_state *csp, int fileid);
+#endif
 
 static struct file_list *current_re_filterfile[MAX_AF_FILES]  = {
    NULL, NULL, NULL, NULL, NULL,
    NULL, NULL, NULL, NULL, NULL
 };
 
+/*********************************************************************
+ *
+ * Function    :  free_csp_resources
+ *
+ * Description :  Frees memory referenced by the csp that isn't
+ *                shared with other csps.
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *
+ * Returns     :  N/A
+ *
+ *********************************************************************/
+void free_csp_resources(struct client_state *csp)
+{
+   freez(csp->ip_addr_str);
+#ifdef FEATURE_CLIENT_TAGS
+   freez(csp->client_address);
+#endif
+   freez(csp->listen_addr_str);
+   freez(csp->client_iob->buf);
+   freez(csp->iob->buf);
+   freez(csp->error_message);
+
+   if (csp->action->flags & ACTION_FORWARD_OVERRIDE &&
+      NULL != csp->fwd)
+   {
+      unload_forward_spec(csp->fwd);
+   }
+   free_http_request(csp->http);
+
+   destroy_list(csp->headers);
+#ifdef FEATURE_HTTPS_INSPECTION
+   destroy_list(csp->https_headers);
+#endif
+   destroy_list(csp->tags);
+#ifdef FEATURE_CLIENT_TAGS
+   destroy_list(csp->client_tags);
+#endif
+
+   free_current_action(csp->action);
+}
 
 /*********************************************************************
  *
@@ -181,34 +222,13 @@ unsigned int sweep(void)
       {
          last_active->next = client_list->next;
 
-         freez(csp->ip_addr_str);
-#ifdef FEATURE_CLIENT_TAGS
-         freez(csp->client_address);
-#endif
-         freez(csp->listen_addr_str);
-         freez(csp->client_iob->buf);
-         freez(csp->iob->buf);
-         freez(csp->error_message);
-
-         if (csp->action->flags & ACTION_FORWARD_OVERRIDE &&
-             NULL != csp->fwd)
-         {
-            unload_forward_spec(csp->fwd);
-         }
-         free_http_request(csp->http);
-
-         destroy_list(csp->headers);
-         destroy_list(csp->tags);
-
-         free_current_action(csp->action);
-
-#ifdef FEATURE_STATISTICS
+#if defined(FEATURE_STATISTICS) && !defined(MUTEX_LOCKS_AVAILABLE)
          urls_read++;
          if (csp->flags & CSP_FLAG_REJECTED)
          {
             urls_rejected++;
          }
-#endif /* def FEATURE_STATISTICS */
+#endif /* defined(FEATURE_STATISTICS) && !defined(MUTEX_LOCKS_AVAILABLE) */
 
          freez(client_list);
 
@@ -296,12 +316,6 @@ int check_file_changed(const struct file_list * current,
    fs->filename = strdup_or_die(filename);
    fs->lastmodified = statbuf->st_mtime;
 
-   if (fs->filename == NULL)
-   {
-      /* Out of memory error */
-      freez (fs);
-      return 1;
-   }
    *newfl = fs;
    return 1;
 }
@@ -361,6 +375,7 @@ jb_err simple_read_line(FILE *fp, char **dest, int *newline)
    for (;;)
    {
       ch = getc(fp);
+
       if (ch == EOF)
       {
          if (len > 0)
@@ -417,6 +432,7 @@ jb_err simple_read_line(FILE *fp, char **dest, int *newline)
       }
       else if (ch == 0)
       {
+         /* XXX: Why do we allow this anyway? */
          *p = '\0';
          *dest = buf;
          return JB_ERR_OK;
@@ -988,6 +1004,8 @@ void unload_forward_spec(struct forward_spec *fwd)
    free_pattern_spec(fwd->url);
    freez(fwd->gateway_host);
    freez(fwd->forward_host);
+   freez(fwd->auth_username);
+   freez(fwd->auth_password);
    free(fwd);
 
    return;
@@ -1087,7 +1105,6 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
    struct file_list *fs;
 
    char *buf = NULL;
-   int error;
    unsigned long linenum = 0;
    pcrs_job *dummy, *lastjob = NULL;
 
@@ -1147,6 +1164,14 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
          new_filter = FT_EXTERNAL_CONTENT_FILTER;
       }
 #endif
+      else if (strncmp(buf, "CLIENT-BODY-FILTER:", 19) == 0)
+      {
+         new_filter = FT_CLIENT_BODY_FILTER;
+      }
+      else if (strncmp(buf, "CLIENT-BODY-TAGGER:", 19) == 0)
+      {
+         new_filter = FT_CLIENT_BODY_TAGGER;
+      }
 
       /*
        * If this is the head of a new filter block, make it a
@@ -1165,6 +1190,14 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
             new_bl->name = chomp(buf + 16);
          }
 #endif
+         else if (new_filter == FT_CLIENT_BODY_FILTER)
+         {
+            new_bl->name = chomp(buf + 19);
+         }
+         else if (new_filter == FT_CLIENT_BODY_TAGGER)
+         {
+            new_bl->name = chomp(buf + 19);
+         }
          else
          {
             new_bl->name = chomp(buf + 21);
@@ -1194,7 +1227,7 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
 
          /*
           * If this is the first filter block, chain it
-          * to the file_list rather than its (nonexistant)
+          * to the file_list rather than its (nonexistent)
           * predecessor
           */
          if (fs->f == NULL)
@@ -1209,7 +1242,9 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
          bl = new_bl;
 
          log_error(LOG_LEVEL_RE_FILTER, "Reading in filter \"%s\" (\"%s\")", bl->name, bl->description);
-
+#ifdef FEATURE_EXTENDED_STATISTICS
+         register_filter_for_statistics(bl->name);
+#endif
          freez(buf);
          continue;
       }
@@ -1217,15 +1252,16 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
 #ifdef FEATURE_EXTERNAL_FILTERS
       if ((bl != NULL) && (bl->type == FT_EXTERNAL_CONTENT_FILTER))
       {
+         jb_err jb_error;
          /* Save the code as "pattern", but do not compile anything. */
          if (bl->patterns->first != NULL)
          {
-            log_error(LOG_LEVEL_FATAL, "External filter '%s' contains several jobss. "
+            log_error(LOG_LEVEL_FATAL, "External filter '%s' contains several jobs. "
                "Did you forget to escape a line break?",
                bl->name);
          }
-         error = enlist(bl->patterns, buf);
-         if (JB_ERR_MEMORY == error)
+         jb_error = enlist(bl->patterns, buf);
+         if (JB_ERR_MEMORY == jb_error)
          {
             log_error(LOG_LEVEL_FATAL,
                "Out of memory while enlisting external filter code \'%s\' for filter %s.",
@@ -1237,17 +1273,19 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
 #endif
       if (bl != NULL)
       {
+         int pcrs_error;
+         jb_err jb_error;
          /*
           * Save the expression, make it a pcrs_job
           * and chain it into the current filter's joblist
           */
-         error = enlist(bl->patterns, buf);
-         if (JB_ERR_MEMORY == error)
+         jb_error = enlist(bl->patterns, buf);
+         if (JB_ERR_MEMORY == jb_error)
          {
             log_error(LOG_LEVEL_FATAL,
                "Out of memory while enlisting re_filter job \'%s\' for filter %s.", buf, bl->name);
          }
-         assert(JB_ERR_OK == error);
+         assert(JB_ERR_OK == jb_error);
 
          if (pcrs_job_is_dynamic(buf))
          {
@@ -1279,11 +1317,11 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
             continue;
          }
 
-         if ((dummy = pcrs_compile_command(buf, &error)) == NULL)
+         if ((dummy = pcrs_compile_command(buf, &pcrs_error)) == NULL)
          {
             log_error(LOG_LEVEL_ERROR,
                "Adding re_filter job \'%s\' to filter %s failed: %s",
-               buf, bl->name, pcrs_strerror(error));
+               buf, bl->name, pcrs_strerror(pcrs_error));
             freez(buf);
             continue;
          }
@@ -1303,7 +1341,8 @@ int load_one_re_filterfile(struct client_state *csp, int fileid)
       }
       else
       {
-         log_error(LOG_LEVEL_ERROR, "Ignoring job %s outside filter block in %s, line %d",
+         log_error(LOG_LEVEL_ERROR,
+            "Ignoring job %s outside filter block in %s, line %lu",
             buf, csp->config->re_filterfile[fileid], linenum);
       }
       freez(buf);

@@ -1,12 +1,10 @@
 <!--
- File        :  $Source: /cvsroot/ijbswa/current/doc/source/license.sgml,v $
+ File        :  doc/source/license.sgml
 
  Purpose     :  Entity included in other project documents.
 
- $Id: license.sgml,v 2.10 2016/05/03 13:22:13 fabiankeil Exp $
-
-  Copyright (C) 2001-2013 the Privoxy Developers https://www.privoxy.org/
-  See LICENSE.
+ Copyright (C) 2001-2022 the Privoxy Developers https://www.privoxy.org/
+ See LICENSE.
 
  ======================================================================
   This file used for inclusion with other documents only.
@@ -27,9 +25,22 @@
 
 <para>
  <application>Privoxy</application> is free software; you can
- redistribute it and/or modify it under the terms of the
- <citetitle>GNU General Public License</citetitle>, version 2,
- as published by the Free Software Foundation.
+ redistribute and/or modify its source code under the terms
+ of the <citetitle>GNU General Public License</citetitle>
+ as published by the Free Software Foundation, either version 2
+ of the license, or (at your option) any later version.
+</para>
+
+<para>
+ The same is true for <application>Privoxy</application> binaries
+ unless they are linked with a
+ <ulink url="https://www.trustedfirmware.org/projects/mbed-tls/">mbed TLS</ulink> or
+ <ulink url="https://www.openssl.org/">OpenSSL</ulink> version
+ that is licensed under the Apache 2.0 license in which
+ case you can redistribute and/or modify the <application>Privoxy</application>
+ binaries under the terms of the <citetitle>GNU General Public License</citetitle>
+ as published by the Free Software Foundation, either version 3
+ of the license, or (at your option) any later version.
 </para>
 
 <para>
@@ -40,4 +51,3 @@
  url="https://www.privoxy.org/user-manual/copyright.html#LICENSE">
  <citetitle>license</citetitle></ulink> for details.
 </para>
-

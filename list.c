@@ -1,12 +1,11 @@
-const char list_rcs[] = "$Id: list.c,v 1.32 2014/11/14 10:39:49 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/list.c,v $
  *
  * Purpose     :  Declares functions to handle lists.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2007 the SourceForge
- *                Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001-2007 members of the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -46,7 +45,7 @@ const char list_rcs[] = "$Id: list.c,v 1.32 2014/11/14 10:39:49 fabiankeil Exp $
 #endif
 #include <string.h>
 
-#if !defined(_WIN32) && !defined(__OS2__)
+#if !defined(_WIN32)
 #include <unistd.h>
 #endif
 
@@ -56,11 +55,9 @@ const char list_rcs[] = "$Id: list.c,v 1.32 2014/11/14 10:39:49 fabiankeil Exp $
 #include "list.h"
 #include "miscutil.h"
 
-const char list_h_rcs[] = LIST_H_VERSION;
-
-
+#ifndef NDEBUG
 static int list_is_valid (const struct list *the_list);
-
+#endif
 
 /*********************************************************************
  *
@@ -127,6 +124,7 @@ void destroy_list (struct list *the_list)
 }
 
 
+#ifndef NDEBUG
 /*********************************************************************
  *
  * Function    :  list_is_valid
@@ -134,7 +132,7 @@ void destroy_list (struct list *the_list)
  * Description :  Check that a string list is valid.  The intended
  *                usage is "assert(list_is_valid(the_list))".
  *                Currently this checks that "the_list->last"
- *                is correct, and that the list dosn't contain
+ *                is correct, and that the list doesn't contain
  *                circular references.  It is likely to crash if
  *                it's passed complete garbage.
  *
@@ -146,11 +144,6 @@ void destroy_list (struct list *the_list)
  *********************************************************************/
 static int list_is_valid (const struct list *the_list)
 {
-   /*
-    * If you don't want this check, just change the line below
-    * from "#if 1" to "#if 0".
-    */
-#if 1
    const struct list_entry *cur_entry;
    const struct list_entry *last_entry = NULL;
    int entry = 0;
@@ -203,10 +196,10 @@ static int list_is_valid (const struct list *the_list)
    }
 
    return (the_list->last == last_entry);
-#else
-   return 1;
-#endif
+
 }
+#endif /* ndef NDEBUG */
+
 
 /*********************************************************************
  *
@@ -1124,7 +1117,7 @@ jb_err unmap(struct map *the_map, const char *name)
  *          2  :  name = name parameter to look for
  *
  * Returns     :  the value if found, else the empty string.
- *                Return value is alloced as part of the map, so
+ *                Return value is allocated as part of the map, so
  *                it is freed when the map is destroyed.  Caller
  *                must not free or modify it.
  *

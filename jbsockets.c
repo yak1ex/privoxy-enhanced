@@ -1,15 +1,14 @@
-const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.137 2016/08/22 14:50:18 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/jbsockets.c,v $
  *
  * Purpose     :  Contains wrappers for system-specific sockets code,
- *                so that the rest of Junkbuster can be more
+ *                so that the rest of Privoxy can be more
  *                OS-independent.  Contains #ifdefs to make this work
  *                on many platforms.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2016 the
- *                Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001-2022 the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -50,15 +49,14 @@ const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.137 2016/08/22 14:50:18 fabia
 #ifndef STRICT
 #define STRICT
 #endif
+#include <winsock2.h>
 #include <windows.h>
 #include <sys/timeb.h>
 #include <io.h>
 
 #else
 
-#ifndef __OS2__
 #include <unistd.h>
-#endif
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <sys/ioctl.h>
@@ -67,18 +65,9 @@ const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.137 2016/08/22 14:50:18 fabia
 
 #ifndef __BEOS__
 #include <netinet/tcp.h>
-#ifndef __OS2__
 #include <arpa/inet.h>
-#endif
 #else
 #include <socket.h>
-#endif
-
-#if defined(__EMX__) || defined (__OS2__)
-#include <sys/select.h>  /* OS/2/EMX needs a little help with select */
-#ifdef __OS2__
-#include <nerrno.h>
-#endif
 #endif
 
 #endif
@@ -106,16 +95,12 @@ const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.137 2016/08/22 14:50:18 fabia
 #define AI_NUMERICSERV 0
 #endif
 
-const char jbsockets_h_rcs[] = JBSOCKETS_H_VERSION;
-
 /*
  * Maximum number of gethostbyname(_r) retries in case of
  * soft errors (TRY_AGAIN).
  * XXX: Does it make sense to make this a config option?
  */
 #define MAX_DNS_RETRIES 10
-
-#define MAX_LISTEN_BACKLOG 128
 
 #ifdef HAVE_RFC2553
 static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client_state *csp);
@@ -127,7 +112,8 @@ static jb_socket no_rfc2553_connect_to(const char *host, int portnum, struct cli
  *
  * Function    :  set_no_delay_flag
  *
- * Description :  Disables TCP coalescence for the given socket.
+ * Description :  Disables the Nagle algorithm (TCP send coalescence)
+ *                for the given socket.
  *
  * Parameters  :
  *          1  :  fd = The file descriptor to operate on
@@ -210,14 +196,18 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
    char service[6];
    int retval;
    jb_socket fd;
+#ifdef HAVE_POLL
+   struct pollfd poll_fd[1];
+#else
    fd_set wfds;
    struct timeval timeout;
-#if !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__)
+#endif
+#if !defined(_WIN32) && !defined(__BEOS__)
    int   flags;
 #endif
    int connect_failed;
    /*
-    * XXX: Initializeing it here is only necessary
+    * XXX: Initializing it here is only necessary
     *      because not all situations are properly
     *      covered yet.
     */
@@ -253,10 +243,10 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
    {
       log_error(LOG_LEVEL_INFO,
          "Can not resolve %s: %s", host, gai_strerror(retval));
-      /* XXX: Should find a better way to propagate this error. */
-      errno = EINVAL;
       csp->error_message = strdup(gai_strerror(retval));
       csp->http->host_ip_addr_str = strdup("unknown");
+      /* XXX: Should find a better way to propagate this error. */
+      errno = EINVAL;
       return(JB_INVALID_SOCKET);
    }
 
@@ -270,11 +260,7 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
 
       if (block_acl(dst, csp))
       {
-#ifdef __OS2__
-         socket_error = errno = SOCEPERM;
-#else
          socket_error = errno = EPERM;
-#endif
          continue;
       }
 #endif /* def FEATURE_ACL */
@@ -299,6 +285,7 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
          continue;
       }
 
+#ifndef HAVE_POLL
 #ifndef _WIN32
       if (fd >= FD_SETSIZE)
       {
@@ -310,6 +297,7 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
          return JB_INVALID_SOCKET;
       }
 #endif
+#endif
 
 #ifdef FEATURE_EXTERNAL_FILTERS
       mark_socket_for_close_on_execute(fd);
@@ -317,26 +305,22 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
 
       set_no_delay_flag(fd);
 
-#if !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__)
+#if !defined(_WIN32) && !defined(__BEOS__)
       if ((flags = fcntl(fd, F_GETFL, 0)) != -1)
       {
          flags |= O_NDELAY;
          fcntl(fd, F_SETFL, flags);
       }
-#endif /* !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__) */
+#endif /* !defined(_WIN32) && !defined(__BEOS__) */
 
       connect_failed = 0;
       while (connect(fd, rp->ai_addr, rp->ai_addrlen) == JB_INVALID_SOCKET)
       {
-#ifdef __OS2__
-         errno = sock_errno();
-#endif /* __OS2__ */
-
 #ifdef _WIN32
          if (errno == WSAEINPROGRESS)
 #else /* ifndef _WIN32 */
          if (errno == EINPROGRESS)
-#endif /* ndef _WIN32 || __OS2__ */
+#endif /* ndef _WIN32 */
          {
             break;
          }
@@ -354,14 +338,39 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
          continue;
       }
 
-#if !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__)
+#if !defined(_WIN32) && !defined(__BEOS__)
       if (flags != -1)
       {
          flags &= ~O_NDELAY;
          fcntl(fd, F_SETFL, flags);
       }
-#endif /* !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__) */
+#endif /* !defined(_WIN32) && !defined(__BEOS__) */
 
+#ifdef HAVE_POLL
+      poll_fd[0].fd = fd;
+      poll_fd[0].events = POLLOUT;
+
+      retval = poll(poll_fd, 1, 30000);
+      if (retval == 0)
+      {
+         if (rp->ai_next != NULL)
+         {
+            /* Log this now as we'll try another address next */
+            log_error(LOG_LEVEL_CONNECT,
+               "Could not connect to [%s]:%s: Operation timed out.",
+               csp->http->host_ip_addr_str, service);
+         }
+         else
+         {
+            /*
+             * This is the last address, don't log this now
+             * as it would result in a duplicated log message.
+             */
+            socket_error = ETIMEDOUT;
+         }
+      }
+      else if (retval > 0)
+#else
       /* wait for connection to complete */
       FD_ZERO(&wfds);
       FD_SET(fd, &wfds);
@@ -372,6 +381,7 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
       /* MS Windows uses int, not SOCKET, for the 1st arg of select(). Weird! */
       if ((select((int)fd + 1, NULL, &wfds, NULL, &timeout) > 0)
          && FD_ISSET(fd, &wfds))
+#endif
       {
          socklen_t optlen = sizeof(socket_error);
          if (!getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_error, &optlen))
@@ -429,9 +439,13 @@ static jb_socket no_rfc2553_connect_to(const char *host, int portnum, struct cli
    struct sockaddr_in inaddr;
    jb_socket fd;
    unsigned int addr;
+#ifdef HAVE_POLL
+   struct pollfd poll_fd[1];
+#else
    fd_set wfds;
    struct timeval tv[1];
-#if !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__)
+#endif
+#if !defined(_WIN32) && !defined(__BEOS__)
    int   flags;
 #endif
 
@@ -456,11 +470,7 @@ static jb_socket no_rfc2553_connect_to(const char *host, int portnum, struct cli
 
    if (block_acl(dst, csp))
    {
-#ifdef __OS2__
-      errno = SOCEPERM;
-#else
       errno = EPERM;
-#endif
       return(JB_INVALID_SOCKET);
    }
 #endif /* def FEATURE_ACL */
@@ -492,6 +502,7 @@ static jb_socket no_rfc2553_connect_to(const char *host, int portnum, struct cli
       return(JB_INVALID_SOCKET);
    }
 
+#ifndef HAVE_POLL
 #ifndef _WIN32
    if (fd >= FD_SETSIZE)
    {
@@ -502,10 +513,11 @@ static jb_socket no_rfc2553_connect_to(const char *host, int portnum, struct cli
       return JB_INVALID_SOCKET;
    }
 #endif
+#endif
 
    set_no_delay_flag(fd);
 
-#if !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__)
+#if !defined(_WIN32) && !defined(__BEOS__)
    if ((flags = fcntl(fd, F_GETFL, 0)) != -1)
    {
       flags |= O_NDELAY;
@@ -514,40 +526,40 @@ static jb_socket no_rfc2553_connect_to(const char *host, int portnum, struct cli
       mark_socket_for_close_on_execute(fd);
 #endif
    }
-#endif /* !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__) */
+#endif /* !defined(_WIN32) && !defined(__BEOS__) */
 
    while (connect(fd, (struct sockaddr *) & inaddr, sizeof inaddr) == JB_INVALID_SOCKET)
    {
 #ifdef _WIN32
       if (errno == WSAEINPROGRESS)
-#elif __OS2__
-      if (sock_errno() == EINPROGRESS)
 #else /* ifndef _WIN32 */
       if (errno == EINPROGRESS)
-#endif /* ndef _WIN32 || __OS2__ */
+#endif /* ndef _WIN32 */
       {
          break;
       }
 
-#ifdef __OS2__
-      if (sock_errno() != EINTR)
-#else
       if (errno != EINTR)
-#endif /* __OS2__ */
       {
          close_socket(fd);
          return(JB_INVALID_SOCKET);
       }
    }
 
-#if !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__)
+#if !defined(_WIN32) && !defined(__BEOS__)
    if (flags != -1)
    {
       flags &= ~O_NDELAY;
       fcntl(fd, F_SETFL, flags);
    }
-#endif /* !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__) */
+#endif /* !defined(_WIN32) && !defined(__BEOS__) */
 
+#ifdef HAVE_POLL
+   poll_fd[0].fd = fd;
+   poll_fd[0].events = POLLOUT;
+
+   if (poll(poll_fd, 1, 30000) <= 0)
+#else
    /* wait for connection to complete */
    FD_ZERO(&wfds);
    FD_SET(fd, &wfds);
@@ -557,6 +569,7 @@ static jb_socket no_rfc2553_connect_to(const char *host, int portnum, struct cli
 
    /* MS Windows uses int, not SOCKET, for the 1st arg of select(). Weird! */
    if (select((int)fd + 1, NULL, &wfds, NULL, tv) <= 0)
+#endif
    {
       close_socket(fd);
       return(JB_INVALID_SOCKET);
@@ -582,47 +595,84 @@ static jb_socket no_rfc2553_connect_to(const char *host, int portnum, struct cli
  *                nonzero on error.
  *
  *********************************************************************/
-#ifdef AMIGA
-int write_socket(jb_socket fd, const char *buf, ssize_t len)
-#else
 int write_socket(jb_socket fd, const char *buf, size_t len)
-#endif
 {
    if (len == 0)
    {
       return 0;
    }
 
+#ifdef FUZZ
+   if (!daemon_mode && fd <= 3)
+   {
+      log_error(LOG_LEVEL_WRITING, "Pretending to write to socket %d: %N", fd, len, buf);
+      return 0;
+   }
+#endif
+
    log_error(LOG_LEVEL_WRITING, "to socket %d: %N", fd, len, buf);
 
 #if defined(_WIN32)
    return (send(fd, buf, (int)len, 0) != (int)len);
-#elif defined(__BEOS__) || defined(AMIGA)
+#elif defined(__BEOS__)
    return (send(fd, buf, len, 0) != len);
-#elif defined(__OS2__)
-   /*
-    * Break the data up into SOCKET_SEND_MAX chunks for sending...
-    * OS/2 seemed to complain when the chunks were too large.
-    */
-#define SOCKET_SEND_MAX 65000
-   {
-      int send_len, send_rc = 0, i = 0;
-      while ((i < len) && (send_rc != -1))
-      {
-         if ((i + SOCKET_SEND_MAX) > len)
-            send_len = len - i;
-         else
-            send_len = SOCKET_SEND_MAX;
-         send_rc = send(fd,(char*)buf + i, send_len, 0);
-         if (send_rc == -1)
-            return 1;
-         i = i + send_len;
-      }
-      return 0;
-   }
 #else
    return (write(fd, buf, len) != len);
 #endif
+
+}
+
+
+/*********************************************************************
+ *
+ * Function    :  write_socket_delayed
+ *
+ * Description :  Write the contents of buf (for n bytes) to
+ *                socket fd, optionally delaying the operation.
+ *
+ * Parameters  :
+ *          1  :  fd = File descriptor (aka. handle) of socket to write to.
+ *          2  :  buf = Pointer to data to be written.
+ *          3  :  len = Length of data to be written to the socket "fd".
+ *          4  :  delay = Delay in milliseconds.
+ *
+ * Returns     :  0 on success (entire buffer sent).
+ *                nonzero on error.
+ *
+ *********************************************************************/
+int write_socket_delayed(jb_socket fd, const char *buf, size_t len, unsigned int delay)
+{
+   size_t i = 0;
+
+   if (delay == 0)
+   {
+      return write_socket(fd, buf, len);
+   }
+
+   while (i < len)
+   {
+      size_t write_length;
+      enum {MAX_WRITE_LENGTH = 10};
+
+      if ((i + MAX_WRITE_LENGTH) > len)
+      {
+         write_length = len - i;
+      }
+      else
+      {
+         write_length = MAX_WRITE_LENGTH;
+      }
+
+      privoxy_millisleep(delay);
+
+      if (write_socket(fd, buf + i, write_length) != 0)
+      {
+         return 1;
+      }
+      i += write_length;
+   }
+
+   return 0;
 
 }
 
@@ -663,7 +713,7 @@ int read_socket(jb_socket fd, char *buf, int len)
 
 #if defined(_WIN32)
    ret = recv(fd, buf, len, 0);
-#elif defined(__BEOS__) || defined(AMIGA) || defined(__OS2__)
+#elif defined(__BEOS__)
    ret = recv(fd, buf, (size_t)len, 0);
 #else
    ret = (int)read(fd, buf, (size_t)len);
@@ -694,23 +744,27 @@ int read_socket(jb_socket fd, char *buf, int len)
  *********************************************************************/
 int data_is_available(jb_socket fd, int seconds_to_wait)
 {
+   int n;
    char buf[10];
+#ifdef HAVE_POLL
+   struct pollfd poll_fd[1];
+
+   poll_fd[0].fd = fd;
+   poll_fd[0].events = POLLIN;
+
+   n = poll(poll_fd, 1, seconds_to_wait * 1000);
+#else
    fd_set rfds;
    struct timeval timeout;
-   int n;
 
    memset(&timeout, 0, sizeof(timeout));
    timeout.tv_sec = seconds_to_wait;
 
-#ifdef __OS2__
-   /* Copy and pasted from jcc.c ... */
-   memset(&rfds, 0, sizeof(fd_set));
-#else
    FD_ZERO(&rfds);
-#endif
    FD_SET(fd, &rfds);
 
    n = select(fd+1, &rfds, NULL, NULL, &timeout);
+#endif
 
    /*
     * XXX: Do we care about the different error conditions?
@@ -735,10 +789,6 @@ void close_socket(jb_socket fd)
 {
 #if defined(_WIN32) || defined(__BEOS__)
    closesocket(fd);
-#elif defined(AMIGA)
-   CloseSocket(fd);
-#elif defined(__OS2__)
-   soclose(fd);
 #else
    close(fd);
 #endif
@@ -800,7 +850,7 @@ void drain_and_close_socket(jb_socket fd)
             bytes_drained_total += bytes_drained;
             if (bytes_drained_total > ARBITRARY_DRAIN_LIMIT)
             {
-               log_error(LOG_LEVEL_CONNECT, "Giving up draining socket %d", fd);
+               log_error(LOG_LEVEL_CONNECT, "Giving up draining socket %d.", fd);
                break;
             }
          }
@@ -808,7 +858,7 @@ void drain_and_close_socket(jb_socket fd)
       if (bytes_drained_total != 0)
       {
          log_error(LOG_LEVEL_CONNECT,
-            "Drained %d bytes before closing socket %d", bytes_drained_total, fd);
+            "Drained %d bytes before closing socket %d.", bytes_drained_total, fd);
       }
    }
 
@@ -827,14 +877,15 @@ void drain_and_close_socket(jb_socket fd)
  * Parameters  :
  *          1  :  hostnam = TCP/IP address to bind/listen to
  *          2  :  portnum = port to listen on
- *          3  :  pfd = pointer used to return file descriptor.
+ *          3  :  backlog = Listen backlog
+ *          4  :  pfd = pointer used to return file descriptor.
  *
  * Returns     :  if success, returns 0 and sets *pfd.
  *                if failure, returns -3 if address is in use,
  *                                    -2 if address unresolvable,
  *                                    -1 otherwise
  *********************************************************************/
-int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
+int bind_port(const char *hostnam, int portnum, int backlog, jb_socket *pfd)
 {
 #ifdef HAVE_RFC2553
    struct addrinfo hints;
@@ -861,7 +912,7 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
    if ((-1 == retval) || (sizeof(servnam) <= retval))
    {
       log_error(LOG_LEVEL_ERROR,
-         "Port number (%d) ASCII decimal representation doesn't fit into 6 bytes",
+         "Port number (%d) ASCII decimal representation doesn't fit into 6 bytes.",
          portnum);
       return -1;
    }
@@ -960,6 +1011,10 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof(one));
 #endif /* ndef _WIN32 */
 
+#ifdef IP_FREEBIND
+   setsockopt(fd, IPPROTO_IP, IP_FREEBIND, (char *)&one, sizeof(one));
+#endif
+
 #ifdef HAVE_RFC2553
    if (bind(fd, rp->ai_addr, rp->ai_addrlen) < 0)
 #else
@@ -1009,7 +1064,7 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
    }
 #endif /* ndef HAVE_RFC2553 */
 
-   while (listen(fd, MAX_LISTEN_BACKLOG) == -1)
+   while (listen(fd, backlog) == -1)
    {
       if (errno != EINTR)
       {
@@ -1058,7 +1113,7 @@ void get_host_information(jb_socket afd, char **ip_address, char **port,
    struct sockaddr_in server;
    struct hostent *host = NULL;
 #endif /* HAVE_RFC2553 */
-#if defined(_WIN32) || defined(__OS2__) || defined(AMIGA)
+#if defined(_WIN32)
    /* according to accept_connection() this fixes a warning. */
    int s_length, s_length_provided;
 #else
@@ -1210,8 +1265,8 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
    struct sockaddr_in client;
 #endif
    jb_socket afd;
-#if defined(_WIN32) || defined(__OS2__) || defined(AMIGA)
-   /* Wierdness - fix a warning. */
+#if defined(_WIN32)
+   /* Weirdness - fix a warning. */
    int c_length;
 #else
    socklen_t c_length;
@@ -1219,25 +1274,41 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
    int retval;
    int i;
    int max_selected_socket;
+#ifdef HAVE_POLL
+   struct pollfd poll_fds[MAX_LISTENING_SOCKETS];
+   nfds_t polled_sockets;
+#else
    fd_set selected_fds;
+#endif
    jb_socket fd;
    const char *host_addr;
    size_t listen_addr_size;
 
    c_length = sizeof(client);
 
+#ifdef HAVE_POLL
+   memset(poll_fds, 0, sizeof(poll_fds));
+   polled_sockets = 0;
+#else
    /*
     * Wait for a connection on any socket.
     * Return immediately if no socket is listening.
     * XXX: Why not treat this as fatal error?
     */
    FD_ZERO(&selected_fds);
+#endif
    max_selected_socket = 0;
    for (i = 0; i < MAX_LISTENING_SOCKETS; i++)
    {
       if (JB_INVALID_SOCKET != fds[i])
       {
+#ifdef HAVE_POLL
+         poll_fds[i].fd = fds[i];
+         poll_fds[i].events = POLLIN;
+         polled_sockets++;
+#else
          FD_SET(fds[i], &selected_fds);
+#endif
          if (max_selected_socket < fds[i] + 1)
          {
             max_selected_socket = fds[i] + 1;
@@ -1250,7 +1321,11 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
    }
    do
    {
+#ifdef HAVE_POLL
+      retval = poll(poll_fds, polled_sockets, -1);
+#else
       retval = select(max_selected_socket, &selected_fds, NULL, NULL, NULL);
+#endif
    } while (retval < 0 && errno == EINTR);
    if (retval <= 0)
    {
@@ -1268,8 +1343,12 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
       }
       return 0;
    }
+#ifdef HAVE_POLL
+   for (i = 0; i < MAX_LISTENING_SOCKETS && (poll_fds[i].revents == 0); i++);
+#else
    for (i = 0; i < MAX_LISTENING_SOCKETS && !FD_ISSET(fds[i], &selected_fds);
          i++);
+#endif
    if (i >= MAX_LISTENING_SOCKETS)
    {
       log_error(LOG_LEVEL_ERROR,
@@ -1290,12 +1369,6 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
 #else
    do
    {
-#if defined(FEATURE_ACCEPT_FILTER) && defined(SO_ACCEPTFILTER)
-      struct accept_filter_arg af_options;
-      bzero(&af_options, sizeof(af_options));
-      strlcpy(af_options.af_name, "httpready", sizeof(af_options.af_name));
-      setsockopt(fd, SOL_SOCKET, SO_ACCEPTFILTER, &af_options, sizeof(af_options));
-#endif
       afd = accept (fd, (struct sockaddr *) &client, &c_length);
    } while (afd < 0 && errno == EINTR);
    if (afd < 0)
@@ -1316,6 +1389,7 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
    }
 #endif
 
+#ifndef HAVE_POLL
 #ifndef _WIN32
    if (afd >= FD_SETSIZE)
    {
@@ -1325,6 +1399,7 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
       close_socket(afd);
       return 0;
    }
+#endif
 #endif
 
 #ifdef FEATURE_EXTERNAL_FILTERS
@@ -1364,8 +1439,8 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
    if ((-1 == retval) || listen_addr_size <= retval)
    {
       log_error(LOG_LEVEL_ERROR,
-         "Server name (%s) and port number (%d) ASCII decimal representation"
-         "don't fit into %d bytes",
+         "Server name (%s) and port number (%d) ASCII decimal representation "
+         "don't fit into %lu bytes",
          host_addr, csp->config->hport[i], listen_addr_size);
       return 0;
    }
@@ -1507,7 +1582,6 @@ int socket_is_still_alive(jb_socket sfd)
 {
    char buf[10];
    int no_data_waiting;
-
 #ifdef HAVE_POLL
    int poll_result;
    struct pollfd poll_fd[1];

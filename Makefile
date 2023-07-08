@@ -1,7 +1,5 @@
-# $Id: Makefile,v 1.12 2016/04/04 10:50:18 fabiankeil Exp $
-#
-# Written by and Copyright (C) 2001 the SourceForge
-# Privoxy team. http://www.privoxy.org/
+# Written by and Copyright (C) 2001 the
+# Privoxy team. https://www.privoxy.org/
 #
 # Based on the Internet Junkbuster originally written
 # by and Copyright (C) 1997 Anonymous Coders and 
@@ -71,6 +69,8 @@ error:
 	 fi
 
 .PHONY: error
+
+dok: error
 
 #############################################################################
 

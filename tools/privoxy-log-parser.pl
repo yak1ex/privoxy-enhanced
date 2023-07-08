@@ -8,8 +8,6 @@
 #
 # https://www.fabiankeil.de/sourcecode/privoxy-log-parser/
 #
-# $Id: privoxy-log-parser.pl,v 1.163 2016/08/26 11:19:53 fabiankeil Exp $
-#
 # TODO:
 #       - LOG_LEVEL_CGI, LOG_LEVEL_ERROR, LOG_LEVEL_WRITE content highlighting
 #       - create fancy statistics
@@ -25,7 +23,7 @@
 #         hash key as input.
 #       - Add --compress and --decompress options.
 #
-# Copyright (c) 2007-2013 Fabian Keil <fk@fabiankeil.de>
+# Copyright (c) 2007-2022 Fabian Keil <fk@fabiankeil.de>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -45,15 +43,18 @@ use warnings;
 use Getopt::Long;
 
 use constant {
-    PRIVOXY_LOG_PARSER_VERSION => '0.8',
+    PRIVOXY_LOG_PARSER_VERSION => '0.9.5',
     # Feel free to mess with these ...
     DEFAULT_BACKGROUND => 'black',  # Choose registered colour (like 'black')
     DEFAULT_TEXT_COLOUR => 'white', # Choose registered colour (like 'black')
     HEADER_DEFAULT_COLOUR => 'yellow',
     REGISTER_HEADERS_WITH_THE_SAME_COLOUR => 1,
 
+    CLI_OPTION_DETECT_INACTIVITY => 0,
     CLI_OPTION_DEFAULT_TO_HTML_OUTPUT => 0,
     CLI_OPTION_TITLE => 'Privoxy-Log-Parser in da house',
+    CLI_OPTION_INACTIVITY_THRESHOLD => 100,
+    CLI_OPTION_KEEP_DATE => 0,
     CLI_OPTION_NO_EMBEDDED_CSS => 0,
     CLI_OPTION_NO_MSECS => 0,
     CLI_OPTION_NO_SYNTAX_HIGHLIGHTING => 0,
@@ -63,6 +64,7 @@ use constant {
     CLI_OPTION_STRICT_CHECKS => 0,
     CLI_OPTION_UNBREAK_LINES_ONLY => 0,
     CLI_OPTION_URL_STATISTICS_THRESHOLD => 0,
+    CLI_OPTION_PASSED_REQUEST_STATISTICS_THRESHOLD => 0,
     CLI_OPTION_HOST_STATISTICS_THRESHOLD => 0,
     CLI_OPTION_SHOW_COMPLETE_REQUEST_DISTRIBUTION => 0,
 
@@ -109,11 +111,12 @@ my %h_colours;
 my $header_highlight_regex = '';
 
 my $html_output_mode;
+my $keep_date_mode;
 my $no_msecs_mode; # XXX: should probably be removed
 my $shorten_thread_ids;
 my $line_end;
 
-sub prepare_our_stuff () {
+sub prepare_our_stuff() {
 
     # Syntax Higlight hash
     @all_colours = (
@@ -130,6 +133,7 @@ sub prepare_our_stuff () {
         'Re-Filter'     => 'purple',
         Connect         => 'brown',
         Request         => 'light_cyan',
+        Tagging         => 'purple',
         CGI             => 'light_green',
         Redirect        => 'cyan',
         Error           => 'light_red',
@@ -178,9 +182,12 @@ sub prepare_our_stuff () {
         'pcrs-delimiter'     => 'light_red',
         'ignored'            => 'light_red',
         'action-bits-update' => 'light_red',
+        'http-downgrade'     => 'light_red',
         'configuration-line' => 'red',
         'content-type'       => 'yellow',
         'HOST'               => HEADER_DEFAULT_COLOUR,
+        'tls-version'        => 'pink',
+        'cipher-suite'       => 'light_cyan',
     );
 
     %h_colours = %h;
@@ -221,7 +228,7 @@ sub prepare_our_stuff () {
     init_stats();
 }
 
-sub paint_it ($) {
+sub paint_it($) {
 ###############################################################
 # Takes a colour string and returns an ANSI escape sequence
 # (unless --no-syntax-highlighting is used).
@@ -298,7 +305,7 @@ sub paint_it ($) {
     return $colour_code;
 }
 
-sub get_semantic_html_markup ($) {
+sub get_semantic_html_markup($) {
 ###############################################################
 # Takes a string and returns a span element
 ###############################################################
@@ -316,7 +323,7 @@ sub get_semantic_html_markup ($) {
     return $code;
 }
 
-sub cli_option_is_set ($) {
+sub cli_option_is_set($) {
 
     our %cli_options;
     my $cli_option = shift;
@@ -326,7 +333,7 @@ sub cli_option_is_set ($) {
     return $cli_options{$cli_option};
 }
 
-sub get_html_title () {
+sub get_html_title() {
 
     our %cli_options;
     return $cli_options{'title'};
@@ -356,7 +363,7 @@ sub init_css_colours() {
     );
 }
 
-sub get_css_colour ($) {
+sub get_css_colour($) {
 
    our %css_colours;
    my $colour = shift;
@@ -366,7 +373,7 @@ sub get_css_colour ($) {
    return '#' . $css_colours{$colour};
 }
 
-sub get_css_line ($) {
+sub get_css_line($) {
 
     my $class = shift;
     my $css_line;
@@ -380,7 +387,7 @@ sub get_css_line ($) {
     return $css_line;
 }
 
-sub get_css_line_for_colour ($) {
+sub get_css_line_for_colour($) {
 
     my $colour = shift;
     my $css_line;
@@ -394,7 +401,7 @@ sub get_css_line_for_colour ($) {
 }
 
 # XXX: Wrong solution
-sub get_missing_css_lines () {
+sub get_missing_css_lines() {
 
     my $css_line;
 
@@ -406,7 +413,7 @@ sub get_missing_css_lines () {
     return $css_line;
 }
 
-sub get_css () {
+sub get_css() {
 
     our %css_colours; #XXX: Wrong solution
 
@@ -435,7 +442,7 @@ sub get_css () {
     return $css;
 }
 
-sub print_intro () {
+sub print_intro() {
 
     my $intro = '';
 
@@ -453,7 +460,7 @@ sub print_intro () {
     }
 }
 
-sub print_outro () {
+sub print_outro() {
 
     my $outro = '';
 
@@ -465,11 +472,11 @@ sub print_outro () {
     }
 }
 
-sub get_line_end () {
+sub get_line_end() {
     return cli_option_is_set('html-output') ? "<br>\n" : "\n";
 }
 
-sub get_colour_html_markup ($) {
+sub get_colour_html_markup($) {
 ###############################################################
 # Takes a colour string a span element. XXX: WHAT?
 # XXX: This function shouldn't be necessary, the
@@ -488,21 +495,21 @@ sub get_colour_html_markup ($) {
     return $code;
 }
 
-sub default_colours () {
+sub default_colours() {
     # XXX: Properly
     our $bg_code;
     return reset_colours();
 }
 
-sub show_colours () {
+sub show_colours() {
     # XXX: Implement
 }
 
-sub reset_colours () {
+sub reset_colours() {
     return ESCAPE . "0m";
 }
 
-sub set_background ($){
+sub set_background($) {
 
     my $colour = shift;
     our $bg_code;
@@ -525,11 +532,11 @@ sub set_background ($){
     }
 }
 
-sub get_background (){
+sub get_background() {
     return our $bg_code;
 }
 
-sub prepare_highlight_hash ($) {
+sub prepare_highlight_hash($) {
     my $ref = shift;
 
     foreach my $key (keys %$ref) {
@@ -539,7 +546,7 @@ sub prepare_highlight_hash ($) {
     }
 }
 
-sub prepare_colour_array ($) {
+sub prepare_colour_array($) {
     my $ref = shift;
 
     foreach my $i (0 ... @$ref - 1) {
@@ -549,7 +556,7 @@ sub prepare_colour_array ($) {
     }
 }
 
-sub found_unknown_content ($) {
+sub found_unknown_content($) {
 
     my $unknown = shift;
     my $message;
@@ -568,7 +575,7 @@ sub found_unknown_content ($) {
     die "Unworthy content parser" if PUNISH_MISSING_LOG_KNOWLEDGE_WITH_DEATH;
 }
 
-sub log_parse_error ($) {
+sub log_parse_error($) {
 
     my $message = shift;
 
@@ -579,7 +586,7 @@ sub log_parse_error ($) {
     }
 }
 
-sub debug_message (@) {
+sub debug_message(@) {
     my @message = @_;
 
     print $h{'debug'} . "@message" . $h{'Standard'} . "\n";
@@ -589,7 +596,7 @@ sub debug_message (@) {
 # highlighter functions that aren't loglevel-specific
 ################################################################################
 
-sub h ($) {
+sub h($) {
 
     # Get highlight marker
     my $highlight = shift; # XXX: Stupid name;
@@ -611,7 +618,7 @@ sub h ($) {
     return $result;
 }
 
-sub highlight_known_headers ($) {
+sub highlight_known_headers($) {
 
     my $content = shift;
 
@@ -626,7 +633,7 @@ sub highlight_known_headers ($) {
     return $content;
 }
 
-sub highlight_matched_request_line ($$) {
+sub highlight_matched_request_line($$) {
 
     my $result = shift; # XXX: Stupid name;
     my $regex = shift;
@@ -636,13 +643,13 @@ sub highlight_matched_request_line ($$) {
     return $result;
 }
 
-sub highlight_request_line ($) {
+sub highlight_request_line($) {
 
     my $rl = shift;
     my ($method, $url, $http_version);
 
     #GET http://images.sourceforge.net/sfx/icon_warning.gif HTTP/1.1
-    if ($rl =~ m/Invalid request/) {
+    if ($rl =~ m/Invalid request/ or $rl =~ m/Failed reading chunked client body/) {
 
         $rl = h('invalid-request') . $rl . h('Standard');
 
@@ -677,7 +684,7 @@ sub highlight_request_line ($) {
     return $rl;
 }
 
-sub highlight_response_line ($) {
+sub highlight_response_line($) {
 
     my $rl = shift;
     my ($http_version, $status_code, $status_message);
@@ -704,7 +711,7 @@ sub highlight_response_line ($) {
     return $rl;
 }
 
-sub highlight_matched_url ($$) {
+sub highlight_matched_url($$) {
 
     my $result = shift; # XXX: Stupid name;
     my $regex = shift;
@@ -719,7 +726,7 @@ sub highlight_matched_url ($$) {
     return $result;
 }
 
-sub highlight_matched_host ($$) {
+sub highlight_matched_host($$) {
 
     my ($result, $regex) = @_; # XXX: result ist stupid name;
 
@@ -730,7 +737,7 @@ sub highlight_matched_host ($$) {
     return $result;
 }
 
-sub highlight_matched_pattern ($$$) {
+sub highlight_matched_pattern($$$) {
 
     my $result = shift; # XXX: Stupid name;
     my $key = shift;
@@ -745,7 +752,7 @@ sub highlight_matched_pattern ($$$) {
     return $result;
 }
 
-sub highlight_matched_path ($$) {
+sub highlight_matched_path($$) {
 
     my $result = shift; # XXX: Stupid name;
     my $regex = shift;
@@ -757,7 +764,7 @@ sub highlight_matched_path ($$) {
     return $result;
 }
 
-sub highlight_url ($) {
+sub highlight_url($) {
 
     my $url = shift;
 
@@ -774,7 +781,7 @@ sub highlight_url ($) {
     return $url;
 }
 
-sub update_header_highlight_regex ($) {
+sub update_header_highlight_regex($) {
 
     my $header = shift;
     my $headers = join ('|', keys %header_colours);
@@ -787,7 +794,7 @@ sub update_header_highlight_regex ($) {
 # loglevel-specific highlighter functions
 ################################################################################
 
-sub handle_loglevel_header ($) {
+sub handle_loglevel_header($) {
 
     my $c = shift;
 
@@ -1039,7 +1046,7 @@ sub handle_loglevel_header ($) {
     return $c;
 }
 
-sub handle_loglevel_re_filter ($) {
+sub handle_loglevel_re_filter($) {
 
     my $content = shift;
     my $c = $content;
@@ -1063,7 +1070,7 @@ sub handle_loglevel_re_filter ($) {
                 return '';
         }
 
-        $c =~ s@(?<=\(size )(\d+)\)(?= with)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=\(size )(\d+)@$h{'Number'}$1$h{'Standard'}@;
         $c =~ s@(?<=\(new size )(\d+)@$h{'Number'}$1$h{'Standard'}@;
         $c =~ s@(?<=produced )(\d+)(?= hits)@$h{'Number'}$1$h{'Standard'}@;
 
@@ -1074,6 +1081,17 @@ sub handle_loglevel_re_filter ($) {
         $c .= "(" . $h{'Number'};
         $c .= "+" if ($req{$t}{'content_size_change'} >= 0);
         $c .= $req{$t}{'content_size_change'} . $h{'Standard'} . ")";
+        $content = $c;
+
+    } elsif ($c =~ m/^filtering request body from client /) {
+
+        # filtering request body from client 127.0.0.1 (size 958) with 'null-filter' produced 0 hits (new size 958).
+
+        $c =~ s@(?<=from client )([^\s]+)@$h{'ip-address'}$1$h{'Standard'}@;
+        $c =~ s@(?<=\(size )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@([^\s]+?)(\'? produced)@$h{'filter'}$1$h{'Standard'}$2@;
+        $c =~ s@(?<=\(new size )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=produced )(\d+)(?= hits)@$h{'Number'}$1$h{'Standard'}@;
         $content = $c;
 
   } elsif ($c =~ /\.{3}$/
@@ -1212,6 +1230,12 @@ sub handle_loglevel_re_filter ($) {
 
         return '' unless SHOW_FILTER_READIN_IN;
 
+    } elsif ($c =~ m/^Decompression didn't result/) {
+
+        # Decompression didn't result in any content.
+
+        # Nothing to highlight.
+
     } else {
 
         found_unknown_content($content);
@@ -1221,7 +1245,58 @@ sub handle_loglevel_re_filter ($) {
     return $content;
 }
 
-sub handle_loglevel_redirect ($) {
+sub handle_loglevel_tagging($) {
+
+    my $c = shift;
+
+    if ($c =~ /^Tagger \'([^\']*)\' added tag \'([^\']*)\'/ or
+        $c =~ m/^Adding tag \'([^\']*)\' created by header tagger \'([^\']*)\'/) {
+
+        # Adding tag 'GET request' created by header tagger 'method-man' (XXX: no longer used)
+        # Tagger 'revalidation' added tag 'REVALIDATION-REQUEST'. No action bit update necessary.
+        # Tagger 'revalidation' added tag 'REVALIDATION-REQUEST'. Action bits updated accordingly.
+
+        # XXX: Save tag and tagger
+
+        $c =~ s@(?<=^Tagger \')([^\']*)@$h{'tagger'}$1$h{'Standard'}@;
+        $c =~ s@(?<=added tag \')([^\']*)@$h{'tag'}$1$h{'Standard'}@;
+        $c =~ s@(?<=Action bits )(updated)@$h{'action-bits-update'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ /^Enlisting tag/) {
+
+        # Enlisting tag 'forward-directly' for client 127.0.0.1.
+
+        $c =~ s@(?<=tag \')([^\']*)@$h{'tag'}$1$h{'Standard'}@;
+        $c = highlight_matched_host($c, '[^\s]+(?=\.$)');
+
+    } elsif ($c =~ /^Tag/) {
+
+        # Tag 'change-tor-socks-port' for client 127.0.0.1 expired 1 seconds ago. Deleting it.
+
+        $c =~ s@(?<=Tag \')([^\']*)@$h{'tag'}$1$h{'Standard'}@;
+        $c =~ s@(?<=expired )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c = highlight_matched_host($c, '(?<=client )[^\s]+');
+
+    } elsif ($c =~ /^Evaluating/) {
+
+        # Evaluating tag 'change-tor-socks-port' for client 127.0.0.1. End of life 1613162302.
+
+        $c =~ s@(?<=tag \')([^\']*)@$h{'tag'}$1$h{'Standard'}@;
+        $c = highlight_matched_host($c, '(?<=client )[^\s]+(?=\.)');
+        $c =~ s@(?<=life )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ /^Client tag/) {
+
+        # Client tag 'forward-directly' matches
+
+        $c =~ s@(?<=tag \')([^\']*)@$h{'tag'}$1$h{'Standard'}@;
+
+    }
+
+    return $c;
+}
+
+sub handle_loglevel_redirect($) {
 
     my $c = shift;
 
@@ -1278,6 +1353,17 @@ sub handle_loglevel_redirect ($) {
         # Percent-encoding redirect URL: http://www.example.org/\x02
         $c = highlight_matched_url($c, '(?<=redirect URL: ).*');
 
+    } elsif ($c =~ m/^Rewrite detected:/) {
+
+        # Rewrite detected: GET http://10.0.0.2:88/blah.txt HTTP/1.1
+        # Rewrite detected: GET https://www.electrobsd.org/CommonJS/ajax/libs/jquery/3.4.1/jquery.min.js HTTP/1.1
+        $c = highlight_matched_request_line($c, '(?<=^Rewrite detected: ).*');
+
+    } elsif ($c =~ m/^Rewritten request line results in downgrade to http/) {
+
+        # Rewritten request line results in downgrade to http
+        $c =~ s@(downgrade)@$h{'http-downgrade'}$1$h{'Standard'}@;
+
     } else {
 
         found_unknown_content($c);
@@ -1287,7 +1373,7 @@ sub handle_loglevel_redirect ($) {
     return $c;
 }
 
-sub handle_loglevel_gif_deanimate ($) {
+sub handle_loglevel_gif_deanimate($) {
 
     my $content = shift;
 
@@ -1333,7 +1419,7 @@ sub handle_loglevel_gif_deanimate ($) {
     return $content;
 }
 
-sub handle_loglevel_request ($) {
+sub handle_loglevel_request($) {
 
     my $content = shift;
 
@@ -1368,13 +1454,14 @@ sub handle_loglevel_request ($) {
     return $content;
 }
 
-sub handle_loglevel_crunch ($) {
+sub handle_loglevel_crunch($) {
 
     my $content = shift;
 
     # Highlight crunch reason
     foreach my $reason (keys %reason_colours) {
-        $content =~ s@($reason)@$reason_colours{$reason}$1$h{'Standard'}@g;
+        # Crunch: Blocked: https://capture.condenastdigital.com/track?_o=cne&[...]&dim2=%7B%22adBlocked%[...]
+        $content =~ s@($reason)@$reason_colours{$reason}$1$h{'Standard'}@;
     }
 
     if ($content =~ m/\[too long, truncated\]$/) {
@@ -1382,6 +1469,11 @@ sub handle_loglevel_crunch ($) {
         # Blocked: config.privoxy.org/edit-actions-submit?f=3&v=1176116716&s=7&Submit=Submit\
         #  [...]&filter... [too long, truncated]
         $content = highlight_matched_pattern($content, 'request_', '^.*(?=\.\.\. \[too long, truncated\]$)');
+
+    } elsif ($content =~ m/Certificate error:/) {
+
+        # Certificate error: ASN date error, current date after: https://expired.badssl.com/
+        $content = highlight_matched_pattern($content, 'request_', 'https://.*');
 
     } else {
 
@@ -1392,7 +1484,7 @@ sub handle_loglevel_crunch ($) {
     return $content;
 }
 
-sub handle_loglevel_connect ($) {
+sub handle_loglevel_connect($) {
 
     my $c = shift;
 
@@ -1536,9 +1628,10 @@ sub handle_loglevel_connect ($) {
         $c = highlight_matched_host($c, '(?<=for )[^\s]+');
         $c =~ s@(?<=in slot )(\d+)@$h{'Number'}$1$h{'Standard'}@;
 
-    } elsif ($c =~ m/^Socket/) {
+    } elsif ($c =~ m/^Socket \d+ (already|closed)/) {
 
         # Socket 16 already forgotten or never remembered.
+        # Socket 9 closed while waiting for client headers
         $c =~ s@(?<=Socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
 
     } elsif ($c =~ m/^The connection to/) {
@@ -1555,7 +1648,7 @@ sub handle_loglevel_connect ($) {
         $c =~ s@(?<=Assumed latency: )(\d+)@$h{'Number'}$1$h{'Standard'}@;
 
     } elsif ($c =~ m/^Stopped waiting for the request line/ or
-             $c =~ m/^No request line on socket \d received in time/ or
+             $c =~ m/^No request line on socket \d+ received in time/ or
              $c =~ m/^The client side of the connection on socket \d/) {
 
         # Stopped waiting for the request line. Timeout: 121.
@@ -1612,7 +1705,10 @@ sub handle_loglevel_connect ($) {
 
         # Connection from 81.163.28.218 dropped due to ACL
         # Rejecting connection from 178.63.152.227. Maximum number of connections reached.
-        $c =~ s@(?<=onnection from )((?:\d+\.?){3}\d+)@$h{'Number'}$1$h{'Standard'}@;
+        # Connection from 192.168.2.1 on 127.0.1.1:8118 (socket 3) dropped due to ACL
+        $c = highlight_matched_host($c, '(?<=onnection from )[\d.:]+');
+        $c = highlight_matched_host($c, '(?<=on )[\d.:]+');
+        $c =~ s@(?<=socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
 
     } elsif ($c =~ m/^(?:Reusing|Closing) server socket / or
              $c =~ m/^No additional client request/) {
@@ -1626,6 +1722,7 @@ sub handle_loglevel_connect ($) {
         # Reusing server socket 7 connected to www.privoxy.org. Total requests: 2.
         # Closing server socket 6 connected to d.asset.soup.io. Keep-alive: 0.\
         #  Tainted: 1. Socket alive: 1. Timeout: 60. Configuration file change detected: 0.
+        # Reusing server socket 35 connected to nl.wikipedia.org. Requests already sent: 5.
 
         $c =~ s@(?<= socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
         $c = highlight_matched_host($c, '(?<=for )[^\s]+(?=\.)');
@@ -1633,6 +1730,7 @@ sub handle_loglevel_connect ($) {
         for my $number_pattern ('requests', 'Keep-alive', 'Tainted', ' alive', 'Timeout', 'detected') {
             $c = highlight_matched_pattern($c, 'Number', '(?<='. $number_pattern . ': )\d+');
         }
+        $c =~ s@(?<=already sent: )(\d+)@$h{'Number'}$1$h{'Standard'}@;
 
     } elsif ($c =~ m/^Connected to /) {
 
@@ -1707,8 +1805,13 @@ sub handle_loglevel_connect ($) {
     } elsif ($c =~ m/^Optimistically sending /) {
 
         # Optimistically sending 318 bytes of client headers intended for www.privoxy.org
+        # Optimistically sending 318 bytes of client headers intended for www.privoxy.org.
         $c =~ s@(?<=sending )(\d+)@$h{'Number'}$1$h{'Standard'}@;
-        $c = highlight_matched_host($c, '(?<=for )[^\s]+');
+        if ($c =~ /\.$/) {
+            $c = highlight_matched_host($c, '[^\s]+(?=\.)');
+        } else {
+            $c = highlight_matched_host($c, '(?<=for )[^\s]+');
+        }
 
     } elsif ($c =~ m/^Stopping to watch the client socket/) {
 
@@ -1736,6 +1839,125 @@ sub handle_loglevel_connect ($) {
         # Shifting 360 pipelined bytes by 360 bytes
         $c =~ s@(?<=Shifting )(\d+)@$h{'Number'}$1$h{'Standard'}@;
         $c =~ s@(?<=by )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Flushed (\d+) bytes of request body while expecting (\d+)/) {
+
+        # Flushed 30 bytes of request body while expecting 30
+        $c =~ s@(?<=Flushed )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=expecting )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Performing the TLS\/SSL handshake with client. Hash of host:/) {
+
+        # Performing the TLS/SSL handshake with client. Hash of host: bab5296b25e256c7b06b92b17b56bcae
+        $c = highlight_matched_host($c, '(?<=Hash of host: ).+');
+
+    } elsif ($c =~ m/^Forwarding \d+ bytes of encrypted POST data/) {
+
+        # Forwarding 1954 bytes of encrypted POST data
+        $c =~ s@(?<=Forwarding )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Forwarded the last \d+ bytes/) {
+
+        # Forwarded the last 1954 bytes
+        $c =~ s@(?<=the last )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Waiting for the next client connection. Currently active threads:/) {
+
+        # Waiting for the next client connection. Currently active threads: 30
+        $c =~ s@(?<=threads: )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Data arrived in time on client socket/) {
+
+        # Data arrived in time on client socket 6. Requests so far: 3
+        $c =~ s@(?<=client socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=Requests so far: )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Dropping the client connection on socket/) {
+
+        # Dropping the client connection on socket 71. The server connection has not been established yet.
+        # Dropping the client connection on socket 23 with server socket 24 connected to \
+        #  www.reddit.com. The forwarder has changed.
+        $c =~ s@(?<=on socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=server socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c = highlight_matched_host($c, '(?<=connected to )[^ ]+(?=\.)');
+
+    } elsif ($c =~ m/^The client socket \d+ has become unusable while the server/) {
+
+        # The client socket 16 has become unusable while the server socket 24 is still open.
+        $c =~ s@(?<=client socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=server socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^The last \d+ bytes of the request body have been read/) {
+
+        # The last 12078 bytes of the request body have been read
+        $c =~ s@(?<=The last )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Flushed \d+ bytes of request body/) {
+
+        # Flushed 3153 bytes of request body
+        $c =~ s@(?<=Flushed )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Complete client request followed by/) {
+
+        # Complete client request followed by 59 bytes of pipelined data received.
+        $c =~ s@(?<=followed by )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^The peer notified us that the connection on socket/) {
+
+        # The peer notified us that the connection on socket 11 is going to be closed
+        $c =~ s@(?<=socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Client socket \d is no longer usable/) {
+
+        # Client socket 7 is no longer usable. The server socket has been closed.
+        $c =~ s@(?<=socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Socket timeout \d+ reached/) {
+
+        # Socket timeout 3 reached: http://127.0.0.1:20000/no-filter/chunked-content/36
+        $c =~ s@(?<=timeout )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c = highlight_matched_url($c, "(?<=reached: ).*")
+
+    } elsif ($c =~ m/^Prepared to read up to /) {
+
+        # Prepared to read up to 157 bytes of encrypted request body from the client.
+        $c =~ s@(?<=up to )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Forwarding \d+ bytes /) {
+
+        # Forwarding 157 bytes of encrypted request body.
+        $c =~ s@(?<=Forwarding )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Buffering encrypted client body/) {
+
+        # Buffering encrypted client body. Prepared to read up to 2236 bytes.
+        $c =~ s@(?<=up to )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^The last \d+ bytes of the encrypted request body have been read/) {
+
+        # The last 6945 bytes of the encrypted request body have been read.
+        $c =~ s@(?<=The last )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Reducing the chunk offset from/) {
+
+        # Reducing the chunk offset from 1096654 to 32704 after discarding 1063950 bytes to make room in the buffer.
+        # Reducing the chunk offset from 16219 to 128 after flushing 16091 bytes.
+        $c =~ s@(?<=\d to )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=offset from )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=after discarding )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=after flushing )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Client socket \d+ is no longer usable/) {
+
+        # Client socket 21 is no longer usable. The server socket has been closed.
+        $c =~ s@(?<=Client socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^(Client|Server) successfully connected over/) {
+
+        # Server successfully connected over TLSv1.3 (TLS_AES_256_GCM_SHA384).
+        # Client successfully connected over TLSv1.3 (TLS_AES_128_GCM_SHA256).
+        $c =~ s@(?<=connected over )(TLSv\d\.\d)@$h{'tls-version'}$1$h{'Standard'}@;
+        $c =~ s@(?<=\()([^)]+)@$h{'cipher-suite'}$1$h{'Standard'}@;
 
     } elsif ($c =~ m/^Looks like we / or
              $c =~ m/^Unsetting keep-alive flag/ or
@@ -1778,7 +2000,7 @@ sub handle_loglevel_connect ($) {
 }
 
 
-sub handle_loglevel_info ($) {
+sub handle_loglevel_info($) {
 
     my $c = shift;
 
@@ -1904,7 +2126,7 @@ sub handle_loglevel_info ($) {
     return $c;
 }
 
-sub handle_loglevel_cgi ($) {
+sub handle_loglevel_cgi($) {
 
     my $c = shift;
 
@@ -1926,7 +2148,7 @@ sub handle_loglevel_cgi ($) {
     return $c;
 }
 
-sub handle_loglevel_force ($) {
+sub handle_loglevel_force($) {
 
     my $c = shift;
 
@@ -1950,7 +2172,7 @@ sub handle_loglevel_force ($) {
     return $c;
 }
 
-sub handle_loglevel_error ($) {
+sub handle_loglevel_error($) {
 
     my $c = shift;
 
@@ -1970,6 +2192,23 @@ sub handle_loglevel_error ($) {
 
         # Didn't receive data in time: a.fsdn.com:443
         $c =~ s@(?<=in time: )(.*)@$h{'destination'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Sending data on socket \d+ over TLS/) {
+
+        # Sending data on socket 33 over TLS/SSL failed: no TLS/SSL errors detected
+        $c =~ s@(?<=on socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^Chunk size \d+ exceeds buffered data left/) {
+
+        # Chunk size 291 exceeds buffered data left. Already digested 69894 of 69957 buffered bytes.
+        $c =~ s@(?<=size )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=digested )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+        $c =~ s@(?<=of )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^The socks connection timed out after/) {
+
+        # The socks connection timed out after 60 seconds.
+        $c =~ s@(?<=after )(\d+)@$h{'Number'}$1$h{'Standard'}@;
     }
 
     # XXX: There are probably more messages that deserve highlighting.
@@ -1977,25 +2216,112 @@ sub handle_loglevel_error ($) {
     return $c;
 }
 
+sub handle_loglevel_received($) {
 
-sub handle_loglevel_ignore ($) {
+    my $c = shift;
+
+    if ($c =~ m/^TLS from socket/) {
+        # TLS from socket 3: \x16\xda\xe2\xa2;\x0d\x0a
+
+        $c =~ s@(?<=TLS from socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^from socket/) {
+        # from socket 3: HEAD http://p.p/ HTTP/1.1\x0d\x0aHost: p.p\x0d\x0aUser-Agent: curl/7.85.0\x0d\x0aAccept: */*\x0d\x0aProxy-Connection: Keep-Alive\x0d\x0a\x0d\x0a
+
+        $c =~ s@(?<=from socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+    }
+
+    return $c;
+}
+
+sub handle_loglevel_writing($) {
+
+    my $c = shift;
+
+    if ($c =~ m/^to socket/) {
+        # to socket 11: HTTP/1.1 200 Connection established\x0d\x0a\x0d\x0a
+
+        $c =~ s@(?<=to socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+
+    } elsif ($c =~ m/^TLS on socket /) {
+        # TLS on socket 9: o~\xfcS[\xfa\x8f\xd6\x96\xe6_\xc7$\x1b[...]
+
+        $c =~ s@(?<=TLS on socket )(\d+)@$h{'Number'}$1$h{'Standard'}@;
+    }
+
+    return $c;
+}
+
+sub handle_loglevel_ignore($) {
     return shift;
 }
 
-sub gather_loglevel_request_stats ($$) {
-    my $c = shift;
-    my $thread = shift;
-    our %stats;
+sub gather_loglevel_clf_stats($) {
 
-    $stats{requests}++;
+    my $content = shift;
+    my ($method, $resource, $http_version, $status_code, $size);
+    our %stats;
+    our %cli_options;
+
+    # +0200] "GET https://www.youtube.com/watch?v=JmcA9LIIXWw HTTP/1.1" 200 68004
+    # +0200] "VERSION-CONTROL http://p.p/ HTTP/1.1" 200 2787
+    $content =~ m/^[+-]\d{4}\] "([^ ]+) (.+) (HTTP\/\d\.\d)" (\d+) (\d+)/;
+    $method       = $1;
+    $resource     = $2;
+    $http_version = $3;
+    $status_code  = $4;
+    $size         = $5;
+
+    $stats{requests_clf}++;
+
+    unless (defined $method) {
+        # +0200] "Invalid request" 400 0
+        return if ($content =~ m/^[+-]\d{4}\] "Invalid request"/);
+        # +0100] "Failed reading chunked client body" 400 0
+        return if ($content =~ m/^[+-]\d{4}\] "Failed reading chunked client body"/);
+        # +0100] "GET https://securepubads.g.doubleclick.net/gampad/ads?gd[...]... [too long, truncated]
+        if ($content =~ m/\[too long, truncated\]$/) {
+            print("Skipped LOG_LEVEL_CLF message that got truncated by Privoxy. Statistics will be inprecise.\n");
+        } else {
+            print("Failed to parse: $content\n");
+        }
+        return;
+    }
+    $stats{'method'}{$method}++;
+    if ($cli_options{'url-statistics-threshold'} != 0) {
+        $stats{'resource'}{$resource}++;
+    }
+    $stats{'http-version'}{$http_version}++;
+
+    if ($cli_options{'host-statistics-threshold'} != 0) {
+        $resource =~ m@(?:https?://)?([^/]+)/?@;
+        $stats{'hosts'}{$1}++;
+    }
+    $stats{'content-size-total'} += $size;
+    $stats{'status-code'}{$status_code}++;
 }
 
-sub gather_loglevel_crunch_stats ($$) {
+sub gather_loglevel_request_stats($$) {
+    my $request_url = shift;
+    my $thread = shift;
+    our %stats;
+    our %cli_options;
+
+    $stats{requests}++;
+    if ($cli_options{'passed-request-statistics-threshold'} != 0) {
+        # If the request get blocked we'll decrement
+        # in gather_loglevel_crunch_stats()
+        chomp $request_url;
+        $stats{'passed-request-url'}{$request_url}++;
+    }
+}
+
+sub gather_loglevel_crunch_stats($$) {
     my $c = shift;
     my $thread = shift;
     our %stats;
+    our %cli_options;
 
-    $stats{requests}++;
     $stats{crunches}++;
 
     if ($c =~ m/^Redirected:/) {
@@ -2005,11 +2331,28 @@ sub gather_loglevel_crunch_stats ($$) {
     } elsif ($c =~ m/^Blocked:/) {
         # Blocked: blogger.googleusercontent.com:443
         $stats{'blocked'}++;
+
+    } elsif ($c =~ m/^Connection timeout:/) {
+        # Connection timeout: http://c.tile.openstreetmap.org/18/136116/87842.png
+        $stats{'connection-timeout'}++;
+
+    } elsif ($c =~ m/^Connection failure:/) {
+        # Connection failure: http://127.0.0.1:8080/
+        $stats{'connection-failure'}++;
+    }
+    if ($cli_options{'passed-request-statistics-threshold'} != 0) {
+        $c =~ m/^[^:]+: (.*)/;
+        if ($stats{'passed-request-url'}{$1}) {
+            $stats{'passed-request-url'}{$1}-- ;
+            if ($stats{'passed-request-url'}{$1} == 0) {
+                delete($stats{'passed-request-url'}{$1});
+            }
+        }
     }
 }
 
 
-sub gather_loglevel_error_stats ($$) {
+sub gather_loglevel_error_stats($$) {
 
     my $c = shift;
     my $thread = shift;
@@ -2028,7 +2371,7 @@ sub gather_loglevel_error_stats ($$) {
     }
 }
 
-sub gather_loglevel_connect_stats ($$) {
+sub gather_loglevel_connect_stats($$) {
 
     my ($c, $thread) = @_;
     our %thread_data;
@@ -2070,10 +2413,11 @@ sub gather_loglevel_connect_stats ($$) {
     }
 }
 
-sub gather_loglevel_header_stats ($$) {
+sub gather_loglevel_header_stats($$) {
 
     my ($c, $thread) = @_;
     our %stats;
+    our %cli_options;
 
     if ($c =~ m/^A HTTP\/1\.1 response without/ or
         $c =~ m/^Keeping the server header 'Connection: keep-alive' around./)
@@ -2081,24 +2425,13 @@ sub gather_loglevel_header_stats ($$) {
         # A HTTP/1.1 response without Connection header implies keep-alive.
         # Keeping the server header 'Connection: keep-alive' around.
         $stats{'server-keep-alive'}++;
-
-    } elsif ($c =~ m/^scan: ((\w+) (.+) (HTTP\/\d\.\d))/) {
-
-        # scan: HTTP/1.1 200 OK
-        $stats{'method'}{$2}++;
-        $stats{'resource'}{$3}++;
-        $stats{'http-version'}{$4}++;
-
-    } elsif ($c =~ m/^scan: Host: ([^\s]+)/) {
-
-        # scan: Host: p.p
-        $stats{'hosts'}{$1}++;
     }
 }
 
-sub init_stats () {
+sub init_stats() {
     our %stats = (
         requests => 0,
+        requests_clf => 0,
         crunches => 0,
         'server-keep-alive' => 0,
         'reused-connections' => 0,
@@ -2107,14 +2440,17 @@ sub init_stats () {
         'empty-responses-on-reused-connections' => 0,
         'fast-redirections' => 0,
         'blocked' => 0,
+        'connection-failure' => 0,
+        'connection-timeout' => 0,
         'reused-connections' => 0,
         'server-keep-alive' => 0,
         'closed-client-connections' => 0,
+        'content-size-total' => 0,
         );
         $stats{'client-requests-on-connection'}{1} = 0;
 }
 
-sub get_percentage ($$) {
+sub get_percentage($$) {
     my $big = shift;
     my $small = shift;
 
@@ -2129,48 +2465,73 @@ sub get_percentage ($$) {
     return sprintf("%.2f%%", $small / $big * 100);
 }
 
-sub print_stats () {
+sub print_stats() {
 
     our %stats;
     our %cli_options;
     my $new_connections = $stats{requests} - $stats{crunches} - $stats{'reused-connections'};
-    my $outgoing_requests = $stats{requests} - $stats{crunches};
     my $client_requests_checksum = 0;
+    my $requests_total;
 
-    if ($stats{requests} eq 0) {
+    if ($stats{requests_clf} && $stats{requests}
+        && $stats{requests_clf} != $stats{requests}) {
+        print "Inconsistent request counts: " . $stats{requests} . "/" . $stats{requests_clf} . "\n";
+    }
+
+    # To get the total number of requests we can use either the number
+    # of Common-Log-Format lines or the number of "Request:" messages.
+    # We prefer the number of CLF lines if available because using
+    # it works when analysing old log files from Privoxy versions before 3.0.29.
+    # In Privoxy 3.0.28 and earlier "Request:" messages excluded
+    # crunched messages.
+    $requests_total = $stats{requests_clf} ? $stats{requests_clf} : $stats{requests};
+
+    if ($requests_total eq 0) {
         print "No requests yet.\n";
         return;
     }
 
-    print "Client requests total: " . $stats{requests} . "\n";
-    print "Crunches: " . $stats{crunches} . " (" .
-        get_percentage($stats{requests}, $stats{crunches}) . ")\n";
-    print "Blocks: " . $stats{'blocked'} . " (" .
-        get_percentage($stats{requests}, $stats{'blocked'}) . ")\n";
-    print "Fast redirections: " . $stats{'fast-redirections'} . " (" .
-        get_percentage($stats{requests}, $stats{'fast-redirections'}) . ")\n";
-    print "Outgoing requests: " . $outgoing_requests . " (" .
-        get_percentage($stats{requests}, $outgoing_requests) . ")\n";
+    print "Client requests total: " . $requests_total . "\n";
+    if ($stats{crunches}) {
+        my $outgoing_requests = $requests_total - $stats{crunches};
+        print "Crunches: " . $stats{crunches} . " (" .
+            get_percentage($requests_total, $stats{crunches}) . ")\n";
+        print "Blocks: " . $stats{'blocked'} . " (" .
+            get_percentage($requests_total, $stats{'blocked'}) . ")\n";
+        print "Fast redirections: " . $stats{'fast-redirections'} . " (" .
+            get_percentage($requests_total, $stats{'fast-redirections'}) . ")\n";
+        print "Connection timeouts: " . $stats{'connection-timeout'} . " (" .
+            get_percentage($requests_total, $stats{'connection-timeout'}) . ")\n";
+        print "Connection failures: " . $stats{'connection-failure'} . " (" .
+            get_percentage($requests_total, $stats{'connection-failure'}) . ")\n";
+        print "Outgoing requests: " . $outgoing_requests . " (" .
+            get_percentage($requests_total, $outgoing_requests) . ")\n";
+    } else {
+        print "No crunches detected. Is 'debug 1024' enabled?\n";
+    }
+
     print "Server keep-alive offers: " . $stats{'server-keep-alive'} . " (" .
-        get_percentage($stats{requests}, $stats{'server-keep-alive'}) . ")\n";
+        get_percentage($requests_total, $stats{'server-keep-alive'}) . ")\n";
     print "New outgoing connections: " . $new_connections . " (" .
-        get_percentage($stats{requests}, $new_connections) . ")\n";
-    print "Reused connections: " . $stats{'reused-connections'} . " (" .
-        get_percentage($stats{requests}, $stats{'reused-connections'}) .
+        get_percentage($requests_total, $new_connections) . ")\n";
+    print "Reused server connections: " . $stats{'reused-connections'} . " (" .
+        get_percentage($requests_total, $stats{'reused-connections'}) .
         "; server offers accepted: " .
         get_percentage($stats{'server-keep-alive'}, $stats{'reused-connections'}) . ")\n";
     print "Empty responses: " . $stats{'empty-responses'} . " (" .
-        get_percentage($stats{requests}, $stats{'empty-responses'}) . ")\n";
+        get_percentage($requests_total, $stats{'empty-responses'}) . ")\n";
     print "Empty responses on new connections: "
          . $stats{'empty-responses-on-new-connections'} . " (" .
-        get_percentage($stats{requests}, $stats{'empty-responses-on-new-connections'})
+        get_percentage($requests_total, $stats{'empty-responses-on-new-connections'})
         . ")\n";
     print "Empty responses on reused connections: " .
         $stats{'empty-responses-on-reused-connections'} . " (" .
-        get_percentage($stats{requests}, $stats{'empty-responses-on-reused-connections'}) .
+        get_percentage($requests_total, $stats{'empty-responses-on-reused-connections'}) .
         ")\n";
     print "Client connections: " .  $stats{'closed-client-connections'} . "\n";
-
+    if ($stats{'content-size-total'}) {
+        print "Bytes of content transferred to the client: " .  $stats{'content-size-total'} . "\n";
+    }
     my $lines_printed = 0;
     print "Client requests per connection distribution:\n";
     foreach my $client_requests (sort {
@@ -2189,19 +2550,31 @@ sub print_stats () {
         printf "Enable --show-complete-request-distribution to get less common numbers as well.\n";
     }
     # Due to log rotation we may not have a complete picture for all the requests
-    printf "Improperly accounted requests: ~%d\n", abs($stats{requests} - $client_requests_checksum);
+    printf "Improperly accounted requests: ~%d\n", abs($requests_total - $client_requests_checksum);
 
-    if ($stats{method} eq 0) {
-        print "No response lines parsed yet yet.\n";
-        return;
+    if (exists $stats{method}) {
+        print "Method distribution:\n";
+        foreach my $method (sort {$stats{'method'}{$b} <=> $stats{'method'}{$a}} keys %{$stats{'method'}}) {
+            printf "%8d : %-8s\n", $stats{'method'}{$method}, $method;
+        }
+    } else {
+        print "Method distribution unknown. No CLF message parsed yet. Is 'debug 512' enabled?\n";
     }
-    print "Method distribution:\n";
-    foreach my $method (sort {$stats{'method'}{$b} <=> $stats{'method'}{$a}} keys %{$stats{'method'}}) {
-        printf "%8d : %-8s\n", $stats{'method'}{$method}, $method;
+    if (exists $stats{'http-version'}) {
+        print "Client HTTP versions:\n";
+        foreach my $http_version (sort {$stats{'http-version'}{$b} <=> $stats{'http-version'}{$a}} keys %{$stats{'http-version'}}) {
+            printf "%8d : %-8s\n",  $stats{'http-version'}{$http_version}, $http_version;
+        }
+    } else {
+        print "HTTP version distribution unknown. No CLF message parsed yet. Is 'debug 512' enabled?\n";
     }
-    print "Client HTTP versions:\n";
-    foreach my $http_version (sort {$stats{'http-version'}{$b} <=> $stats{'http-version'}{$a}} keys %{$stats{'http-version'}}) {
-        printf "%d : %s\n",  $stats{'http-version'}{$http_version}, $http_version;
+    if (exists $stats{'status-code'}) {
+        print "HTTP status codes according to 'debug 512' (status codes sent by the server may differ):\n";
+        foreach my $status_code (sort {$stats{'status-code'}{$b} <=> $stats{'status-code'}{$a}} keys %{$stats{'status-code'}}) {
+            printf "%8d : %-8d\n",  $stats{'status-code'}{$status_code}, $status_code;
+        }
+    } else {
+        print "Status code distribution unknown. No CLF message parsed yet. Is 'debug 512' enabled?\n";
     }
 
     if ($cli_options{'url-statistics-threshold'} == 0) {
@@ -2217,6 +2590,19 @@ sub print_stats () {
         }
     }
 
+    if ($cli_options{'passed-request-statistics-threshold'} == 0) {
+        print "Passed request statistics are disabled. Increase --passed-request-statistics-threshold to enable them.\n";
+    } else {
+        print "Requested requests that were passed:\n";
+        foreach my $passed_url (sort {$stats{'passed-request-url'}{$b} <=> $stats{'passed-request-url'}{$a}}
+                                keys %{$stats{'passed-request-url'}}) {
+            if ($stats{'passed-request-url'}{$passed_url} < $cli_options{'passed-request-statistics-threshold'}) {
+                print "Skipped statistics for passed URLs below the treshold.\n";
+                last;
+            }
+            printf "%d : %s\n", $stats{'passed-request-url'}{$passed_url}, $passed_url;
+        }
+    }
     if ($cli_options{'host-statistics-threshold'} == 0) {
         print "Host statistics are disabled. Increase --host-statistics-threshold to enable them.\n";
     } else {
@@ -2236,7 +2622,7 @@ sub print_stats () {
 # Functions that actually print stuff
 ################################################################################
 
-sub print_clf_message () {
+sub print_clf_message() {
 
     our ($ip, $timestamp, $request_line, $status_code, $size);
     my $output = '';
@@ -2258,15 +2644,17 @@ sub print_clf_message () {
     print $output;
 }
 
-sub print_non_clf_message ($) {
+sub print_non_clf_message($) {
 
     my $content = shift;
+    my $date_string = $keep_date_mode ? $req{$t}{'day'} . ' ' : '';
     my $msec_string = $no_msecs_mode ? '' : '.' . $req{$t}{'msecs'};
     my $line_start = $html_output_mode ? '' : $h{"Standard"};
 
     return if DEBUG_SUPPRESS_LOG_MESSAGES;
 
     print $line_start
+        . $date_string
         . $time_colours[$time_colour_index % 2]
         . $req{$t}{'time-stamp'}
         . $msec_string
@@ -2283,7 +2671,7 @@ sub print_non_clf_message ($) {
         . $line_end;
 }
 
-sub shorten_thread_id ($) {
+sub shorten_thread_id($) {
 
     my $thread_id = shift;
 
@@ -2297,7 +2685,7 @@ sub shorten_thread_id ($) {
     return $short_thread_ids{$thread_id}
 }
 
-sub parse_loop () {
+sub parse_loop() {
 
     my ($day, $time_stamp, $thread, $log_level, $content, $c, $msecs);
     my $last_msecs  = 0;
@@ -2321,8 +2709,9 @@ sub parse_loop () {
         'Force'             => \&handle_loglevel_force,
         'Error'             => \&handle_loglevel_error,
         'Fatal error'       => \&handle_loglevel_ignore,
-        'Writing'           => \&handle_loglevel_ignore,
-        'Received'          => \&handle_loglevel_ignore,
+        'Writing'           => \&handle_loglevel_writing,
+        'Received'          => \&handle_loglevel_received,
+        'Tagging'           => \&handle_loglevel_tagging,
         'Actions'           => \&handle_loglevel_ignore,
         'Unknown log level' => \&handle_loglevel_ignore,
     );
@@ -2397,9 +2786,9 @@ sub parse_loop () {
     }
 }
 
-sub stats_loop () {
+sub stats_loop() {
 
-    my ($day, $time_stamp, $msecs, $thread, $log_level, $content);
+    my ($day, $time_stamp, $thread, $log_level, $content);
     my $strict_checks = cli_option_is_set('strict-checks');
     my %log_level_handlers = (
          'Connect:'           => \&gather_loglevel_connect_stats,
@@ -2420,15 +2809,20 @@ sub stats_loop () {
          'Redirect:'          => \&handle_loglevel_ignore,
          'Unknown log level:' => \&handle_loglevel_ignore,
          'Writing:'           => \&handle_loglevel_ignore,
+         'Tagging:'           => \&handle_loglevel_ignore,
     );
 
     while (<>) {
         (undef, $time_stamp, $thread, $log_level, $content) = split(/ /, $_, 5);
 
-        # Skip LOG_LEVEL_CLF
-        next if (not defined($log_level) or $time_stamp eq "-");
 
-        if (defined($log_level_handlers{$log_level})) {
+        next if (not defined($log_level));
+
+        if ($time_stamp eq "-") {
+
+            gather_loglevel_clf_stats($content);
+
+        } elsif (defined($log_level_handlers{$log_level})) {
 
             $content = $log_level_handlers{$log_level}($content, $thread);
 
@@ -2440,6 +2834,75 @@ sub stats_loop () {
 
     print_stats();
 
+}
+
+# Convert a timestamp like 18:07:28.733 into milliseconds
+sub time_stamp_to_msecs($) {
+    my $time_stamp = shift;
+
+    if ($time_stamp =~ /(\d\d):(\d\d):(\d\d)\.(\d{3})/) {
+        my ($hours, $minutes, $seconds, $msecs) = ($1, $2, $3, $4);
+
+        $msecs += $seconds * 1000;
+        $msecs += $minutes * 1000 * 60;
+        $msecs += $hours   * 1000 * 60 * 60;
+
+        return $msecs;
+    }
+    return undef;
+}
+
+sub inactivity_detection_loop() {
+
+    our %cli_options;
+    my ($date, $time_stamp, $thread, $log_level, $content);
+    my ($msecs, $previous_msecs, $inactivity);
+    my $inactivity_threshold = $cli_options{'inactivity-threshold'};
+    my $previous_date;
+    my $log_messages_out_of_order = 0;
+
+    while (<>) {
+        ($date, $time_stamp, $thread, $log_level, $content) = split(/ /, $_, 5);
+
+        next if (not defined($log_level));
+        next if ($time_stamp eq "-");
+        $msecs = time_stamp_to_msecs($time_stamp);
+        unless (defined $msecs) {
+            print "Failed to convert $time_stamp into milliseconds\n";
+            print "$_";
+            next;
+        }
+        unless (defined $previous_msecs) {
+            $previous_msecs = $msecs;
+            $previous_date = $date;
+            print "$_";
+            next;
+        }
+        $inactivity = $msecs - $previous_msecs;
+        if ($inactivity < 0) {
+            # This can happen if there's a high load in which case
+            # a Privoxy thread may be moved off schedule between
+            # getting the timestamp for the log message and actually
+            # writing it.
+            $log_messages_out_of_order++;
+        }
+        if ($inactivity > $inactivity_threshold) {
+            if ($previous_date eq $date) {
+                print "Detected inactivity: $inactivity msecs\n";
+            } else {
+                # While we could include the date in the timestamp
+                # we currently don't.
+                print "Detected date change. Timestamp difference ignored.\n";
+            }
+        }
+        print "$_";
+        $previous_msecs = $msecs;
+        $previous_date = $date;
+    }
+    if ($log_messages_out_of_order) {
+        print "At least $log_messages_out_of_order messages were written out of the chronological order.\n";
+        print "This can result in false positives. Consider sorting the log first.\n";
+    }
 }
 
 sub unbreak_lines_only_loop() {
@@ -2475,11 +2938,14 @@ sub VersionMessage {
     print $version_message;
 }
 
-sub get_cli_options () {
+sub get_cli_options() {
 
     our %cli_options = (
+        'detect-inactivity'        => CLI_OPTION_DETECT_INACTIVITY,
+        'inactivity-threshold'     => CLI_OPTION_INACTIVITY_THRESHOLD,
         'html-output'              => CLI_OPTION_DEFAULT_TO_HTML_OUTPUT,
         'title'                    => CLI_OPTION_TITLE,
+        'keep-date'                => CLI_OPTION_KEEP_DATE,
         'no-syntax-highlighting'   => CLI_OPTION_NO_SYNTAX_HIGHLIGHTING,
         'no-embedded-css'          => CLI_OPTION_NO_EMBEDDED_CSS,
         'no-msecs'                 => CLI_OPTION_NO_MSECS,
@@ -2490,12 +2956,16 @@ sub get_cli_options () {
         'url-statistics-threshold' => CLI_OPTION_URL_STATISTICS_THRESHOLD,
         'unbreak-lines-only'       => CLI_OPTION_UNBREAK_LINES_ONLY,
         'host-statistics-threshold'=> CLI_OPTION_HOST_STATISTICS_THRESHOLD,
+        'passed-request-statistics-threshold' => CLI_OPTION_PASSED_REQUEST_STATISTICS_THRESHOLD,
         'show-complete-request-distribution' => CLI_OPTION_SHOW_COMPLETE_REQUEST_DISTRIBUTION,
     );
 
     GetOptions (
+        'detect-inactivity'        => \$cli_options{'detect-inactivity'},
+        'inactivity-threshold=i'   => \$cli_options{'inactivity-threshold'},
         'html-output'              => \$cli_options{'html-output'},
         'title'                    => \$cli_options{'title'},
+        'keep-date'                => \$cli_options{'keep-date'},
         'no-syntax-highlighting'   => \$cli_options{'no-syntax-highlighting'},
         'no-embedded-css'          => \$cli_options{'no-embedded-css'},
         'no-msecs'                 => \$cli_options{'no-msecs'},
@@ -2506,6 +2976,7 @@ sub get_cli_options () {
         'unbreak-lines-only'       => \$cli_options{'unbreak-lines-only'},
         'url-statistics-threshold=i'=> \$cli_options{'url-statistics-threshold'},
         'host-statistics-threshold=i'=> \$cli_options{'host-statistics-threshold'},
+        'passed-request-statistics-threshold=i' => \$cli_options{'passed-request-statistics-threshold'},
         'show-complete-request-distribution' => \$cli_options{'show-complete-request-distribution'},
         'version'                  => sub { VersionMessage && exit(0) },
         'help'                     => \&help,
@@ -2513,11 +2984,12 @@ sub get_cli_options () {
 
    $html_output_mode = cli_option_is_set('html-output');
    $no_msecs_mode = cli_option_is_set('no-msecs');
+   $keep_date_mode = cli_option_is_set('keep-date');
    $shorten_thread_ids = cli_option_is_set('shorten-thread-ids');
    $line_end = get_line_end();
 }
 
-sub help () {
+sub help() {
 
     our %cli_options;
 
@@ -2526,6 +2998,8 @@ sub help () {
     print << "    EOF"
 
 Options and their default values if they have any:
+    [--detect-innactivity]
+    [--inactivity-threshold $cli_options{'inactivity-threshold'}]
     [--host-statistics-threshold $cli_options{'host-statistics-threshold'}]
     [--html-output]
     [--no-embedded-css]
@@ -2537,6 +3011,7 @@ Options and their default values if they have any:
     [--statistics]
     [--unbreak-lines-only]
     [--url-statistics-threshold $cli_options{'url-statistics-threshold'}]
+    [--passed-request-statistics-threshold $cli_options{'passed-request-statistics-threshold'}]
     [--title $cli_options{'title'}]
     [--version]
 see "perldoc $0" for more information
@@ -2548,24 +3023,24 @@ see "perldoc $0" for more information
 ################################################################################
 # main
 ################################################################################
-sub main () {
+sub main() {
 
     get_cli_options();
     set_background(DEFAULT_BACKGROUND);
     prepare_our_stuff();
-
-    print_intro();
 
     # XXX: should explicitly reject incompatible argument combinations
     if (cli_option_is_set('unbreak-lines-only')) {
         unbreak_lines_only_loop();
     } elsif (cli_option_is_set('statistics')) {
         stats_loop();
+    } elsif (cli_option_is_set('detect-inactivity')) {
+        inactivity_detection_loop();
     } else {
+        print_intro();
         parse_loop();
+        print_outro();
     }
-
-    print_outro();
 }
 
 main();
@@ -2576,7 +3051,8 @@ B<privoxy-log-parser> - A parser and syntax-highlighter for Privoxy log messages
 
 =head1 SYNOPSIS
 
-B<privoxy-log-parser> [B<--html-output>]
+B<privoxy-log-parser> [B<--detect-inactivity>] [B<--inactivity-threshold msecs>]
+[B<--html-output>]
 [B<--no-msecs>] [B<--no-syntax-higlighting>] [B<--statistics>]
 [B<--shorten-thread-ids>] [B<--show-ineffective-filters>]
 [B<--url-statistics-threshold>] [B<--version>]
@@ -2603,21 +3079,36 @@ will hide the "filter foo caused 0 hits" message.
 
 =head1 OPTIONS
 
+[B<--detect-inactivity>] Instead of syntax highlighting, detect periods
+of log inactivity of more than the amount of milliseconds specified with
+the B<--inactivity-threshold> option. Mainly useful for debugging.
+
 [B<--host-statistics-threshold>] Only show the request count for a host
 if it's above or equal to the given threshold. If the threshold is 0, host
 statistics are disabled.
 
-[B<--html-output>] Use HTML and CSS for the syntax highlighting. If this option is
+[B<--html-output>] Use HTML and CSS when syntax highlighting. If this option is
 omitted, ANSI escape sequences are used unless B<--no-syntax-highlighting> is active.
 This option is only intended to make embedding log excerpts in web pages easier.
 It does not escape any input!
 
-[B<--no-msecs>] Don't expect milisecond resolution
+[B<--inactivity-threshold msecs>] Specifies the number of milliseconds between
+log messages to consider inactivity when running in [B<--detect-inactivity>]
+mode.
+
+[B<--keep-date>] Don't remove the date when printing highlighted log messages.
+Useful when parsing multiple log files at once.
+
+[B<--no-msecs>] Don't expect millisecond resolution
 
 [B<--no-syntax-highlighting>] Disable syntax-highlighting. Useful when
 the filtered output is piped into less in which case the ANSI control
 codes don't work, or if the terminal itself doesn't support the control
 codes.
+
+[B<--passed-request-statistics-threshold>] Only show the request count for
+a passed requests if it's above or equal to the given threshold. If the
+threshold is 0, passed request statistics are disabled.
 
 [B<--shorten-thread-ids>] Shorten the thread ids to a three-digit decimal number.
 Note that the mapping from thread ids to shortened ids is created at run-time
@@ -2701,7 +3192,7 @@ Many settings can't be controlled through command line options yet.
 
 =head1 SEE ALSO
 
-privoxy(1)
+privoxy(8)
 
 =head1 AUTHOR
 

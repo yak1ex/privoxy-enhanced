@@ -1,189 +1,149 @@
-               Announcing Privoxy 3.0.26 stable
+               Announcing Privoxy 3.0.34 stable
 --------------------------------------------------------------------
 
-Privoxy 3.0.26 stable is a bug-fix release for the previously
-released 3.0.25 beta which introduced client-specific tags and
-included a couple of minor improvements.
+Privoxy 3.0.34 fixes a few minor bugs and comes with a couple of
+general improvements and new features.
+
+Please note that Google started to bounce messages from the Privoxy
+mailing lists a couple of months ago. As a result gmail users have
+been unsubscribed by Mailman. If you are affected by this, please
+resubscribe with a different mail address. The Privoxy project has
+limited resources and limited time to investigate an issue that
+only affects gmail addresses.
+
 --------------------------------------------------------------------
-ChangeLog for Privoxy
+ChangeLog for Privoxy 3.0.34
 --------------------------------------------------------------------
 - Bug fixes:
-  - Fixed crashes with "listen-addr :8118" (SF Bug #902).
-    The regression was introduced in 3.0.25 beta and reported
-    by Marvin Renich in Debian bug #834941.
+  - Improve the handling of chunk-encoded responses by buffering the data
+    even if filters are disabled and properly keeping track of where the
+    various chunks are supposed to start and end. Previously Privoxy would
+    merely check the last bytes received to see if they looked like the
+    last-chunk. This failed to work if the last-chunk wasn't received in one
+    read and could also result in actual data being misdetected
+    as last-chunk.
+    Should fix: SF support request #1739.
+    Reported by: withoutname.
+  - remove_chunked_transfer_coding(): Refuse to de-chunk invalid data
+    Previously the data could get corrupted even further.
+    Now we simply pass the unmodified data to the client.
+  - gif_deanimate(): Tolerate multiple image extensions in a row.
+    This allows to deanimate all the gifs on:
+    https://commons.wikimedia.org/wiki/Category:Animated_smilies
+    Fixes SF bug #795 reported by Celejar.
+  - OpenSSL generate_host_certificate(): Use X509_get_subject_name()
+    instead of X509_get_issuer_name() to get the issuer for generated
+    website certificates so there are no warnings in the browser when using
+    an intermediate CA certificate instead of a self-signed root certificate.
+    Problem reported and patch submitted by Chakib Benziane.
+  - can_filter_request_body(): Fix a log message that contained a spurious u.
+  - handle_established_connection(): Check for pending TLS data from the client
+    before checking if data is available on the connection.
+    The TLS library may have already consumed all the data from the client
+    response in which case poll() and select() will not detect that data is
+    available to be read.
+    Sponsored by: Robert Klemme.
+  - ssl_send_certificate_error(): Don't crash if there's no certificate
+    information available. This is only relevant when Privoxy is built with
+    wolfSSL 5.0.0 or later (code not yet published). Earlier wolfSSL versions
+    or the other TLS backends don't seem to trigger the crash.
+  - socks5_connect(): Add support for target hosts specified as IPv4 address
+    Previously the IP address was sent as domain.
 
 - General improvements:
-  - Log when privoxy is toggled on or off via cgi interface.
-  - Highlight the "Info: Now toggled " on/off log message
-    in the Windows log viewer.
-  - Highlight the loading actions/filter file log message
-    in the Windows log viewer.
-  - Mention client-specific tags on the toggle page as a
-    potentionally more appropriate alternative.
-
-- Documentation improvements:
-  - Update download section on the homepage.
-    The downloads are available from the website now.
-  - Add sponsor FAQ.
-  - Remove obsolete reference to mailing lists hosted at SourceForge.
-  - Update the "Before the Release" section of the developer manual.
-
-- Infrastructure improvements:
-  - Add perl script to generate an RSS feed for the packages
-    Submitted by "Unknown".
-
-- Build system improvements:
-  - strptime.h: fix a compiler warning about ambiguous else.
-  - configure.in: Check for Docbook goo on the BSDs as well.
-  - GNUMakefile.in: Let the dok-user target remove temporary files.
-
-*** Version 3.0.20 beta ***
-
-- Bug fixes:
-  - Always use the current toggle state for new requests.
-    Previously new requests on reused connections inherited
-    the toggle state from the previous request even though
-    the toggle state could have changed.
-    Reported by Robert Klemme.
-  - Fixed two buffer-overflows in the (deprecated) static
-    pcre code. These bugs are not considered security issues
-    as the input is trusted.
-    Found with afl-fuzz and ASAN.
-
-- General improvements:
-  - Added support for client-specific tags which allow Privoxy
-    admins to pre-define tags that are set for all requests from
-    clients that previously opted in through the CGI interface.
-    They are useful in multi-user setups where admins may
-    want to allow users to disable certain actions and filters
-    for themselves without affecting others.
-    In single-user setups they are useful to allow more fine-grained
-    toggling. For example to disable request blocking while still
-    crunching cookies, or to disable experimental filters only.
-    This is an experimental feature, the syntax and behaviour may
-    change in future versions.
-    Sponsored by Robert Klemme.
-  - Dynamic filters and taggers now support a $listen-address variable
-    which contains the address the request came in on.
-    For external filters the variable is called $PRIVOXY_LISTEN_ADDRESS.
-    Original patch contributed by pursievro.
-  - Add client-header-tagger 'listen-address'.
-  - Include the listen-address in the log message when logging new requests.
-    Patch contributed by pursievro.
-  - Turn invalid max-client-connections values into fatal errors.
-  - The show-status page now shows whether or not dates before 1970
-    and after 2038 are expected to be handled properly.
-    This is mainly useful for Privoxy-Regression-Test but could
-    also come handy when dealing with time-related support requests.
-  - On Mac OS X the thread id in log messages are more likely to
-    be unique now.
-  - When complaining about missing filters, the filter type is logged
-    as well.
-  - A couple of harmless coverity warnings were silenced
-    (CID #161202, CID #161203, CID #161211).
+  - Add a client-body-tagger action which creates tags based on
+    the content of the request body.
+    Sponsored by: Robert Klemme.
+  - When client-body filters are enabled, buffer the whole request
+    before opening a connection to the server.
+    Makes it less likely that the server connection times out
+    and we don't open a connection if the buffering fails anyway.
+    Sponsored by: Robert Klemme.
+  - Add periods to a couple of log messages.
+  - accept_connection(): Add missing space to a log message.
+  - Initialize ca-related defaults with strdup_or_die() so errors
+    aren't silently ignored.
+  - make_path: Use malloc_or_die() in cases where allocation errors
+    were already fatal anyway.
+  - handle_established_connection(): Improve an error message slightly.
+  - receive_client_request(): Reject https URLs without CONNECT request.
+  - Include all requests in the statistics if mutexes are available.
+    Previously in case of reused connections only the last request got
+    counted. The statistics still aren't perfect but it's an improvement.
+  - Add read_socks_reply() and start using it in socks5_connect()
+    to apply the socket timeout more consistently.
+  - socks5_connect(): Deal with domain names in the socks reply
+  - Add a filter for bundeswehr.de that hides the cookie and
+    privacy info banner.
 
 - Action file improvements:
-  - Filtering is disabled for Range requests to let download resumption
-    and Windows updates work with the default configuration.
-  - Unblock ".ardmediathek.de/".
-    Reported by ThTomate in #932.
+  - Disable filter{banners-by-size} for .freiheitsfoo.de/.
+  - Disable filter{banners-by-size} for freebsdfoundation.org/.
+  - Disable fast-redirects for consent.youtube.com/.
+  - Block requests to ups.xplosion.de/.
+  - Block requests for elsa.memoinsights.com/t.
+  - Fix a typo in a test.
+  - Disable fast-redirects for launchpad.net/.
+  - Unblock .eff.org/.
+  - Stop unblocking .org/.*(image|banner) which appears to be too generous
+    It let requests like:
+    https://stats.noblogs.org/piwik.php?action_name=anti%20gentrifizierungs%20fest&idsite=10175&rec=1&r=220192&h=17&m=7&s=44&url=https%3A%2F%2Fmuellemcalling.noblogs.org%2F&urlref=https%3A%2F%2Fmuellemcalling.noblogs.org%2Finfostande%2F&_id=&_idn=1&_refts=0&send_image=0&cookie=1&res=1366x768&pv_id=eqr7jX&pf_net=7&pf_srv=3&pf_tfr=2281&pf_dm1=156
+    pass.
+    The example URL http://www.gnu.org/graphics/gnu-head-banner.png is
+    already unblocked due to .gnu.org being unblocked.
+  - Unblock adfd.org/.
+  - Disable filter{banners-by-link} for .eff.org/.
+  - Block requests to odb.outbrain.com/.
+  - Disable fast-redirects for .gandi.net/.
+  - Disable fast-redirects{} for .onion/.*/status/.
+  - Disable fast-redirects{} for twitter.com/.*/status/.
+  - Unblock pinkstinks.de/.
+  - Disable fast-redirects for .hagalil.com/.
 
-- Documentation improvements:
-  - Add FAQ entry for crashes caused by memory limits.
-  - Remove obsolete FAQ entry about a bug in PHP 4.2.3.
-  - Mention the new mailing lists were appropriate.
-    As the archives have not been migrated, continue to
-    mention the archives at SF in the contacting section
-    for now.
-  - Note that the templates should be adjusted if Privoxy is
-    running as intercepting proxy without getting all requests.
-  - A bunch of links were converted to https://.
-  - Rephrase onion service paragraph to make it more obvious
-    that Tor is involved and that the whole website (and not
-    just the homepage) is available as onion service.
-  - Streamline the "More information" section on the homepage further
-    by additionally ditching the link to the 'See also' section
-    of the user manual. The section contains mostly links that are
-    directly reachable from the homepage already and the rest is
-    not significant enough to get a link from the homepage.
-  - Change the add-header{} example to set the DNT header
-    and use a complete section to make copy and pasting
-    more convenient.
-    Add a comment to make it obvious that adding the
-    header is not recommended for obvious reasons.
-    Using the DNT header as example was suggested by
-    Leo Wzukw.
-  - Streamline the support-and-service template
-    Instead of linking to the various support trackers
-    (whose URLs hopefully change soon), link to the
-    contact section of the user manual to increase the
-    chances that users actually read it.
-  - Add a FAQ entry for tainted sockets.
-  - More sections in the documentation have stable URLs now.
-  - FAQ: Explain why 'ping config.privoxy.org' is not expected
-    to reach a local Privoxy installation.
-  - Note that donations done through Zwiebelfreunde e.V. currently
-    can't be checked automatically.
-  - Updated section regarding starting Privoxy under OS X.
-  - Use dedicated start instructions for FreeBSD and ElectroBSD.
-  - Removed release instructions for AIX. They haven't been working
-    for years and unsurprisingly nobody seems to care.
-  - Removed obsolete reference to the solaris-dist target.
-  - Updated the release instructions for FreeBSD.
-  - Removed unfinished release instructions for Amiga OS and HP-UX 11.
-  - Added a pointer to the Cygwin Time Machine for getting the last release of
-    Cygwin version 1.5 to use for building Privoxy on Windows.
-  - Various typos have been fixed.
+- Privoxy-Log-Parser:
+  - Bump version to 0.9.5.
+  - Highlight more log messages.
+  - Highlight the Crunch reason only once. Previously the "crunch reason"
+    could also be highlighted when the URL contained a matching string.
+    The real crunch reason only occurs once per line, so there's no need
+    to continue looking for it after it has been found once.
+    While at it, add a comment with an example log line.
 
-- Infrastructure improvements:
-  - The website is no longer hosted at SourceForge and
-    can be reached through https now.
-  - The mailing lists at SourceForge have been deprecated,
-    you can subscribe to the new ones at: https://lists.privoxy.org/
-  - Migrating the remaining services from SourceForge is
-    work in progress (TODO list item #53).
+- uagen:
+  - Bump version to 1.2.4.
+  - Update BROWSER_VERSION and BROWSER_REVISION to 102.0
+    to match the User-Agent of the current Firefox ESR.
+  - Explicitly document that changing the 'Gecko token' is suspicious.
+  - Consistently use a lower-case 'c' as copyright symbol.
+  - Bump copyright.
+  - Add 'aarch64' as Linux architecture.
+  - Add OpenBSD architecture 'arm64'.
+  - Stop using sparc64 as FreeBSD architecture.
+    It hasn't been supported for a while now.
 
-- Build system improvements:
-  - Add configure argument to optimistically redefine FD_SETSIZE
-    with the intent to change the maximum number of client
-    connections Privoxy can handle. Only works with some libcs.
-    Sponsored by Robert Klemme.
-  - Let the tarball-dist target skip files in ".git".
-  - Let the tarball-dist target work in cwds other than current.
-  - Make the 'clean' target faster when run from a git repository.
-  - Include tools in the generic distribution.
-  - Let the gen-dist target work in cwds other than current.
-  - Sort find output that is used for distribution tarballs
-    to get reproducible results.
-  - Don't add '-src' to the name of the tar ball generated by the
-    gen-dist target. The package isn't a source distribution but a
-    binary package.
-    While at it, use a variable for the name to reduce the chances
-    that the various references get out of sync and fix the gen-upload
-    target which was looking in the wrong directory.
-  - Add regression-tests.action to the files that are distributed.
-  - The gen-dist target which was broken since 2002 (r1.92) has been fixed.
-  - Remove genclspec.sh which has been obsolete since 2009.
-  - Remove obsolete reference to Redhat spec file.
-  - Remove the obsolete announce target which has been commented out years ago.
-  - Let rsync skip files if the checksums match.
+- Build system:
+  - Makefile: Add a 'dok' target that depends on the 'error' target
+    to show the "You are not using GNU make or did nor run configure"
+    message.
+  - configure: Fix --with-msan option.
+    Also (probably) reported by Andrew Savchenko.
 
-- Privoxy-Regression-Test:
-  - Add a "Default level offset" directive which can be used to
-    change the default level by a given value.
-    This directive affects all tests located after it until the end
-    of the file or a another "Default level offset" directive is reached.
-    The purpose of this directive is to make it more convenient to skip
-    similar tests in a given file without having to remove or disable
-    the tests completely.
-  - Let test level 17 depend on FEATURE_64_BIT_TIME_T
-    instead of FEATURE_PTHREAD which has no direct connection
-    to the time_t size.
-  - Fix indentation in perldoc examples.
-  - Don't overlook directives in the first line of the action file.
-  - Bump version to 0.7.
-  - Fix detection of the Privoxy version now that https://
-    is used for the website.
+- macOS build system:
+  - Enable HTTPS inspection when building the macOS binary
+    (using OpenSSL as TLS library).
+
+- Documentation:
+  - Add OpenSSL to the list of libraries that may be licensed under the
+    Apache 2.0 license in which case the linked Privoxy binary has to be
+    distributed under the GPLv3 or later.
+  - config: Fix the documented ca-directory default value.
+    Reported by avoidr.
+  - Rebuild developer-manual and tidy with 'HTML Tidy for FreeBSD version 5.8.0'.
+  - Update developer manual with new macOS packaging instructions.
+  - Note that the FreeBSD installation instructions work for
+    ElectroBSD as well.
+  - Note that FreeBSD/ElectroBSD users can try to install Privoxy
+    as binary package using 'pkg'.
 
 -----------------------------------------------------------------
 About Privoxy:
@@ -196,19 +156,20 @@ flexible configuration and can be customized to suit individual needs and
 tastes. It has application for both stand-alone systems and multi-user
 networks.
 
-Privoxy is Free Software and licensed under the GNU GPLv2.
+Privoxy is Free Software and licensed under the GNU GPLv2 or later.
 
 Our TODO list is rather long. Helping hands and donations are welcome:
 
-  * https://www.privoxy.org/faq/general.html#PARTICIPATE
+  * https://www.privoxy.org/participate
 
-  * https://www.privoxy.org/faq/general.html#DONATE
+  * https://www.privoxy.org/donate
 
 At present, Privoxy is known to run on Windows 95 and later versions
-(98, ME, 2000, XP, Vista, Windows 7 etc.), GNU/Linux (RedHat, SuSE,
-Debian, Fedora, Gentoo, Slackware and others), Mac OS X (10.4 and
-upwards on PPC and Intel processors), OS/2, Haiku, DragonFly, ElectroBSD,
-FreeBSD, NetBSD, OpenBSD, Solaris, and various other flavors of Unix.
+(98, ME, 2000, XP, Vista, Windows 7, Windows 10 etc.), GNU/Linux
+(RedHat, SuSE, Debian, Fedora, Gentoo, Slackware and others),
+Mac OS X (10.4 and upwards on PPC and Intel processors), Haiku,
+DragonFly, ElectroBSD, FreeBSD, NetBSD, OpenBSD, Solaris,
+and various other flavors of Unix.
 
 In addition to the core features of ad blocking and cookie management,
 Privoxy provides many supplemental features, that give the end-user
@@ -223,6 +184,8 @@ more control, more privacy and more freedom:
 
   *  Supports tagging which allows to change the behaviour based on client
      and server headers.
+
+  *  Supports https inspection which allows to filter https requests.
 
   *  Can be run as an "intercepting" proxy, which obviates the need to
      configure browsers individually.

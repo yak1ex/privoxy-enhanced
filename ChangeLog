@@ -1,6 +1,1296 @@
 --------------------------------------------------------------------
 ChangeLog for Privoxy
 --------------------------------------------------------------------
+*** Version 3.0.34 stable ***
+
+- Bug fixes:
+  - Improve the handling of chunk-encoded responses by buffering the data
+    even if filters are disabled and properly keeping track of where the
+    various chunks are supposed to start and end. Previously Privoxy would
+    merely check the last bytes received to see if they looked like the
+    last-chunk. This failed to work if the last-chunk wasn't received in one
+    read and could also result in actual data being misdetected
+    as last-chunk.
+    Should fix: SF support request #1739.
+    Reported by: withoutname.
+  - remove_chunked_transfer_coding(): Refuse to de-chunk invalid data
+    Previously the data could get corrupted even further.
+    Now we simply pass the unmodified data to the client.
+  - gif_deanimate(): Tolerate multiple image extensions in a row.
+    This allows to deanimate all the gifs on:
+    https://commons.wikimedia.org/wiki/Category:Animated_smilies
+    Fixes SF bug #795 reported by Celejar.
+  - OpenSSL generate_host_certificate(): Use X509_get_subject_name()
+    instead of X509_get_issuer_name() to get the issuer for generated
+    website certificates so there are no warnings in the browser when using
+    an intermediate CA certificate instead of a self-signed root certificate.
+    Problem reported and patch submitted by Chakib Benziane.
+  - can_filter_request_body(): Fix a log message that contained a spurious u.
+  - handle_established_connection(): Check for pending TLS data from the client
+    before checking if data is available on the connection.
+    The TLS library may have already consumed all the data from the client
+    response in which case poll() and select() will not detect that data is
+    available to be read.
+    Sponsored by: Robert Klemme.
+  - ssl_send_certificate_error(): Don't crash if there's no certificate
+    information available. This is only relevant when Privoxy is built with
+    wolfSSL 5.0.0 or later (code not yet published). Earlier wolfSSL versions
+    or the other TLS backends don't seem to trigger the crash.
+  - socks5_connect(): Add support for target hosts specified as IPv4 address
+    Previously the IP address was sent as domain.
+
+- General improvements:
+  - Add a client-body-tagger action which creates tags based on
+    the content of the request body.
+    Sponsored by: Robert Klemme.
+  - When client-body filters are enabled, buffer the whole request
+    before opening a connection to the server.
+    Makes it less likely that the server connection times out
+    and we don't open a connection if the buffering fails anyway.
+    Sponsored by: Robert Klemme.
+  - Add periods to a couple of log messages.
+  - accept_connection(): Add missing space to a log message.
+  - Initialize ca-related defaults with strdup_or_die() so errors
+    aren't silently ignored.
+  - make_path: Use malloc_or_die() in cases where allocation errors
+    were already fatal anyway.
+  - handle_established_connection(): Improve an error message slightly.
+  - receive_client_request(): Reject https URLs without CONNECT request.
+  - Include all requests in the statistics if mutexes are available.
+    Previously in case of reused connections only the last request got
+    counted. The statistics still aren't perfect but it's an improvement.
+  - Add read_socks_reply() and start using it in socks5_connect()
+    to apply the socket timeout more consistently.
+  - socks5_connect(): Deal with domain names in the socks reply
+  - Add a filter for bundeswehr.de that hides the cookie and
+    privacy info banner.
+
+- Action file improvements:
+  - Disable filter{banners-by-size} for .freiheitsfoo.de/.
+  - Disable filter{banners-by-size} for freebsdfoundation.org/.
+  - Disable fast-redirects for consent.youtube.com/.
+  - Block requests to ups.xplosion.de/.
+  - Block requests for elsa.memoinsights.com/t.
+  - Fix a typo in a test.
+  - Disable fast-redirects for launchpad.net/.
+  - Unblock .eff.org/.
+  - Stop unblocking .org/.*(image|banner) which appears to be too generous
+    It let requests like:
+    https://stats.noblogs.org/piwik.php?action_name=anti%20gentrifizierungs%20fest&idsite=10175&rec=1&r=220192&h=17&m=7&s=44&url=https%3A%2F%2Fmuellemcalling.noblogs.org%2F&urlref=https%3A%2F%2Fmuellemcalling.noblogs.org%2Finfostande%2F&_id=&_idn=1&_refts=0&send_image=0&cookie=1&res=1366x768&pv_id=eqr7jX&pf_net=7&pf_srv=3&pf_tfr=2281&pf_dm1=156
+    pass.
+    The example URL http://www.gnu.org/graphics/gnu-head-banner.png is
+    already unblocked due to .gnu.org being unblocked.
+  - Unblock adfd.org/.
+  - Disable filter{banners-by-link} for .eff.org/.
+  - Block requests to odb.outbrain.com/.
+  - Disable fast-redirects for .gandi.net/.
+  - Disable fast-redirects{} for .onion/.*/status/.
+  - Disable fast-redirects{} for twitter.com/.*/status/.
+  - Unblock pinkstinks.de/.
+  - Disable fast-redirects for .hagalil.com/.
+
+- Privoxy-Log-Parser:
+  - Bump version to 0.9.5.
+  - Highlight more log messages.
+  - Highlight the Crunch reason only once. Previously the "crunch reason"
+    could also be highlighted when the URL contained a matching string.
+    The real crunch reason only occurs once per line, so there's no need
+    to continue looking for it after it has been found once.
+    While at it, add a comment with an example log line.
+
+- uagen:
+  - Bump version to 1.2.4.
+  - Update BROWSER_VERSION and BROWSER_REVISION to 102.0
+    to match the User-Agent of the current Firefox ESR.
+  - Explicitly document that changing the 'Gecko token' is suspicious.
+  - Consistently use a lower-case 'c' as copyright symbol.
+  - Bump copyright.
+  - Add 'aarch64' as Linux architecture.
+  - Add OpenBSD architecture 'arm64'.
+  - Stop using sparc64 as FreeBSD architecture.
+    It hasn't been supported for a while now.
+
+- Build system:
+  - Makefile: Add a 'dok' target that depends on the 'error' target
+    to show the "You are not using GNU make or did nor run configure"
+    message.
+  - configure: Fix --with-msan option.
+    Also (probably) reported by Andrew Savchenko.
+
+- macOS build system:
+  - Enable HTTPS inspection when building the macOS binary
+    (using OpenSSL as TLS library).
+
+- Documentation:
+  - Add OpenSSL to the list of libraries that may be licensed under the
+    Apache 2.0 license in which case the linked Privoxy binary has to be
+    distributed under the GPLv3 or later.
+  - config: Fix the documented ca-directory default value.
+    Reported by avoidr.
+  - Rebuild developer-manual and tidy with 'HTML Tidy for FreeBSD version 5.8.0'.
+  - Update developer manual with new macOS packaging instructions.
+  - Note that the FreeBSD installation instructions work for
+    ElectroBSD as well.
+  - Note that FreeBSD/ElectroBSD users can try to install Privoxy
+    as binary package using 'pkg'.
+
+*** Version 3.0.33 stable ***
+- Security/Reliability:
+  - cgi_error_no_template(): Encode the template name to prevent
+    XSS (cross-site scripting) when Privoxy is configured to servce
+    the user-manual itself.
+    Commit 0e668e9409c. OVE-20211102-0001. CVE-2021-44543.
+    Reported by: Artem Ivanov
+  - get_url_spec_param(): Free memory of compiled pattern spec
+    before bailing.
+    Reported by Joshua Rogers (Opera) who also provided the fix.
+    Commit 652b4b7cb0. OVE-20211201-0003. CVE-2021-44540.
+  - process_encrypted_request_headers(): Free header memory when
+    failing to get the request destination.
+    Reported by Joshua Rogers (Opera) who also provided the fix.
+    Commit 0509c58045. OVE-20211201-0002. CVE-2021-44541.
+  - send_http_request(): Prevent memory leaks when handling errors
+    Reported by Joshua Rogers (Opera) who also provided the fix.
+    Commit c48d1d6d08. OVE-20211201-0001. CVE-2021-44542.
+
+- Bug fixes:
+  - handle_established_connection(): Skip the poll()/select() calls
+    if TLS data is pending on the server socket. The TLS library may
+    have already consumed all the data from the server response in
+    which case poll() and select() will not detect that data is
+    available to be read.
+    Fixes SF bug #926 reported by Wen Yue.
+  - continue_https_chat(): Update csp->server_connection.request_sent
+    after sending the request to make sure the latency is calculated
+    correctly. Previously https connections were not reused after
+    timeout seconds after the first request made on the connection.
+  - free_pattern_spec(): Don't try to free an invalid pointer
+    when unloading an action file with a TAG pattern while
+    Privoxy has been compiled without FEATURE_PCRE_HOST_PATTERNS.
+    Closes: SF patch request #147. Patch by Maxim Antonov.
+  - Adjust build_request_line() to create a CONNECT request line when
+    https-inspecting and forwarding to a HTTP proxy.
+    Fixes SF bug #925 reported by Wen Yue.
+  - load_config(): Add a space that was missing in a log message.
+  - read_http_request_body(): Fix two error messages that used an
+    incorrect variable.
+  - If the the response is chunk-encoded, ignore the Content-Length
+    header sent by the server.
+    Allows to load https://redmine.lighttpd.net/ with filtering enabled.
+
+- General improvements:
+  - Allow to edit the add-header action through the CGI editor by
+    generalizing the code that got added with the suppress-tag action.
+    Closes SF patch request #146. Patch by Maxim Antonov.
+  - Add a CGI handler for /wpad.dat that returns a
+    Proxy Auto-Configuration (PAC) file.
+    Among other things, it can be used to instruct clients
+    through DHCP to use Privoxy as proxy.
+    For example with the dnsmasq option:
+    dhcp-option=252,http://config.privoxy.org/wpad.dat
+    Initial patch by Richard Schneidt.
+  - Don't log the applied actions in process_encrypted_request()
+    Log them in continue_https_chat() instead to mirror chat().
+    Prevents the applied actions from getting logged twice
+    for the first request on an https-inspected connection.
+  - OpenSSL generate_host_certificate(): Use config.privoxy.org as Common Name
+    Org and Org Unit if the real host name is too long to get accepted by OpenSSL.
+    Clients should only care about the Subject Alternative Name
+    anyway and we can continue to use the real host name for it.
+    Reported by Miles Wen on privoxy-users@.
+  - Establish the TLS connection with the client earlier and decide
+    how to route the request afterwards. This allows to change the
+    forwarding settings based on information from the https-inspected
+    request, for example the path.
+  - listen_loop(): When shutting down gracefully, close listening ports
+    before waiting for the threads to exit. Allows to start a second
+    Privoxy with the same config file while the first Privoxy is still
+    running.
+  - serve(): Close the client socket as well if the server socket
+    for an inspected connection has been closed. Privoxy currently
+    can't establish a new server connection when the client socket
+    is reused and would drop the connection in continue_https_chat()
+    anyway.
+  - Don't disable redirect checkers in redirect_url().
+    Disable them in handle_established_connection() instead.
+    Doing it in redirect_url() prevented the +redirect{} and
+    +fast-redirects{} actions from being logged with LOG_LEVEL_ACTIONS.
+  - handle_established_connection(): Slightly improve a comment.
+  - handle_established_connection(): Fix a comment.
+  - socks5_connect(): Fix indentation.
+  - handle_established_connection(): Improve an error message.
+  - create_pattern_spec(): Fix ifdef indentation.
+  - Fix comment typos.
+  - process_encrypted_request(): Improve a log message.
+    The function only processes request headers and there
+    may still be unread request body data left to process.
+  - chat(): Log the applied actions before deciding how to forward the request.
+  - parse_time_header(): Silence a coverity complaint when building without assertions.
+  - receive_encrypted_request_headers(): Improve a log message.
+  - mbedTLS get_ciphersuites_from_string(): Use strlcpy() instead of strncpy().
+    Previously the terminating NUL wasn't copied which resulted
+    in a compiler warning. This didn't cause actual problems as
+    the target buffer was initialized by zalloc_or_die() so the
+    last byte of the target buffer was NUL already.
+    Actually copying the terminating NUL seems clearer, though.
+  - Remove compiler warnings. "log_error(LOG_LEVEL_FATAL, ..."
+    doesn't return but apparently the compiler doesn't know that.
+    Get rid of several "this statement may fall through
+    [-Wimplicit-fallthrough=]" warnings.
+  - Store the PEM certificate in a dynamically allocated buffer
+    when https-inspecting. Should prevent errors like:
+    2021-03-16 22:36:19.148 7f47bbfff700 Error: X509 PEM cert len 16694 is larger than buffer len 16383
+    As a bonus it should slightly reduce the memory usage as most
+    certificates are smaller than the previously used fixed buffer.
+    Reported by: Wen Yue
+  - OpenSSL generate_host_certificate(): Fix two error messsages.
+  - Improve description of handle_established_connection()
+  - OpenSSL ssl_store_cert(): Translate EVP_PKEY_EC to a string.
+  - OpenSSL ssl_store_cert(): Remove pointless variable initialization.
+  - OpenSSL ssl_store_cert(): Initialize pointer with NULL instead of 0.
+
+- Action file improvements:
+  - Disable fast-redirects for .microsoftonline.com/.
+  - Disable fast-redirects for idp.springer.com/.
+  - Disable fast-redirects for .zeit.de/zustimmung.
+  - Unblock adv-archiv.dfn-cert.de/.
+  - Block requests to eu-tlp01.kameleoon.eu/.
+  - Block requests to fpa-events.arstechnica.com/.
+  - Unblock nlnet.nl/.
+  - Unblock adguard.com/.
+
+- Privoxy-Log-Parser:
+  - Highlight 'Socket timeout 3 reached: http://127.0.0.1:20000/no-filter/chunked-content/36'.
+  - Improve documentation for inactivity-detection mode.
+  - Detect date changes when looking for inactivity.
+  - Add a --passed-request-statistics-threshold option
+    that can be set to get statistics for requests that
+    were passed.
+  - Add a "inactivity detection" mode which can be useful
+    for debugging purposes.
+  - Bump version to 0.9.4.
+  - Only run print_intro() and print_outro() when syntax highlighting.
+  - Rephrase a sentence in the documentation.
+  - Highlight 'Client socket 7 is no longer usable. The server socket has been closed.'.
+  - Clarify --statistics output by explicitly mentioning that
+    the status codes sent by the server may differ from the ones
+    in "debug 512" messages.
+  - Fix typo in the --statistics output.
+  - Remove an unused variable.
+  - Highlight 'The peer notified us that the connection on socket 11 is going to be closed'.
+
+- Privoxy-Regression-Test:
+  - Remove duplicated word in a comment.
+
+- regression-tests.action:
+  - Add fetch test for http://p.p/wpad.dat.
+  - Bump for-privoxy-version to 3.0.33 which introduced the wpad.dat support.
+  - Add more tests for the '/send-banner' code.
+  - Add test for OVE-20210203-0001.
+  - Add a test for CVE-2021-20217.
+
+- uagen:
+  - Bump generated Firefox version to 91 (ESR).
+  - Bump version to 1.2.3.
+  - Bump copyright.
+
+- Build system:
+  - configure: Bump SOURCE_DATE_EPOCH.
+  - GNUmakefile.in: Fix typo.
+  - configure: Add another warning in case --disable-pthread
+    is used while POSIX threads are available.
+    Various features don't even compile when not using threads.
+  - Add configure option to enable MemorySanitizer.
+  - Add configure option to enable UndefinedBehaviorSanitizer.
+  - Add configure option to enable AddressSanitizer.
+  - Bump copyright.
+  - Add a configure option to disable pcre JIT compilation.
+    While JIT compilation makes filtering faster it can
+    cause false-positive valgrind complaints.
+    As reported by Gwyn Ciesla in SF bug 924 it also can
+    cause problems when the SELinux policy does not grant
+    Privoxy "execmem" privileges.
+  - configure: Remove obsolete RPM_BASE check.
+
+- Windows build system:
+  - Update the build script to use mbed tls version 2.6.11.
+  - Update build script to use the final 8.45 pcre library.
+  - Put all the '--enable-xxx' options in the configure call together.
+
+- macOS build system:
+  - The OSXPackageBuilder repository has been updated and
+    can be used to create macOS packages again.
+
+- Documentation:
+  - contacting: Remove obsolete reference to announce.sgml.
+  - contacting: Request that the browser cache is cleared before
+    producing a log file for submission.
+  - Sponsor FAQ: Note that Privoxy users may follow sponsor links
+    without Referer header set.
+  - newfeatures: Clarify that https inspection also allows to
+    filter https responses.
+  - developer-manual: Mention that announce.txt should be updated
+    when doing a release.
+  - config: Explicitly mention that the CGI pages disclosing the
+    ca-password can be blocked and upgrade the disclosure paragraphs
+    to a warning.
+  - Put all the requested debug options in the config file.
+    Section 11.1 of the Privoxy user manual lists all the debug
+    options that should be enabled when reporting problems or requesting support.
+    Make it easier for users to do the right thing by having all those
+    options present in the config.
+  - Update TODO list item #184 to note that WolfSSL support will
+    (hopefully) appear after the 3.0.34 release.
+  - Update max-client-connections's description.
+    On modern systems other than Windows Privoxy should
+    use poll() in which case the FD_SETSIZE value isn't
+    releveant.
+  - Add a warning that the socket-timeout does not apply
+    to operations done by TLS libraries.
+  - Make documentation slightly less "offensive" for some people
+    by avoiding the word "hell".
+
+*** Version 3.0.32 stable ***
+
+- Security/Reliability:
+  - ssplit(): Remove an assertion that could be triggered with a
+    crafted CGI request.
+    Commit 2256d7b4d67. OVE-20210203-0001. CVE-2021-20272.
+    Reported by: Joshua Rogers (Opera)
+  - cgi_send_banner(): Overrule invalid image types. Prevents a
+    crash with a crafted CGI request if Privoxy is toggled off.
+    Commit e711c505c48. OVE-20210206-0001. CVE-2021-20273.
+    Reported by: Joshua Rogers (Opera)
+  - socks5_connect(): Don't try to send credentials when none are
+    configured. Fixes a crash due to a NULL-pointer dereference
+    when the socks server misbehaves.
+    Commit 85817cc55b9. OVE-20210207-0001. CVE-2021-20274.
+    Reported by: Joshua Rogers (Opera)
+  - chunked_body_is_complete(): Prevent an invalid read of size two.
+    Commit a912ba7bc9c. OVE-20210205-0001. CVE-2021-20275.
+    Reported by: Joshua Rogers (Opera)
+  - Obsolete pcre: Prevent invalid memory accesses with an invalid
+    pattern passed to pcre_compile(). Note that the obsolete pcre code
+    is scheduled to be removed before the 3.0.33 release. There has been
+    a warning since 2008 already.
+    Commit 28512e5b624. OVE-20210222-0001. CVE-2021-20276.
+    Reported by: Joshua Rogers (Opera)
+
+- Bug fixes:
+  - Properly parse the client-tag-lifetime directive. Previously it was
+    not accepted as an obsolete hash value was being used.
+    Reported by: Joshua Rogers (Opera)
+  - decompress_iob(): Prevent reading of uninitialized data.
+    Reported by: Joshua Rogers (Opera).
+  - decompress_iob(): Don't advance cur past eod when looking
+    for the end of the file name and comment.
+  - decompress_iob(): Cast value to unsigned char before shifting.
+    Prevents a left-shift of a negative value which is undefined behaviour.
+    Reported by: Joshua Rogers (Opera)
+  - gif_deanimate(): Confirm that that we have enough data before doing
+    any work. Fixes a crash when fuzzing with an empty document.
+    Reported by: Joshua Rogers (Opera).
+  - buf_copy(): Fail if there's no data to write or nothing to do.
+    Prevents undefined behaviour "applying zero offset to null pointer".
+    Reported by: Joshua Rogers (Opera)
+  - log_error(): Treat LOG_LEVEL_FATAL as fatal even when --stfu is
+    being used while fuzzing.
+    Reported by: Joshua Rogers (Opera).
+  - Respect DESTDIR when considering whether or not to install
+    config files with ".new" extension.
+  - OpenSSL ssl_store_cert(): Fix two error messages.
+  - Fix a couple of format specifiers.
+  - Silence compiler warnings when compiling with NDEBUG.
+  - fuzz_server_header(): Fix compiler warning.
+  - fuzz_client_header(): Fix compiler warning.
+  - cgi_send_user_manual(): Also reject requests if the user-manual
+    directive specifies a https:// URL. Previously Privoxy would try and
+    fail to open a local file.
+
+- General improvements:
+  - Log the TLS version and the the cipher when debug 2 is enabled.
+  - ssl_send_certificate_error(): Respect HEAD requests by not sending a body.
+  - ssl_send_certificate_error(): End the body with a single new line.
+  - serve(): Increase the chances that the host is logged when closing
+    a server socket.
+  - handle_established_connection(): Add parentheses to clarify an expression
+    Suggested by: David Binderman
+  - continue_https_chat(): Explicitly unset CSP_FLAG_CLIENT_CONNECTION_KEEP_ALIVE
+    if process_encrypted_request() fails. This makes it more obvious that the
+    connection will not be reused. Previously serve() relied on
+    CSP_FLAG_SERVER_CONTENT_LENGTH_SET and CSP_FLAG_CHUNKED being unset.
+    Inspired by a patch from Joshua Rogers (Opera).
+  - decompress_iob(): Add periods to a couple of log messages
+  - Terminate the body of the HTTP snipplets with a single new line
+    instead of "\r\n".
+  - configure: Add --with-assertions option and only enable assertions
+    when it is used
+  - windows build: Use --with-brotli and --with-mbedtls by default and
+    enable dynamic error checking.
+  - gif_deanimate(): Confirm we've got an image before trying to write it
+    Saves a pointless buf_copy() call.
+  - OpenSSL ssl_store_cert(): Remove a superfluous space before the serial number.
+
+- Action file improvements:
+  - Disable fast-redirects for .golem.de/
+  - Unblock requests to adri*.
+  - Block requests for trc*.taboola.com/
+  - Disable fast-redirects for .linkedin.com/
+
+- Filter file improvements:
+  - Make the second pcrs job of the img-reorder filter greedy again.
+    The ungreedy version broke the img tags on:
+    https://bulk.fefe.de/scalability/.
+
+- Privoxy-Log-Parser:
+  - Highlight a few more messages.
+  - Clarify the --statistics output. The shown "Reused connections"
+    are server connections so name them appropriately.
+  - Bump version to 0.9.3.
+
+- Privoxy-Regression-Test:
+  - Add the --check-bad-ssl option to the --help output.
+  - Bump version to 0.7.3.
+
+- Documentation:
+  - Add pushing the created tag to the release steps in the developer manual.
+  - Clarify that 'debug 32768' should be used in addition to the other debug
+    directives when reporting problems.
+  - Add a 'Third-party licenses and copyrights' section to the user manual.
+
+*** Version 3.0.31 stable ***
+
+- Security/Reliability:
+  - Prevent an assertion from getting triggered by a crafted CGI request.
+    Commit 5bba5b89193fa. OVE-20210130-0001. CVE-2021-20217.
+    Reported by: Joshua Rogers (Opera)
+  - Fixed a memory leak when decompression fails "unexpectedly".
+    Commit f431d61740cc0. OVE-20210128-0001. CVE-2021-20216.
+
+- Bug fixes:
+  - Fixed detection of insufficient data for decompression.
+    Previously Privoxy could try to decompress a partly
+    uninitialized buffer.
+
+*** Version 3.0.30 stable ***
+
+- Bug fixes:
+  - Check the actual URL for redirects when https inspecting requests.
+    Previously Privoxy would only check the path which resulted in
+    rewrite results being rejected as invalid URLs.
+    Reported by withoutname in #1736.
+  - Let the hide-referrer code tolerate Referer headers with https:// URLs.
+    Previously they would always be treated like a changed host.
+  - Use the https headers if the show-request handler is reached through
+    https://. Previously Privoxy would use the http headers which
+    may be empty on a reused connection.
+  - Make CGI_PREFIX protocol-relative when building with FEATURE_HTTPS_INSPECTION.
+    This unbreaks (at least) https://config.privoxy.org/client-tags whose
+    buttons would previously use a http:// URL resulting in browser warnings.
+  - Support using https-inspection and client-header-order at the same time.
+    Previously Privoxy would crash.
+    Reported by: Kai Raven
+  - Properly reject rewrites from http to https as they currently
+    aren't supported. Previously Privoxy would wait for the client
+    to establish an encrypted connection which obviously would not happen.
+  - When https inspection is enabled and Privoxy has been compiled with
+    FEATURE_GRACEFUL_TERMINATION (not recommended for production builds),
+    the TLS backend resources are free'd later on and only if no active
+    connections are left. Prevents crashes when exiting "gracefully" at the
+    wrong time.
+  - Let the uninstall target remove the config file even if DESTDIR
+    is set and properly announce the deletion of the configuration files.
+
+- General improvements:
+  - Allow to rewrite the request destination for https-inspected
+    requests behind the client's back. The documentation already sort
+    of claimed that it was supported by not especially mentioning that
+    it didn't work for https-inspected requests.
+    Fixes SF bug #923 reported by withoutname.
+  - Add support for filtering client request bodies by using
+    CLIENT-BODY-FILTER filters which can be enabled with the
+    client-body-filter action.
+    Patch submitted by Maxim Antonov.
+    Sponsored by: Robert Klemme
+  - Add the new action suppress-tag{} which can be used to prevent
+    a tagger from adding a tag. Patch submitted by Maxim Antonov.
+    Sponsored by: Robert Klemme
+  - Gracefully handle existing website keys without matching certificates.
+    This can happen if Privoxy was previously running with an invalid
+    TLS configuration that didn't allow it to create a certificate.
+  - Recycle debug bit 4 for Tagging-related messages.
+  - Improve the message shown when the client-tags CGI page
+    is requested with no tags configured.
+  - Shorten the 'donate' and 'participate' links used by templates
+    using redirects. Currently the redirects lead to the FAQ entries
+    but in the future we may want to relocate the content and using
+    redirects makes this more convenient.
+  - Log an error when a PCRE-HOST-PATTERN is used with
+    FEATURE_PCRE_HOST_PATTERNS disabled. Don't treat this a
+    fatal error so the regression tests can be used with and
+    without FEATURE_PCRE_HOST_PATTERNS.
+  - The code compiles with older C compilers again.
+  - The chdir() return code is checked to fix a compiler warning.
+  - The packages feed has been removed from the source tarball.
+    It's usually out of date when the source tarball is generated
+    for the release.
+  - Fixed harmless compiler warnings from GCC9 with -D_FORTIFY_SOURCE=2.
+  - windows: Remove obsolete '$(DEST)/doc/images' target.
+  - windows: Install the images referenced in the user manual.
+  - Remove obsolete 'gnu_regex.@OBJEXT@' target.
+  - When installing from the GNUMAkefile, don't create an 'images'
+    directory which is no longer used. The images were relocated to
+    the user-manual directory years ago.
+  - Add new FEATURES to the show-status page and resort list.
+  - Remove unused variable in the OpenSSL-specific code.
+  - Update bug tracker URL in cgi_error_unknown().
+  - Saved a couple of memory allocations when sorting client headers.
+  - Improved a couple of error messages.
+  - Saved memory allocations when using OpenSSL and checking if a
+    key already exists.
+  - The configure script will bail out if OpenSSL and mbedTLS are
+    enabled at the same time.
+  - Log a message right before exiting gracefully.
+  - A couple of structures have been rearranged to require slightly
+    less memory.
+  - When https inspection is enabled and the certificate is invalid
+    the error message is now sent with status code 403 instead of 200.
+  - The Slackware rc script template has been renamed to
+    slackware/rc.privoxy.in to silence complaints when building
+    Debian packages.
+  - When building with MbedTLS support, mbedtls_md5_ret() is used
+    instead of mbedtls_md5() which is deprecated and causes a warning
+    on Debian GNU/Linux.
+
+- Action file improvements:
+  - Block requests to eu-tlp03.kameleoon.com/.
+  - Unblock metrics.sr.ht/.
+  - Disable fast-redirects for .fsf.org/.
+  - Disable fast-redirects for .gravater.com/.
+  - Disable fast-redirects for .ksta.de/.
+  - Block requests to tag.crsspxl.com/.
+  - Block requests to analytics.slashdotmedia.com/.
+  - Block requests to ml314.com/.
+  - Block requests to .adroll.com/.
+  - Block requests to fastlane.rubiconproject.com/.
+  - Block requests to api.theadex.com/.
+  - Block requests to ih.adscale.de/.
+  - Block requests to .s400.meetrics.net/.
+  - Block requests for pp.lp4.io/.
+  - Block requests for trc-events.taboola.com/.
+
+- Filter file improvements:
+  - A allow-autocompletion filter has been added which changes
+    autocomplete="off" to "on" on input fields to allow autocompletion.
+    Requested by Jamie Zawinski in #370.
+    Filter based on a submission by Aaron Linville.
+  - Added an imdb filter.
+  - Added a sourceforge filter that reduces the amount of ads
+    for proprietary software.
+  - Added a github filter that removes the annoying "Sign-Up"
+    banner and the Cookie disclaimer.
+  - Removed a duplicated pcrs command from the js-annoyances filter.
+  - The crude-parental filter now provides a short reason when blocking,
+    inserts a link to Privoxy's webinterface and adds a new line at
+    the end of the generated page.
+
+- Privoxy-Log-Parser:
+  - Highlight a few more messages.
+  - Add a handler for tagging messages.
+  - Properly deal with 'Certificate error' crunches
+    Previously the error description was highlighted as 'host'.
+  - Log truncated LOG_LEVEL_CLF messages more gracefully
+    and note that the statistics will be imprecise.
+  - Fixed perldoc typo.
+  - Bump version to 0.9.2.
+
+- Privoxy-Regression-Test:
+  - Use http://127.0.0.1:8118/ as default Privoxy address
+    unless http_proxy is set through the environment.
+  - Add a --privoxy-cgi-prefix option that specifies the prefix
+    to use when building URLs that are supposed to reach Privoxy's
+    CGI interface. If it's not set, http://p.p/ is used, which is
+    supposed to work with the default Privoxy configuration.
+    If Privoxy has been built with FEATURE_HTTPS_INSPECTION enabled,
+    and if https inspection is activated with the +https-inspection
+    action, this option can be used with "https://p.p/" provided the
+    system running Privoxy-Regression-Test has been configured to
+    trust the certificate used by Privoxy.
+    Note that there are currently two tests in the official
+    regression-tests.action file that are expected to fail
+    when using "https://p.p/" as privoxy-cgi-prefix.
+  - Skip the connection-established response in get_status_code()
+    when looking for the status code with a CGI prefix
+    that starts with https://. We care about the status code
+    sent by the impersonated web server.
+  - Use --proxy-header when using a CGI prefix with https://
+    and a "Host:" header.
+  - Allow '|' in tokens and values to allow tag patterns like
+    "TAG:^(application|text)/(x-)?javascript$".
+  - When get_cgi_page_or_else() fails, include the URL of the
+    requested page in the log message.
+  - Added a --check-bad-ssl option that can be used to verify that
+    Privoxy detects certificate problems when accessing the test
+    sites from badssl.com.
+  - Bumped version to 0.7.2
+
+- uagen:
+  - Update example output.
+  - Recommend the use of the https-inspection action in the documentation.
+  - Upgrade a couple of URLs to https://.
+  - Add ElectroBSD to the list of operating systems.
+  - Bumped generated Firefox version to 78 (ESR).
+  - Bumped version to 1.2.2.
+
+ - User documentation:
+  - Remove reference to 'How to Report Bugs Effectively'.
+    It was only rendered as text without URL in the README anyway
+    and there's no indication that users read it ...
+  - Let the dok-readme target fix the location embedded into the
+    README file. This used to be done by CVS but since the git migration
+    it has to be done through other means.
+  - Remove 'experimental' warning for client-specific-tag-related directives.
+    They seem to work reliably and there is no obvious reason
+    why we would change the syntax in the near future.
+  - Describe how to check if Privoxy has been built with
+    FEATURE_HTTPS_INSPECTION.
+  - Add a link to the trusted-cas-file documentation
+    that explains how the user can create the file herself.
+  - Don't explicitly mention the license for the code coming from
+    'Anonymous Coders' and Junkbusters. It's obviously licensed under
+    the GNU GPL like the rest of Privoxy or we wouldn't be allowed to
+    distribute it.
+  - Update the +hide-user-agent example with uagen output.
+  - Slightly improve the wording of the ca-key-file documentation.
+  - Explicitly mention Windows 10 as supported so search engines and
+    users looking for it can find it.
+  - Import a bunch of contributors from the ChangeLog.
+  - Remove obsolete doc/gpl.html.
+  - Upgrade a couple of links to https://.
+  - Don't prefer the SourceForge patch tracker over the
+    privoxy-devel mailing list. While at it, link to the
+    SourceForge patch tracker.
+  - Mention http-inspection in the 'my browser warns me about
+    unauthenticated content' FAQ entry.
+  - Simplify the 'Is there is a license or fee?' FAQ entry.
+  - Add another +redirect{} example.
+  - Explicitly mention that interested sponsors should include
+    the link target in their first mail.
+  - Clarify that only Privoxy team members can object to new sponsors
+    and link to the list of current team members.
+  - Note that sponsor URLs may not contain keyword spam.
+  - Garbage collect doc/webserver/images which isn't referenced anymore.
+  - Update the method to reach the proxy settings in Firefox.
+  - Update proxy_setup.jpg description to refer to Firefox.
+  - Regenerate proxy_setup.jpg with a more recent Firefox (78.0).
+  - Regenerate files-in-use.jpg without obsolete standard.action
+    with modern colors and a slightly better quality.
+  - Update URL to the actionsfile tracker.
+  - Update a support request URL.
+  - Rephrase the 'Can Privoxy run as service' FAQ entry and
+    remove an obsolete paragraph.
+  - Let the 'Where can I get updated Actions Files?' entry link to
+    the gitweb version of default.action.master.
+  - Update a link to the default.action file.
+  - Update URLs for trackers and mailing lists.
+  - Replace CVS reference with git.
+  - Mention regression-tests.action in the config file.
+  - Explicitly mention in the config file that access to the
+    CA key should be limited to Privoxy.
+  - List more client-specific-tag examples for inspiration.
+  - Add additional headers to the client-header-order example.
+  - Note that actions aren't updated after rewrites.
+  - Explicitly mention that upgrading from http to https with
+    a client-header filter is not supported
+  - Note that protocol and host have to be added when rewriting
+    the destination host for https-inspected requests.
+  - Explicitly mention that the CA key is used to sign certificates.
+  - Put openssl command in 'command' tags.
+  - The man page has been moved from section 1 to man section 8.
+
+- Developer manual:
+  - Flesh out the build instructions for Debian.
+  - Remove the packaging instructions for RPM-based systems.
+    They don't work and we don't release RPM packages anymore anyway.
+  - Remove the packaging instructions for Solaris.
+    They don't work and we don't release Solaris packages anymore anyway.
+  - Update the suggested subject for the announce mails.
+  - Update upload instructions.
+    ftp://upload.sourceforge.net is no longer functional.
+  - Remove a couple of package-dependent upload instructions
+    that don't actually work.
+  - Remove 'cd current' that no longer works.
+  - Add regression-tests.action to the list of files that should be installed.
+  - Stop claiming that there are text versions of the manuals.
+    We stopped building them in 2008 (9ed36a3c5e6f12).
+  - Note that the 'webserver' target creates the link needed for the user-manual.
+  - Suggest to use the master branch as reference when creating
+    the ChangeLog so the steps work when the current branch differs
+    from master which is likely as the developer manual
+    suggests to use a local branch for development.
+  - Add the -s flag to the suggested 'git tag' command.  We prefer signed tags.
+  - Mention that merges into 'master' should be avoided.
+  - Add git commands that should result in a merge-free history.
+  - Mention Privoxy-Regression-Test.
+  - Add a section id to reduce link churn.
+  - Recommend the dok-tidy target when building docs for the webserver.
+  - Add another plug for the privoxy-devel mailing list.
+  - Let the intro link the copyright section in the user manual instead
+    of giving an incomplete summary of the license status.
+  - Clarify that the webserver target uploads to the SourceForge webserver.
+  - Mark the documentation for the Mac OS X installers as out of date and
+    change the SCM name back to CVS.
+  - Fix the location of the installer modules for Mac OS X.
+    They are not actually available through git (yet).
+  - Don't speak of Privoxy version 3 in the past tense.
+  - Update the list of programs required for the release process.
+  - Update description of the webserver target which uses ssh, not scp.
+  - Remove obsolete reference to config.new.
+
+- Tests:
+  - Add another hide-referrer{conditional-block} test.
+  - Add another hide-referrer{conditional-forge} test.
+  - Fix a hide-referrer{conditional-forge} test
+    that expected an acceptable header to be forged.
+  - Fix a hide-referrer{conditional-block} test
+    that expected an acceptable Referer to be removed.
+  - Explain why the "Set Header = Host: whatever.example.org" test is
+    expected to fail when using a CGI prefix that starts with "https://".
+  - Explain why a connection-sharing test is known to fail
+    when using "https://p.p/" as CGI prefix.
+  - Add a link to Privoxy-Regression-Test to regression-tests.action
+    in case it isn't packaged.
+  - Add regression tests for pcre host patterns.
+  - Fixed a regression test that is executed when
+    FEATURE_GRACEFUL_TERMINATION is enabled.
+
+- Privoxy infrastructure:
+  - Import a Privoxy logo for the website.
+  - Update Tor onion service to HiddenServiceVersion 3.
+  - Display the "model" photos in a single row and remove placeholder images.
+  - Regenerate homepage with updated sponsor list.
+  - Use the '/sponsor' redirect for the link to the sponsor page.
+  - Git commit messages are sent to the Privoxy-commits mailing list.
+
+*** Version 3.0.29 stable ***
+
+- Security/Reliability:
+  - Fixed memory leaks when a response is buffered and the buffer
+    limit is reached or Privoxy is running out of memory.
+    Commits bbd53f1010b and 4490d451f9b. OVE-20201118-0001.
+    CVE-2020-35502.
+    Sponsored by: Robert Klemme
+  - Fixed a memory leak in the show-status CGI handler when
+    no action files are configured. Commit c62254a686.
+    OVE-20201118-0002. CVE-2021-20209.
+    Sponsored by: Robert Klemme
+  - Fixed a memory leak in the show-status CGI handler when
+    no filter files are configured. Commit 1b1370f7a8a.
+    OVE-20201118-0003. CVE-2021-20210.
+    Sponsored by: Robert Klemme
+  - Fixes a memory leak when client tags are active.
+    Commit 245e1cf32. OVE-20201118-0004. CVE-2021-20211.
+    Sponsored by: Robert Klemme
+  - Fixed a memory leak if multiple filters are executed
+    and the last one is skipped due to a pcre error.
+    Commit 5cfb7bc8fe. OVE-20201118-0005. CVE-2021-20212.
+  - Prevent an unlikely dereference of a NULL-pointer that
+    could result in a crash if accept-intercepted-requests
+    was enabled, Privoxy failed to get the request destination
+    from the Host header and a memory allocation failed.
+    Commit 7530132349. CID 267165. OVE-20201118-0006. CVE-2021-20213.
+  - Fixed memory leaks in the client-tags CGI handler when
+    client tags are configured and memory allocations fail.
+    Commit cf5640eb2a. CID 267168. OVE-20201118-0007. CVE-2021-20214.
+  - Fixed memory leaks in the show-status CGI handler when memory
+    allocations fail. Commit 064eac5fd0 and commit fdee85c0bf3.
+    CID 305233. OVE-20201118-0008. CVE-2021-20215.
+
+- General improvements:
+  - Added experimental https inspection support which allows to filter
+    https traffic. To enable it, install MbedTLS and configure with
+    --with-mbedtls, or install OpenSSL or LibreSSL and configure
+    with --with-openssl.
+    Afterwards configure the directives in section 7 of the
+    config file and enable the +https-inspection action.
+    Initial MbedTLS-based code contributed by Vaclav Svec,
+    initial OpenSSL support contributed by Maxim Antonov.
+    With help from Nedzad Hrnjica and Ho+ Ho+ Ho+.
+    Integration and improvements sponsored by Robert Klemme.
+  - pcrs: Request JIT compilation if it's supported and
+    the filter isn't dynamic. This can speed up filtering.
+  - Added support for Brotli decompression.
+    Sponsored by: Robert Klemme
+  - Added FEATURE_EXTENDED_STATISTICS to gather statistics for
+    block reasons and filter executions. To enable it, configure
+    with --enable-extended-statistics and visit
+    http://config.privoxy.org/show-status.
+    Sponsored by: Robert Klemme
+  - Use the IP_FREEBIND socket option, if defined. This allows
+    Privoxy to bind to not-yet assigned IP addresses which is
+    useful in failover environments.
+    Patch by Sam Varshavchik.
+  - Allow to use extended host patterns and vanilla host patterns
+    at the same time by prefixing extended host patterns with
+    "PCRE-HOST-PATTERN:". To enable this, configure with
+    --enable-pcre-host-patterns.
+    Sponsored by: Robert Klemme
+  - Added "Cross-origin resource sharing" (CORS) support.
+    This allows to access Privoxy's CGI interface via JavaScript from
+    another domain (white-listed with the new cors-allowed-origin directive).
+    Based on a patch by Nedzad Hrnjica.
+    Sponsored by: Robert Klemme.
+  - Add SOCKS5 username/password support.
+    Based on a patch by Sam, improved by Ivan Romanov.
+    Closes Patch#141 and solves TODO#105.
+  - Bump the maximum number of action and filter files
+    to 100 each.
+    Sponsored by: Robert Klemme
+  - Fixed handling of filters with "split-large-forms 1"
+    when using the CGI editor.
+    Reported by withoutname in #921.
+  - Better detect a mismatch of connection details when
+    figuring out whether or not a connection can be reused.
+  - Don't send a "Connection failure" message instead of the
+    "DNS failure" message.
+    Sponsored by: Robert Klemme
+  - Let LOG_LEVEL_REQUEST log all requests. Previously unencrypted
+    requests were only logged with LOG_LEVEL_REQUEST when they weren't
+    crunched (in which case they were logged with LOG_LEVEL_CRUNCH).
+    This was documented behaviour, but logging all requests seems more useful.
+  - Fixed locking around localtime() and gmtime().
+  - Removed OS/2 support. We haven't provided OS/2 packages in years,
+    it complicated the code and it depended on a fallback snprintf()
+    implementation which is GPLv2 only.
+  - Remove the fallback snprintf() implementation
+    Now that OS/2 support is gone we no longer need it.
+  - Fixed a bunch of format specifiers log messages.
+  - Added a missing apostrophe in the 'More Privoxy' menu.
+  - Explicitly prevent use of FEATURE_CONNECTION_SHARING
+    without FEATURE_CONNECTION_KEEP_ALIVE. It makes no sense
+    and does not compile anyway.
+    Sponsored by: Robert Klemme
+  - Fix build without FEATURE_CONNECTION_KEEP_ALIVE.
+    Sponsored by: Robert Klemme
+  - Downgrade the 'Graceful termination requested' message
+    to LOG_LEVEL_INFO as it isn't an error.
+    Sponsored by: Robert Klemme
+  - decompress_iob(): Downgrade the no-content message to LOG_LEVEL_RE_FILTER
+    While at it, fix a typo in a comment.
+    Sponsored by: Robert Klemme
+  - Fixed a couple of cppcheck warnings.
+  - Rename LOG_LEVEL_GPC to LOG_LEVEL_REQUEST.
+    Only the shadow knows what "GPC" is supposed to stand for.
+  - Remove SourceForge references in copyright headers.
+  - Upgrade a bunch of links to the homepage to https://.
+  - Add 'no-brotli-accepted' filter which prevents the
+    use of Brotli compression.
+  - Changed license for pcrs to GPLv2+ after getting the
+    permission from Andreas. This allows to redistribute
+    Privoxy under the GPLv3 which is required when linking
+    to future mbedTLS versions which are expected to be
+    licensed under the Apache 2.0 license only.
+  - Updated a bunch of tests that have to expect status code 403
+    now after r1.168/070e904afa5.
+  - Lowercase the host name in the request line.
+  - Only set SOURCE_DATE_EPOCH if it's not already set so
+    distributions can overwrite it through the environment.
+
+- Documentation changes:
+  - Explain that Privoxy has to be distributed under the
+    GPLv3 (or later) when linked with an MbedTLS version
+    that is licensed under the Apache 2.0 license.
+  - Import the GNU GPLv3 and include it the user manual.
+  - Clarify FEATURE_FORCE_LOAD's description. It allows to bypass
+    blocking not filtering and only does it if blocks aren't enforced.
+    Reported by: Robert Klemme
+  - FAQ: Remove Zwiebelfreunde e.V. from the list of fiduciary sponsors
+    As of 2021 they no longer handle donations for foreign organisations
+    due to lack of resources.
+  - FAQ: Remove an obsolete comment with a link to the long-gone PDF manual.
+  - FAQ: Add a link to the TODO list.
+  - FAQ: Change the sponsor amounts to USD slightly rounding the
+    converted amounts up to get simple numbers.
+    Receiving USD is apparently easier for SPI and SPI is
+    preferred by sponsors as they can send invoices.
+  - Advertise the client-tags CGI page in the user manual.
+  - Stop advertising the show-version CGI page which no longer exists.
+  - Add yet another reason why +prevent-compression may cause problems.
+  - Don't claim that contributors need ssh. It's only needed for committers.
+  - Replace obsolete CVS instructions with Git instructions.
+  - Remove an obsolete comment
+
+- Config file changes:
+  - Change the suggested default-server-timeout to 5 to match the
+    suggested keep-alive-timeout. Otherwise using the defaults would
+    result in Privoxy reducing the default-server-timeout and logging
+    an error message.
+    Sponsored by: Robert Klemme
+  - Update the 'debug 1' description.
+  - Add a missing 'client-specific-tag' directive.
+  - Comment out trusted-cgi-referer pointing to example.org.
+
+- Action file improvements:
+  - Block requests to /(.*/)?piwik\.php
+  - Block requests to .connectaserver.de/
+  - Block requests to pixel.inforsea.com/
+  - Block requests to t.vi-serve.com/
+  - Block requests to .ioam.de/
+  - Block requests to t.9gag.com/img.gif
+  - Block requests to .pixel.parsely.com/ as image
+  - Block requests to pixel.wp.com/
+  - Disable fast-redirects for .librarything.com/
+  - Disable fast-redirects for issue.freebsdfoundation.org/
+  - Disable fast-redirects for .twitter.com/.*origin=http
+  - Unblock belco24.de/
+  - Add fast-redirects exception for .wikipedia.org/
+  - Add fast-redirects exception for oss-fuzz.com/
+  - Disable fast-redirects for .consensu.org/delivery/pixel\.php
+    and block the requests as image instead
+  - Unblock .adbinstaller.com/
+    Reported by lvm in #942.
+  - Unblock .adbshell.com
+    Reported by lvm in #942.
+  - Unblock .tagesschau.de/
+  - Disable fast-redirects for collector.githubapp.com/
+    and block requests to it as image instead
+  - Unblock 'ada*.'
+  - Add fast-redirects{} exception for sourcepoint.vice.com/
+  - Unblock adaway.org/
+    Reported by DRS David Soft in AF#945.
+  - Change two block reasons that previously were the same.
+    Sponsored by: Robert Klemme
+  - Added a +delay-response{} test.
+  - Updated the location of the development version
+    of default.action.master.
+
+- Privoxy-Log-Parser:
+  - Added a --keep-date option to keep the date in highlighted messages.
+  - Highlight new log messages.
+  - Make gather_loglevel_clf_stats() more tolerant. While at it,
+    count all CLF messages as requests, even if the request is invalid.
+  - Only show HTTP version distribution if at least one version has been detected.
+  - Only show crunch statistics if crunches were detected.
+  - Warn if the request counts differ.
+  - Generate statistics if the log only contains LOG_LEVEL_CLF messages
+    so it can be used with vanilla webserver logs.
+    Previously Privoxy-specific "Request:" messages were required.
+  - Align the client-HTTP-version distribution like other distributions
+  - Bump version to 0.9.1
+  - Include status code distribution in the stats.
+  - Let the statistics include the size of the content Privoxy
+    transferred excluding HTTP headers.
+  - Get with the program and expect all requests to be logged with LOG_LEVEL_REQUEST.
+    It's no longer necessary to count both LOG_LEVEL_REQUEST and
+    LOG_LEVEL_CRUNCH messages to get the total number of requests.
+  - Leverage the LOG_LEVEL_CLF message to gather statistics that where
+    previously taken from LOG_LEVEL_HEADER lines. This results in less
+    confusing results if https inspection is enabled in which case there
+    are two LOG_LEVEL_HEADER lines with request lines.
+    Sponsored by: Robert Klemme
+  - Properly highlight the filter results message. Previously a brace got lost.
+  - Prefer the number of CLF lines to get the total number of requests
+    as it works with older Privoxy versions as well.
+
+- Privoxy-Regression-Test:
+  - Turn curl's globbing mode off so we can allow more characters in URLs.
+  - Allow '[' and ']' in URLs.
+  - Include the action file when complaining about missing Sticky Actions.
+  - Fix a sentence in the documentation.
+  - Bump version to 0.7.1
+
+- url-pattern-translator:
+  - Detect a couple of pattern prefixes case-insensitively.
+    Sponsored by: Robert Klemme
+  - Skip CLIENT-TAG patterns.
+    Sponsored by: Robert Klemme
+  - Skip patterns that have already been converted.
+    It should now be safe to "convert" a file multiple times.
+    Sponsored by: Robert Klemme
+  - Add the new 'PCRE-HOST-PATTERN:' prefix.
+    Sponsored by: Robert Klemme
+
+*** Version 3.0.28 stable ***
+
+- Bug fixes for regressions in 3.0.27:
+  - Fixed misplaced parentheses.
+    Reported by David Binderman.
+  - Changed two regression tests to depend on config directive
+    enable-remote-toggle instead of FEATURE_TOGGLE.
+
+*** Version 3.0.27 stable ***
+
+- General improvements:
+  - Add a receive-buffer-size directive which can be used to
+    set the size of the previously statically allocated buffer
+    in handle_established_connection().
+    Increasing the buffer size increases Privoxy's memory usage but
+    can lower the number of context switches and thereby reduce the
+    CPU usage and potentially increase the throughput.
+    This is mostly relevant for fast network connections and
+    large downloads that don't require filtering.
+    Sponsored by: Robert Klemme
+  - Add a listen-backlog directive which specifies the backlog
+    value passed to listen().
+    Sponsored by: Robert Klemme
+  - Add an enable-accept-filter directive which allows to
+    toggle accept filter support at run time when compiled
+    with FEATURE_ACCEPT_FILTER support.
+    It makes testing more convenient and now that it's
+    optional we can emit an error message if enabling
+    the accept filter fails.
+    Sponsored by: Robert Klemme
+  - Add a delay-response{} action.
+    This is useful to tar pit JavaScript requests that
+    are endlessly retried in case of blocks. It can also
+    be used to simulate a slow Internet connection.
+    Sponsored by: Robert Klemme
+  - Add a 'trusted-cgi-referrer' directive.
+    It allows to configure another page or site that can be used
+    to reach sensitive CGI resources.
+    Sponsored by: Robert Klemme
+  - Add a --fuzz mode which exposes Privoxy internals to input
+    from files or stdout.
+    Mainly tested with American Fuzzy Lop. For details see:
+    https://www.fabiankeil.de/talks/fuzzing-on-freebsd/
+    This work was partially funded with donations and done
+    as part of the Privoxy month in 2015.
+  - Consistently use the U(ngreedy) flag in the 'img-reorder' filter.
+  - listen_loop(): Reuse a single thread attribute object
+    The object doesn't change and creating a new one for
+    every thread is a waste of (CPU) time.
+    Sponsored by: Robert Klemme
+  - Free csp resources in the thread that belongs to the csp instead
+    of the main thread which has enough on its plate already.
+    Sponsored by: Robert Klemme
+  - Improve 'socket timeout reached' message.
+    Log the timeout that was triggered and downgrade the
+    log level to LOG_LEVEL_CONNECT to reduce the log noise
+    with common debug settings.
+    The timeout isn't necessary the result of an error and
+    usually merely indicates that Privoxy's socket timeout
+    is lower than the relevant timeouts used by client and
+    server.
+    Sponsored by: Robert Klemme
+  - Explicitly taint the server socket in case of CONNECT requests.
+    This doesn't fix any known problems, but makes
+    some log messages less confusing.
+  - Let write_pid_file() terminate if the pid file can't be opened.
+    Logging the issue at info level is unlikely to help.
+  - log_error(): Reduce the mutex-protected area by not using a
+    heap-allocated buffer that is shared between all threads.
+    This increases performance and reduces the latency with
+    verbose debug settings and multiple concurrent connections.
+    Sponsored by: Robert Klemme
+  - Let zalloc() use calloc() if it's available.
+    In some situations using calloc() can be faster than
+    malloc() + memset() and it should never be slower.
+    In the real world the impact of this change is not
+    expected to be noticeable.
+    Sponsored by: Robert Klemme
+  - Never use select() when poll() is available.
+    On most platforms select() is limited by FD_SETSIZE while
+    poll() is not. This was a scaling issue for multi-user setups.
+    Using poll() has no downside other than the usual risk
+    that code modifications may introduce new bugs that have
+    yet to be found and fixed.
+    At least in theory this commit could also reduce the latency
+    when there are lots of connections and select() would use
+    "bit fields in arrays of integers" to store file descriptors.
+    Another side effect is that Privoxy no longer has to stop
+    monitoring the client sockets when pipelined requests are
+    waiting but can't be read yet.
+    This code keeps the select()-based code behind ifdefs for
+    now but hopefully it can be removed soonish to make the
+    code more readable.
+    Sponsored by: Robert Klemme
+  - Add a 'reproducible-tarball-dist' target.
+    It's currently separate from the "tarball-dist" target
+    because it requires a tar implementation with mtree spec
+    support.
+    It's far from being perfect and does not enforce a
+    reproducible mode, but it's better than nothing.
+  - Use arc4random() if it's available.
+    While Privoxy doesn't need high quality pseudo-random numbers
+    there's no reason not to use them when we can and this silences
+    a warning emitted by code checkers that can't tell whether or not
+    the quality matters.
+  - Show the FEATURE_EXTERNAL_FILTERS status on the status page.
+    Better late than never. Previously a couple of tests weren't
+    executed as Privoxy-Regression-Test couldn't detect that the
+    FEATURE_EXTERNAL_FILTERS dependency was satisfied.
+  - Ditch FEATURE_IMAGE_DETECT_MSIE.
+    It's an obsolete workaround we inherited from Junkbuster
+    and was already disabled by default.
+    Users that feel the urge to work around issues with
+    image requests coming from an Internet Explorer version
+    from more than 15 years ago can still do this using tags.
+  - Consistently use strdup_or_die() instead of strdup() in
+    cases where allocation failures aren't expected.
+    Using strdup_or_die() allows to remove a couple of explicit
+    error checks which slightly reduces the size of the binary.
+  - Insert a refresh tag into the /client-tags CGI page when
+    serving it while a client-specific tag is temporarily enabled.
+    This makes it less likely that the user ends up
+    looking at tag state that is out of date.
+  - Use absolute URLs in the client-tag forms.
+    It's more consistent with the rest of the CGI page
+    URLs and makes it more convenient to copy the forms
+    to external pages.
+  - cgi_error_disabled(): Use status code 403 and an appropriate response line
+  - Use a dedicated CGI handler to deal with tag-toggle requests
+    As a result the /client-tags page is now safe to reach without
+    trusted Referer header which makes bookmarking or linking to
+    it more convenient.
+    Finally, refreshing the /client-tags page to show the
+    current state can no longer unintentionally repeat the
+    previous toggle request.
+  - Don't add a "Connection" header for CONNECT requests.
+    Explicitly sending "Connection: close" is not necessary and
+    apparently it causes problems with some forwarding proxies
+    that will close the connection prematurely.
+    Reported by Marc Thomas.
+  - Fix compiler warnings.
+
+- Bug fixes:
+  - rfc2553_connect_to(): Properly detect and log when poll()
+    reached the time out. Previously this was logged as:
+    Could not connect to [...]: No error: 0.
+    which isn't very helpful.
+    Sponsored by: Robert Klemme
+  - add_tag_for_client(): Set time_to_live properly.
+    Previously the time_to_live was always set for the first tag.
+    Attempts to temporarily enable a tag would result in enabling
+    it permanently unless no tag was enabled already.
+  - Revert r1.165 which didn't perform as advertised.
+    While the idea was to use "https:// when creating links
+    for the user manual on the website", the actual effect
+    was to use "https://" when Privoxy was supposed to serve
+    the user manual itself.
+    Reported by Yossi Zahn on Privoxy-devel@.
+  - socks5_connect(): Fail in case of unsupported address types.
+    Previously they would not be detected right away and
+    Privoxy would fail later on with an error message that
+    didn't make it obvious that the problem was socks-related.
+    So far, no such problems have actually been reported.
+  - socks5_connect(): Properly deal with socks replies that
+    contain IPv6 addresses.
+    Previously parts of the reply were left unread and
+    later on treated as invalid HTTP response data.
+    Fixes #904 reported by Danny Goossen who also provided
+    the initial version of this patch.
+
+- Action file improvements:
+  - Unblock 'msdn.microsoft.com/'.
+    It (presumably) isn't used to serve the kind of ads Privoxy should
+    block by default but happens to serve lots of pages with URLs that
+    are likely to result in false positives.
+    Reported by bugreporter1694 in AF#939.
+  - Disable gif deanimation for requests tagged with CSS-REQUEST.
+    The action will ignore content that isn't considered text
+    anyway and explicitly disabling it makes this more obvious
+    if "action" debugging (debug 65536) is enabled while
+    "gif deanimation" debugging (debug 256) isn't.
+  - Explicitly disable HTML filters for requests with CSS-REQUEST tag.
+    The filters are unlikely to break CSS files but executing
+    them without (intentionally) getting any hits is a waste of
+    cpu time and makes the log more noisy when running with
+    "debug 64".
+  - Unblock 'adventofcode.com/'.
+    Reported by Clint Adams in Debian bug #848211.
+    Fixes Roland's AF#937.
+  - Unblock 'adlibris.com'.
+    Reported by Wyrex in #935
+  - Unblock .golang.org/
+  - Add fast-redirects exception for '.youtube.com/.*origin=http'
+
+- Privoxy-Log-Parser:
+  - Don't gather host and resource statistics if they aren't requested.
+    While the performance impact seems negligible this significantly
+    reduces the memory usage if there are lots of requests.
+  - Bump version as the behaviour (slightly) changed.
+  - Count connection failures as well in statistics mode.
+    Sponsored by: Robert Klemme
+  - Count connection timeouts as well in statistics mode.
+    Sponsored by: Robert Klemme
+  - Fix an 'uninitialized value' warning when generating
+    statistics for a log file without response headers.
+    While privoxy-log-parser was supposed to detect this already,
+    the check was flawed and the message the user didn't see was
+    somewhat confusing anyway.
+    Now the message is less confusing, more helpful and actually printed.
+    Reported by: Robert Klemme
+
+- Documentation improvements:
+  - Refer to the git sources instead of CVS.
+  - Use GNU/Linux when referring to the OS instead of the kernel.
+  - Add FAQ entry for what to do if editing the config file is access denied.
+  - Add brief HTTP/2 FAQ.
+  - Add a small fuzzing section to the developer documentation.
+  - Add a client-header-tagger{client-ip-address} example.
+  - Stop suggesting that Privoxy is an anonymizing proxy.
+    The term could lead to Privoxy users overestimating
+    what it can do on its own (without Tor).
+  - Make it more obvious that SPI accepts Paypal, too.
+    Currently most donations are made through the Paypal account
+    managed by Zwiebelfreunde e.V. and a more even distribution
+    would be useful.
+  - Suggest to log applying actions as well when reproducing problems.
+  - Explicitly mention that Privoxy binaries are built by individuals
+    on their own systems. Buyer beware!
+  - Mention the release feed on the homepage.
+  - Remove a mysterious comment with a GNU FDL link as it isn't
+    useful and could confuse license scanners.
+    In May 2002 it was briefly claimed that "this document" was covered
+    by the GNU FDL. The commit message (r1.5) doesn't explain the motivation
+    or whether all copyright holders were actually asked and agreed to the
+    declared license change.
+    It's thus hard to tell whether or not the license change was legit,
+    but luckily two days later the "doc license" was "put" "back to GPL"
+    anyway (r1.6).
+    At the same time the offending comment with a link to the FDL
+    (not the GPL) was added for no obvious reason.
+    Now it's gone again.
+
+- Regression tests:
+  - Bump for-privoxy-version to 3.0.27 as we now rely on untrusted
+    CGI request being rejected with status code 403 (instead of 200).
+  - Update test for /send-stylesheet and add another one
+
+- Templates:
+  - Consistently use https:// when linking to the Privoxy website.
+  - Remove SourceForge references in Copyright header.
+  - Remove a couple of SourceForge references in a comment.
+    While at it, fix the grammar.
+  - Move the site-specific documentation block before the generic one.
+    While most Privoxy installations don't have a site-specific
+    documentation block, in cases were it exists it's likely to
+    be more relevant than the generic one.
+    Showing it first makes it less likely that users stop reading
+    before they reach it, especially on pages that don't fit on
+    the screen.
+
+- Build system improvements:
+  - Prefer openjade to jade. On some systems Jade produces
+    HTML with unescaped ampersands in URLs.
+  - Prefer OpenSP to SP to be consistent.
+  - Have Docbook generated HTML files be straight ASCII.
+    Dealing with a mixture of ISO-8859 and UTF-8 files is problematic.
+  - Echo the filename to stderr for 'make dok-tidy'.
+    Make it a bit easier to find errors in docbook generated HTML.
+  - Warn when still using select().
+  - Warn when compiling without calloc().
+  - Make it more obvious that the --with-fdsetsize configure switch
+    is pointless if poll() is available.
+  - Remove support for AmigaOS.
+  - Update windows build system to use supported software.
+    The cygwin gcc -mno-cygwin option is no longer supported, so
+    convert the windows build system to use the cygwin cross-compiler
+    to build "native" code.
+  - Add --enable-static-linking option for configure
+    does the same thing as LDFLAGS=-static; ./configure
+    but nicer than mixing evars and configure options.
+
 *** Version 3.0.26 stable ***
 
 - Bug fixes:
@@ -1548,7 +2838,7 @@ ChangeLog for Privoxy
   if connection-sharing is enabled.
 - A TODO list has been added to the source tarball to give potential
   volunteers a better idea of what the current goals are. Donations
-  are still welcome too: http://www.privoxy.org/faq/general.html#DONATE
+  are still welcome too: https://www.privoxy.org/faq/general.html#DONATE
 
 *** Version 3.0.12 ***
 
@@ -2239,7 +3529,7 @@ being a mix of "U.S. English", "U.K. English" and "Irish English".
 
 
 ----------------------------------------------------------------------
-Copyright   :  Written by and Copyright (C) 2001-2016 the
+Copyright   :  Written by and Copyright (C) 2001-2023 the
                Privoxy team. https://www.privoxy.org/
 
                Based on the Internet Junkbuster originally written

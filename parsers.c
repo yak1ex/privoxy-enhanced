@@ -1,12 +1,11 @@
-const char parsers_rcs[] = "$Id: parsers.c,v 1.309 2016/04/30 10:28:36 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/parsers.c,v $
  *
  * Purpose     :  Declares functions to parse/crunch headers and pages.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2016 the
- *                Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001-2021 the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -65,8 +64,11 @@ const char parsers_rcs[] = "$Id: parsers.c,v 1.309 2016/04/30 10:28:36 fabiankei
 #define GZIP_FLAG_COMMENT       0x10
 #define GZIP_FLAG_RESERVED_BITS 0xe0
 #endif
+#ifdef FEATURE_BROTLI
+#include <brotli/decode.h>
+#endif
 
-#if !defined(_WIN32) && !defined(__OS2__)
+#if !defined(_WIN32)
 #include <unistd.h>
 #endif
 
@@ -85,12 +87,13 @@ const char parsers_rcs[] = "$Id: parsers.c,v 1.309 2016/04/30 10:28:36 fabiankei
 #include "list.h"
 #include "actions.h"
 #include "filters.h"
+#ifdef FEATURE_HTTPS_INSPECTION
+#include "ssl.h"
+#endif
 
 #ifndef HAVE_STRPTIME
 #include "strptime.h"
 #endif
-
-const char parsers_h_rcs[] = PARSERS_H_VERSION;
 
 static char *get_header_line(struct iob *iob);
 static jb_err scan_headers(struct client_state *csp);
@@ -138,10 +141,10 @@ static jb_err server_save_content_length(struct client_state *csp, char **header
 static jb_err server_keep_alive(struct client_state *csp, char **header);
 static jb_err server_proxy_connection(struct client_state *csp, char **header);
 static jb_err client_keep_alive(struct client_state *csp, char **header);
-static jb_err client_save_content_length(struct client_state *csp, char **header);
 static jb_err client_proxy_connection(struct client_state *csp, char **header);
 #endif /* def FEATURE_CONNECTION_KEEP_ALIVE */
 
+static jb_err client_save_content_length(struct client_state *csp, char **header);
 static jb_err client_host_adder       (struct client_state *csp);
 static jb_err client_xtra_adder       (struct client_state *csp);
 static jb_err client_x_forwarded_for_adder(struct client_state *csp);
@@ -185,9 +188,9 @@ static const struct parsers client_patterns[] = {
    { "TE:",                       3,   client_te },
    { "Host:",                     5,   client_host },
    { "if-modified-since:",       18,   client_if_modified_since },
+   { "Content-Length:",          15,   client_save_content_length },
 #ifdef FEATURE_CONNECTION_KEEP_ALIVE
    { "Keep-Alive:",              11,   client_keep_alive },
-   { "Content-Length:",          15,   client_save_content_length },
    { "Proxy-Connection:",        17,   client_proxy_connection },
 #else
    { "Keep-Alive:",              11,   crumble },
@@ -252,13 +255,14 @@ static const add_header_func_ptr add_server_headers[] = {
 
 /*********************************************************************
  *
- * Function    :  flush_socket
+ * Function    :  flush_iob
  *
  * Description :  Write any pending "buffered" content.
  *
  * Parameters  :
  *          1  :  fd = file descriptor of the socket to read
  *          2  :  iob = The I/O buffer to flush, usually csp->iob.
+ *          3  :  delay = Number of milliseconds to delay the writes
  *
  * Returns     :  On success, the number of bytes written are returned (zero
  *                indicates nothing was written).  On error, -1 is returned,
@@ -268,7 +272,7 @@ static const add_header_func_ptr add_server_headers[] = {
  *                file, the results are not portable.
  *
  *********************************************************************/
-long flush_socket(jb_socket fd, struct iob *iob)
+long flush_iob(jb_socket fd, struct iob *iob, unsigned int delay)
 {
    long len = iob->eod - iob->cur;
 
@@ -277,7 +281,7 @@ long flush_socket(jb_socket fd, struct iob *iob)
       return(0);
    }
 
-   if (write_socket(fd, iob->cur, (size_t)len))
+   if (write_socket_delayed(fd, iob->cur, (size_t)len, delay))
    {
       return(-1);
    }
@@ -286,6 +290,27 @@ long flush_socket(jb_socket fd, struct iob *iob)
 
 }
 
+
+/*********************************************************************
+ *
+ * Function    :  can_add_to_iob
+ *
+ * Description :  Checks if the given number of bytes can be added to the given iob
+ *                without exceeding the given buffer limit.
+ *
+ * Parameters  :
+ *          1  :  iob = Destination buffer.
+ *          2  :  buffer_limit = Limit to which the destination may grow
+ *          3  :  n = number of bytes to be added
+ *
+ * Returns     :  TRUE if the given iob can handle given number of bytes
+ *                FALSE buffer limit will be exceeded
+ *
+ *********************************************************************/
+int can_add_to_iob(const struct iob *iob, const size_t buffer_limit, size_t n)
+{
+   return ((size_t)(iob->eod - iob->buf) + n + 1) > buffer_limit ? FALSE : TRUE;
+}
 
 /*********************************************************************
  *
@@ -304,7 +329,7 @@ long flush_socket(jb_socket fd, struct iob *iob)
  *                or buffer limit reached.
  *
  *********************************************************************/
-jb_err add_to_iob(struct iob *iob, const size_t buffer_limit, char *src, long n)
+jb_err add_to_iob(struct iob *iob, const size_t buffer_limit, const char *src, long n)
 {
    size_t used, offset, need;
    char *p;
@@ -322,7 +347,7 @@ jb_err add_to_iob(struct iob *iob, const size_t buffer_limit, char *src, long n)
    if (need > buffer_limit)
    {
       log_error(LOG_LEVEL_INFO,
-         "Buffer limit reached while extending the buffer (iob). Needed: %d. Limit: %d",
+         "Buffer limit reached while extending the buffer (iob). Needed: %lu. Limit: %lu",
          need, buffer_limit);
       return JB_ERR_MEMORY;
    }
@@ -380,8 +405,7 @@ jb_err add_to_iob(struct iob *iob, const size_t buffer_limit, char *src, long n)
  * Parameters  :
  *          1  :  iob = I/O buffer to clear.
  *
- * Returns     :  JB_ERR_OK on success, JB_ERR_MEMORY if out-of-memory
- *                or buffer limit reached.
+ * Returns     :  N/A
  *
  *********************************************************************/
 void clear_iob(struct iob *iob)
@@ -392,6 +416,87 @@ void clear_iob(struct iob *iob)
 
 
 #ifdef FEATURE_ZLIB
+#ifdef FEATURE_BROTLI
+/*********************************************************************
+ *
+ * Function    :  decompress_iob_with_brotli
+ *
+ * Description :  Decompress buffered page using Brotli.
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *
+ * Returns     :  JB_ERR_OK on success,
+ *                JB_ERR_MEMORY if out-of-memory limit reached, and
+ *                JB_ERR_COMPRESS if error decompressing buffer.
+ *
+ *********************************************************************/
+static jb_err decompress_iob_with_brotli(struct client_state *csp)
+{
+   BrotliDecoderResult result;
+   char *decoded_buffer;
+   size_t decoded_size;
+   size_t decoded_buffer_size;
+   size_t encoded_size;
+   enum { MAX_COMPRESSION_FACTOR = 15 };
+
+   encoded_size = (size_t)(csp->iob->eod - csp->iob->cur);
+   /*
+    * The BrotliDecoderDecompress() api is a bit unfortunate
+    * and requires the caller to reserve enough memory for
+    * the decompressed content. Hopefully reserving
+    * MAX_COMPRESSION_FACTOR times the original size is
+    * sufficient. If not, BrotliDecoderDecompress() will fail.
+    */
+   decoded_buffer_size = encoded_size * MAX_COMPRESSION_FACTOR;
+
+   if (decoded_buffer_size > csp->config->buffer_limit)
+   {
+      log_error(LOG_LEVEL_ERROR,
+         "Buffer limit reached before decompressing iob with Brotli");
+      return JB_ERR_MEMORY;
+   }
+
+   decoded_buffer = malloc(decoded_buffer_size);
+   if (decoded_buffer == NULL)
+   {
+      log_error(LOG_LEVEL_ERROR,
+         "Failed to allocate %lu bytes for Brotli decompression",
+         decoded_buffer_size);
+      return JB_ERR_MEMORY;
+   }
+
+   decoded_size = decoded_buffer_size;
+   result = BrotliDecoderDecompress(encoded_size,
+      (const uint8_t *)csp->iob->cur, &decoded_size,
+      (uint8_t *)decoded_buffer);
+   if (result == BROTLI_DECODER_RESULT_SUCCESS)
+   {
+      /*
+       * Update the iob, since the decompression was successful.
+       */
+      freez(csp->iob->buf);
+      csp->iob->buf  = decoded_buffer;
+      csp->iob->cur  = csp->iob->buf;
+      csp->iob->eod  = csp->iob->cur + decoded_size;
+      csp->iob->size = decoded_buffer_size;
+
+      log_error(LOG_LEVEL_RE_FILTER,
+         "Decompression successful. Old size: %lu, new size: %lu.",
+         encoded_size, decoded_size);
+
+      return JB_ERR_OK;
+   }
+   else
+   {
+      log_error(LOG_LEVEL_ERROR, "Failed to decompress buffer with Brotli");
+      freez(decoded_buffer);
+
+      return JB_ERR_COMPRESS;
+   }
+}
+#endif
+
 /*********************************************************************
  *
  * Function    :  decompress_iob
@@ -421,8 +526,13 @@ jb_err decompress_iob(struct client_state *csp)
    int status;       /* return status of the inflate() call */
    z_stream zstr;    /* used by calls to zlib */
 
+#ifdef FUZZ
+   assert(csp->iob->cur - csp->iob->buf >= 0);
+   assert(csp->iob->eod - csp->iob->cur >= 0);
+#else
    assert(csp->iob->cur - csp->iob->buf > 0);
    assert(csp->iob->eod - csp->iob->cur > 0);
+#endif
 
    bufsize = csp->iob->size;
    skip_size = (size_t)(csp->iob->cur - csp->iob->buf);
@@ -430,17 +540,24 @@ jb_err decompress_iob(struct client_state *csp)
 
    cur = csp->iob->cur;
 
-   if (bufsize < (size_t)10)
+   if (old_size < (size_t)10)
    {
       /*
        * This is to protect the parsing of gzipped data,
        * but it should(?) be valid for deflated data also.
        */
       log_error(LOG_LEVEL_ERROR,
-         "Insufficient data to start decompression. Bytes in buffer: %d",
+         "Insufficient data to start decompression. Bytes in buffer: %ld",
          csp->iob->eod - csp->iob->cur);
       return JB_ERR_COMPRESS;
    }
+
+#ifdef FEATURE_BROTLI
+   if (csp->content_type & CT_BROTLI)
+   {
+      return decompress_iob_with_brotli(csp);
+   }
+#endif
 
    if (csp->content_type & CT_GZIP)
    {
@@ -460,7 +577,8 @@ jb_err decompress_iob(struct client_state *csp)
        || ((*cur++ & 0xff) != GZIP_IDENTIFIER_2)
        || (*cur++ != Z_DEFLATED))
       {
-         log_error(LOG_LEVEL_ERROR, "Invalid gzip header when decompressing");
+         log_error(LOG_LEVEL_ERROR,
+            "Invalid gzip header when decompressing.");
          return JB_ERR_COMPRESS;
       }
       else
@@ -469,7 +587,8 @@ jb_err decompress_iob(struct client_state *csp)
          if (flags & GZIP_FLAG_RESERVED_BITS)
          {
             /* The gzip header has reserved bits set; bail out. */
-            log_error(LOG_LEVEL_ERROR, "Invalid gzip header flags when decompressing");
+            log_error(LOG_LEVEL_ERROR,
+               "Invalid gzip header flags when decompressing.");
             return JB_ERR_COMPRESS;
          }
 
@@ -489,8 +608,16 @@ jb_err decompress_iob(struct client_state *csp)
              * XXX: this code is untested and should probably be removed.
              */
             int skip_bytes;
+
+            if (cur + 2 >= csp->iob->eod)
+            {
+               log_error(LOG_LEVEL_ERROR,
+                  "gzip extra field flag set but insufficient data available.");
+               return JB_ERR_COMPRESS;
+            }
+
             skip_bytes = *cur++;
-            skip_bytes += *cur++ << 8;
+            skip_bytes += (unsigned char)*cur++ << 8;
 
             /*
              * The number of bytes to skip should be positive
@@ -499,12 +626,14 @@ jb_err decompress_iob(struct client_state *csp)
             if ((skip_bytes < 0) || (skip_bytes >= (csp->iob->eod - cur)))
             {
                log_error(LOG_LEVEL_ERROR,
-                  "Unreasonable amount of bytes to skip (%d). Stopping decompression",
+                  "Unreasonable amount of bytes to skip (%d). "
+                  "Stopping decompression.",
                   skip_bytes);
                return JB_ERR_COMPRESS;
             }
             log_error(LOG_LEVEL_INFO,
-               "Skipping %d bytes for gzip compression. Does this sound right?",
+               "Skipping %d bytes for gzip compression. "
+               "Does this sound right?",
                skip_bytes);
             cur += skip_bytes;
          }
@@ -513,14 +642,14 @@ jb_err decompress_iob(struct client_state *csp)
          if (flags & GZIP_FLAG_FILE_NAME)
          {
             /* A null-terminated string is supposed to follow. */
-            while (*cur++ && (cur < csp->iob->eod));
+            while ((cur < csp->iob->eod) && *cur++);
          }
 
          /* Skip the comment if necessary. */
          if (flags & GZIP_FLAG_COMMENT)
          {
             /* A null-terminated string is supposed to follow. */
-            while (*cur++ && (cur < csp->iob->eod));
+            while ((cur < csp->iob->eod) && *cur++);
          }
 
          /* Skip the CRC if necessary. */
@@ -564,7 +693,7 @@ jb_err decompress_iob(struct client_state *csp)
    else
    {
       log_error(LOG_LEVEL_ERROR,
-         "Unable to determine compression format for decompression");
+         "Unable to determine compression format for decompression.");
       return JB_ERR_COMPRESS;
    }
 
@@ -581,19 +710,19 @@ jb_err decompress_iob(struct client_state *csp)
     */
    if (inflateInit2(&zstr, -MAX_WBITS) != Z_OK)
    {
-      log_error(LOG_LEVEL_ERROR, "Error initializing decompression");
+      log_error(LOG_LEVEL_ERROR, "Error initializing decompression.");
       return JB_ERR_COMPRESS;
    }
 
    /*
     * Next, we allocate new storage for the inflated data.
     * We don't modify the existing iob yet, so in case there
-    * is error in decompression we can recover gracefully.
+    * is an error in decompression we can recover gracefully.
     */
    buf = zalloc(bufsize);
    if (NULL == buf)
    {
-      log_error(LOG_LEVEL_ERROR, "Out of memory decompressing iob");
+      log_error(LOG_LEVEL_ERROR, "Out of memory decompressing iob.");
       return JB_ERR_MEMORY;
    }
 
@@ -629,7 +758,10 @@ jb_err decompress_iob(struct client_state *csp)
        */
       if (bufsize >= csp->config->buffer_limit)
       {
-         log_error(LOG_LEVEL_ERROR, "Buffer limit reached while decompressing iob");
+         log_error(LOG_LEVEL_ERROR,
+            "Buffer limit reached while decompressing iob.");
+         freez(buf);
+         inflateEnd(&zstr);
          return JB_ERR_MEMORY;
       }
 
@@ -646,14 +778,17 @@ jb_err decompress_iob(struct client_state *csp)
       tmpbuf = realloc(buf, bufsize);
       if (NULL == tmpbuf)
       {
-         log_error(LOG_LEVEL_ERROR, "Out of memory decompressing iob");
+         log_error(LOG_LEVEL_ERROR,
+            "Out of memory decompressing iob.");
          freez(buf);
+         inflateEnd(&zstr);
          return JB_ERR_MEMORY;
       }
       else
       {
+#ifndef NDEBUG
          char *oldnext_out = (char *)zstr.next_out;
-
+#endif
          /*
           * Update the fields for inflate() to use the new
           * buffer, which may be in a location different from
@@ -698,6 +833,7 @@ jb_err decompress_iob(struct client_state *csp)
       log_error(LOG_LEVEL_ERROR,
          "Unexpected error while decompressing to the buffer (iob): %s",
          zstr.msg);
+      freez(buf);
       return JB_ERR_COMPRESS;
    }
 
@@ -718,7 +854,7 @@ jb_err decompress_iob(struct client_state *csp)
     * Make sure the new uncompressed iob obeys some minimal
     * consistency conditions.
     */
-   if ((csp->iob->buf <  csp->iob->cur)
+   if ((csp->iob->buf <= csp->iob->cur)
     && (csp->iob->cur <= csp->iob->eod)
     && (csp->iob->eod <= csp->iob->buf + csp->iob->size))
    {
@@ -726,22 +862,21 @@ jb_err decompress_iob(struct client_state *csp)
       if (new_size > (size_t)0)
       {
          log_error(LOG_LEVEL_RE_FILTER,
-            "Decompression successful. Old size: %d, new size: %d.",
+            "Decompression successful. Old size: %lu, new size: %lu.",
             old_size, new_size);
       }
       else
       {
-         /* zlib thinks this is OK, so lets do the same. */
-         log_error(LOG_LEVEL_INFO, "Decompression didn't result in any content.");
+         /* zlib thinks this is OK, so let's do the same. */
+         log_error(LOG_LEVEL_RE_FILTER,
+            "Decompression didn't result in any content.");
       }
    }
    else
    {
       /* It seems that zlib did something weird. */
       log_error(LOG_LEVEL_ERROR,
-         "Unexpected error decompressing the buffer (iob): %d==%d, %d>%d, %d<%d",
-         csp->iob->cur, csp->iob->buf + skip_size, csp->iob->eod, csp->iob->buf,
-         csp->iob->eod, csp->iob->buf + csp->iob->size);
+         "Inconsistent buffer after decompression.");
       return JB_ERR_COMPRESS;
    }
 
@@ -1093,8 +1228,8 @@ static void enforce_header_order(struct list *headers, const struct list *ordere
    }
 
    list_remove_all(headers);
-   list_duplicate(headers, new_headers);
-   list_remove_all(new_headers);
+   headers->first = new_headers->first;
+   headers->last  = new_headers->last;
 
    return;
 }
@@ -1166,6 +1301,17 @@ jb_err sed(struct client_state *csp, int filter_server_headers)
       v++;
    }
 
+   if (filter_server_headers &&
+      (csp->flags & CSP_FLAG_SERVER_CONTENT_LENGTH_SET) &&
+      (csp->flags & CSP_FLAG_CHUNKED))
+   {
+      /* RFC 2616 4.4 3 */
+      log_error(LOG_LEVEL_HEADER, "Ignoring the Content-Length header "
+         "sent by the server as the response is chunk-encoded.");
+      csp->flags &= ~CSP_FLAG_CONTENT_LENGTH_SET;
+      csp->expected_content_length = 0;
+   }
+
    /* place additional headers on the csp->headers list */
    while ((err == JB_ERR_OK) && (*f))
    {
@@ -1173,13 +1319,76 @@ jb_err sed(struct client_state *csp, int filter_server_headers)
       f++;
    }
 
-   if (!filter_server_headers && !list_is_empty(csp->config->ordered_client_headers))
+   if (!filter_server_headers &&
+       !list_is_empty(csp->config->ordered_client_headers) &&
+       csp->headers->first->str != NULL)
    {
       enforce_header_order(csp->headers, csp->config->ordered_client_headers);
    }
 
    return err;
 }
+
+
+#ifdef FEATURE_HTTPS_INSPECTION
+/*********************************************************************
+ *
+ * Function    :  sed_https
+ *
+ * Description :  add, delete or modify lines in the HTTPS client
+ *                header streams. Wrapper around sed().
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *
+ * Returns     :  JB_ERR_OK in case off success, or
+ *                JB_ERR_MEMORY on some out-of-memory errors, or
+ *                JB_ERR_PARSE in case of fatal parse errors.
+ *
+ *********************************************************************/
+jb_err sed_https(struct client_state *csp)
+{
+   jb_err err;
+   struct list headers;
+
+   /*
+    * Temporarily replace csp->headers with csp->https_headers
+    * to trick sed() into filtering the https headers.
+    */
+   headers.first = csp->headers->first;
+   headers.last  = csp->headers->last;
+   csp->headers->first = csp->https_headers->first;
+   csp->headers->last  = csp->https_headers->last;
+
+   /*
+    * Start with fresh tags. Already existing tags may
+    * be set again. This is necessary to overrule
+    * URL-based patterns.
+    */
+   destroy_list(csp->tags);
+
+   /*
+    * We want client header filters and taggers
+    * so temporarily remove the flag.
+    */
+   csp->flags &= ~CSP_FLAG_CLIENT_HEADER_PARSING_DONE;
+   err = sed(csp, FILTER_CLIENT_HEADERS);
+   csp->flags |= CSP_FLAG_CLIENT_HEADER_PARSING_DONE;
+
+   /*
+    * Update the https headers list which may have
+    * been modified due to header additions or header
+    * reordering.
+    */
+   csp->https_headers->first = csp->headers->first;
+   csp->https_headers->last = csp->headers->last;
+
+   csp->headers->first = headers.first;
+   csp->headers->last  = headers.last;
+
+   return err;
+}
+#endif /* def FEATURE_HTTPS_INSPECTION */
 
 
 /*********************************************************************
@@ -1332,7 +1541,7 @@ static jb_err header_tagger(struct client_state *csp, char *header)
 
       if (NULL == joblist)
       {
-         log_error(LOG_LEVEL_RE_FILTER,
+         log_error(LOG_LEVEL_TAGGING,
             "Tagger %s has empty joblist. Nothing to do.", b->name);
          continue;
       }
@@ -1360,7 +1569,7 @@ static jb_err header_tagger(struct client_state *csp, char *header)
                assert(NULL != header);
                log_error(LOG_LEVEL_ERROR,
                   "Problems with tagger \'%s\' and header \'%s\': %s",
-                  b->name, *header, pcrs_strerror(hits));
+                  b->name, header, pcrs_strerror(hits));
             }
             freez(modified_tag);
          }
@@ -1379,8 +1588,17 @@ static jb_err header_tagger(struct client_state *csp, char *header)
              * no one would do it intentionally.
              */
             freez(tag);
-            log_error(LOG_LEVEL_INFO,
+            log_error(LOG_LEVEL_TAGGING,
                "Tagger \'%s\' created an empty tag. Ignored.", b->name);
+            continue;
+         }
+
+         if (list_contains_item(csp->action->multi[ACTION_MULTI_SUPPRESS_TAG], tag))
+         {
+            log_error(LOG_LEVEL_TAGGING,
+               "Tagger \'%s\' didn't add tag \'%s\': suppressed",
+               b->name, tag);
+            freez(tag);
             continue;
          }
 
@@ -1391,7 +1609,7 @@ static jb_err header_tagger(struct client_state *csp, char *header)
                log_error(LOG_LEVEL_ERROR,
                   "Insufficient memory to add tag \'%s\', "
                   "based on tagger \'%s\' and header \'%s\'",
-                  tag, b->name, *header);
+                  tag, b->name, header);
             }
             else
             {
@@ -1410,7 +1628,7 @@ static jb_err header_tagger(struct client_state *csp, char *header)
                   action_message = "No action bits update necessary.";
                }
 
-               log_error(LOG_LEVEL_HEADER,
+               log_error(LOG_LEVEL_TAGGING,
                   "Tagger \'%s\' added tag \'%s\'. %s",
                   b->name, tag, action_message);
             }
@@ -1418,7 +1636,7 @@ static jb_err header_tagger(struct client_state *csp, char *header)
          else
          {
             /* XXX: Is this log-worthy? */
-            log_error(LOG_LEVEL_HEADER,
+            log_error(LOG_LEVEL_TAGGING,
                "Tagger \'%s\' didn't add tag \'%s\'. Tag already present",
                b->name, tag);
          }
@@ -1507,11 +1725,12 @@ static jb_err filter_header(struct client_state *csp, char **header)
 
       if (NULL == joblist)
       {
-         log_error(LOG_LEVEL_RE_FILTER, "Filter %s has empty joblist. Nothing to do.", b->name);
+         log_error(LOG_LEVEL_RE_FILTER,
+            "Filter %s has empty joblist. Nothing to do.", b->name);
          continue;
       }
 
-      log_error(LOG_LEVEL_RE_FILTER, "filtering \'%s\' (size %d) with \'%s\' ...",
+      log_error(LOG_LEVEL_RE_FILTER, "filtering \'%s\' (size %lu) with \'%s\' ...",
          *header, size, b->name);
 
       /* Apply all jobs from the joblist */
@@ -1521,7 +1740,8 @@ static jb_err filter_header(struct client_state *csp, char **header)
          if (0 < matches)
          {
             current_hits += matches;
-            log_error(LOG_LEVEL_HEADER, "Transforming \"%s\" to \"%s\"", *header, newheader);
+            log_error(LOG_LEVEL_HEADER,
+               "Transforming \"%s\" to \"%s\"", *header, newheader);
             freez(*header);
             *header = newheader;
          }
@@ -1533,7 +1753,8 @@ static jb_err filter_header(struct client_state *csp, char **header)
          else
          {
             /* RegEx failure */
-            log_error(LOG_LEVEL_ERROR, "Filtering \'%s\' with \'%s\' didn't work out: %s",
+            log_error(LOG_LEVEL_ERROR,
+               "Filtering \'%s\' with \'%s\' didn't work out: %s",
                *header, b->name, pcrs_strerror(matches));
             if (newheader != NULL)
             {
@@ -1545,7 +1766,8 @@ static jb_err filter_header(struct client_state *csp, char **header)
 
       if (b->dynamic) pcrs_free_joblist(joblist);
 
-      log_error(LOG_LEVEL_RE_FILTER, "... produced %d hits (new size %d).", current_hits, size);
+      log_error(LOG_LEVEL_RE_FILTER,
+         "... produced %d hits (new size %lu).", current_hits, size);
       hits += current_hits;
    }
 
@@ -1693,6 +1915,7 @@ static jb_err server_proxy_connection(struct client_state *csp, char **header)
    csp->flags |= CSP_FLAG_SERVER_PROXY_CONNECTION_HEADER_SET;
    return JB_ERR_OK;
 }
+#endif /* def FEATURE_CONNECTION_KEEP_ALIVE */
 
 
 /*********************************************************************
@@ -1725,6 +1948,7 @@ static jb_err proxy_authentication(struct client_state *csp, char **header)
 }
 
 
+#ifdef FEATURE_CONNECTION_KEEP_ALIVE
 /*********************************************************************
  *
  * Function    :  client_keep_alive
@@ -1791,6 +2015,7 @@ static jb_err client_keep_alive(struct client_state *csp, char **header)
 
    return JB_ERR_OK;
 }
+#endif /* def FEATURE_CONNECTION_KEEP_ALIVE */
 
 
 /*********************************************************************
@@ -1811,7 +2036,9 @@ static jb_err client_keep_alive(struct client_state *csp, char **header)
 static jb_err get_content_length(const char *header_value, unsigned long long *length)
 {
 #ifdef _WIN32
-   assert(sizeof(unsigned long long) > 4);
+#if SIZEOF_LONG_LONG < 8
+#error sizeof(unsigned long long) too small
+#endif
    if (1 != sscanf(header_value, "%I64u", length))
 #else
    if (1 != sscanf(header_value, "%llu", length))
@@ -1832,10 +2059,7 @@ static jb_err get_content_length(const char *header_value, unsigned long long *l
  *
  * Parameters  :
  *          1  :  csp = Current client state (buffers, headers, etc...)
- *          2  :  header = On input, pointer to header to modify.
- *                On output, pointer to the modified header, or NULL
- *                to remove the header.  This function frees the
- *                original string if necessary.
+ *          2  :  header = pointer to the Content-Length header
  *
  * Returns     :  JB_ERR_OK on success, or
  *                JB_ERR_MEMORY on out-of-memory error.
@@ -1861,8 +2085,6 @@ static jb_err client_save_content_length(struct client_state *csp, char **header
 
    return JB_ERR_OK;
 }
-#endif /* def FEATURE_CONNECTION_KEEP_ALIVE */
-
 
 
 /*********************************************************************
@@ -1891,9 +2113,13 @@ static jb_err client_connection(struct client_state *csp, char **header)
    {
 #ifdef FEATURE_CONNECTION_KEEP_ALIVE
       if ((csp->config->feature_flags & RUNTIME_FEATURE_CONNECTION_SHARING)
-        && !(csp->flags & CSP_FLAG_SERVER_SOCKET_TAINTED))
+         && !(csp->flags & CSP_FLAG_SERVER_SOCKET_TAINTED)
+#ifdef FEATURE_HTTPS_INSPECTION
+         && !client_use_ssl(csp)
+#endif
+          )
       {
-          if (!strcmpic(csp->http->ver, "HTTP/1.1"))
+          if (!strcmpic(csp->http->version, "HTTP/1.1"))
           {
              log_error(LOG_LEVEL_HEADER,
                 "Removing \'%s\' to imply keep-alive.", *header);
@@ -2344,6 +2570,15 @@ static jb_err server_content_encoding(struct client_state *csp, char **header)
       /* Mark for zlib decompression */
       csp->content_type |= CT_DEFLATE;
    }
+   else if (strstr(*header, "br"))
+   {
+#ifdef FEATURE_BROTLI
+      /* Mark for Brotli decompression */
+      csp->content_type |= CT_BROTLI;
+#else
+      csp->content_type |= CT_TABOO;
+#endif
+   }
    else if (strstr(*header, "compress"))
    {
       /*
@@ -2394,7 +2629,7 @@ static jb_err server_content_encoding(struct client_state *csp, char **header)
  *
  * Description :  Remove the Content-Encoding header if the
  *                decompression was successful and the content
- *                has been modifed.
+ *                has been modified.
  *
  * Parameters  :
  *          1  :  csp = Current client state (buffers, headers, etc...)
@@ -2410,7 +2645,12 @@ static jb_err server_content_encoding(struct client_state *csp, char **header)
 static jb_err server_adjust_content_encoding(struct client_state *csp, char **header)
 {
    if ((csp->flags & CSP_FLAG_MODIFIED)
-    && (csp->content_type & (CT_GZIP | CT_DEFLATE)))
+      && ((csp->content_type & (CT_GZIP | CT_DEFLATE))
+#ifdef FEATURE_BROTLI
+         || (csp->content_type & CT_BROTLI)
+#endif
+         )
+      )
    {
       /*
        * We successfully decompressed the content,
@@ -2428,6 +2668,37 @@ static jb_err server_adjust_content_encoding(struct client_state *csp, char **he
 
 }
 #endif /* defined(FEATURE_ZLIB) */
+
+
+/*********************************************************************
+ *
+ * Function    :  header_adjust_content_length
+ *
+ * Description :  Replace given header with new Content-Length header.
+ *
+ * Parameters  :
+ *          1  :  header = On input, pointer to header to modify.
+ *                On output, pointer to the modified header, or NULL
+ *                to remove the header.  This function frees the
+ *                original string if necessary.
+ *          2  :  content_length = content length value to set
+ *
+ * Returns     :  JB_ERR_OK on success, or
+ *                JB_ERR_MEMORY on out-of-memory error.
+ *
+ *********************************************************************/
+jb_err header_adjust_content_length(char **header, size_t content_length)
+{
+   const size_t header_length = 50;
+   freez(*header);
+   *header = malloc(header_length);
+   if (*header == NULL)
+   {
+      return JB_ERR_MEMORY;
+   }
+   create_content_length_header(content_length, *header, header_length);
+   return JB_ERR_OK;
+}
 
 
 /*********************************************************************
@@ -2453,14 +2724,10 @@ static jb_err server_adjust_content_length(struct client_state *csp, char **head
    /* Regenerate header if the content was modified. */
    if (csp->flags & CSP_FLAG_MODIFIED)
    {
-      const size_t header_length = 50;
-      freez(*header);
-      *header = malloc(header_length);
-      if (*header == NULL)
+      if (JB_ERR_OK != header_adjust_content_length(header, csp->content_length))
       {
          return JB_ERR_MEMORY;
       }
-      create_content_length_header(csp->content_length, *header, header_length);
       log_error(LOG_LEVEL_HEADER,
          "Adjusted Content-Length to %llu", csp->content_length);
    }
@@ -2683,9 +2950,8 @@ static jb_err server_last_modified(struct client_state *csp, char **header)
          time_t now;
          struct tm *timeptr = NULL;
          long int rtime;
-#ifdef HAVE_GMTIME_R
          struct tm gmt;
-#endif
+
          now = time(NULL);
          rtime = (long int)difftime(now, last_modified);
          if (rtime)
@@ -2704,15 +2970,7 @@ static jb_err server_last_modified(struct client_state *csp, char **header)
                rtime *= -1;
             }
             last_modified += rtime;
-#ifdef HAVE_GMTIME_R
-            timeptr = gmtime_r(&last_modified, &gmt);
-#elif defined(MUTEX_LOCKS_AVAILABLE)
-            privoxy_mutex_lock(&gmtime_mutex);
-            timeptr = gmtime(&last_modified);
-            privoxy_mutex_unlock(&gmtime_mutex);
-#else
-            timeptr = gmtime(&last_modified);
-#endif
+            timeptr = privoxy_gmtime_r(&last_modified, &gmt);
             if ((NULL == timeptr) || !strftime(newheader,
                   sizeof(newheader), "%a, %d %b %Y %H:%M:%S GMT", timeptr))
             {
@@ -2722,7 +2980,6 @@ static jb_err server_last_modified(struct client_state *csp, char **header)
                freez(*header);
                return JB_ERR_OK;
             }
-
             freez(*header);
             *header = strdup("Last-Modified: ");
             string_append(header, newheader);
@@ -2739,7 +2996,7 @@ static jb_err server_last_modified(struct client_state *csp, char **header)
             seconds = rtime % 60;
 
             log_error(LOG_LEVEL_HEADER,
-               "Randomized:  %s (added %d da%s %d hou%s %d minut%s %d second%s",
+               "Randomized:  %s (added %ld da%s %ld hou%s %ld minut%s %ld second%s",
                *header, days, (days == 1) ? "y" : "ys", hours, (hours == 1) ? "r" : "rs",
                minutes, (minutes == 1) ? "e" : "es", seconds, (seconds == 1) ? ")" : "s)");
          }
@@ -3348,9 +3605,7 @@ static jb_err client_host(struct client_state *csp, char **header)
 static jb_err client_if_modified_since(struct client_state *csp, char **header)
 {
    char newheader[50];
-#ifdef HAVE_GMTIME_R
    struct tm gmt;
-#endif
    struct tm *timeptr = NULL;
    time_t tm = 0;
    const char *newval;
@@ -3393,7 +3648,7 @@ static jb_err client_if_modified_since(struct client_state *csp, char **header)
 
             if (rtime)
             {
-               log_error(LOG_LEVEL_HEADER, "Randomizing: %s (random range: %d minut%s)",
+               log_error(LOG_LEVEL_HEADER, "Randomizing: %s (random range: %ld minut%s)",
                   *header, rtime, (rtime == 1 || rtime == -1) ? "e": "es");
                if (negative_range)
                {
@@ -3404,19 +3659,11 @@ static jb_err client_if_modified_since(struct client_state *csp, char **header)
             }
             else
             {
-               log_error(LOG_LEVEL_ERROR, "Random range is 0. Assuming time transformation test.",
-                  *header);
+               log_error(LOG_LEVEL_ERROR,
+                  "Random range is 0. Assuming time transformation test.");
             }
             tm += rtime * (negative_range ? -1 : 1);
-#ifdef HAVE_GMTIME_R
-            timeptr = gmtime_r(&tm, &gmt);
-#elif defined(MUTEX_LOCKS_AVAILABLE)
-            privoxy_mutex_lock(&gmtime_mutex);
-            timeptr = gmtime(&tm);
-            privoxy_mutex_unlock(&gmtime_mutex);
-#else
-            timeptr = gmtime(&tm);
-#endif
+            timeptr = privoxy_gmtime_r(&tm, &gmt);
             if ((NULL == timeptr) || !strftime(newheader,
                   sizeof(newheader), "%a, %d %b %Y %H:%M:%S GMT", timeptr))
             {
@@ -3426,7 +3673,6 @@ static jb_err client_if_modified_since(struct client_state *csp, char **header)
                freez(*header);
                return JB_ERR_OK;
             }
-
             freez(*header);
             *header = strdup("If-Modified-Since: ");
             string_append(header, newheader);
@@ -3442,7 +3688,7 @@ static jb_err client_if_modified_since(struct client_state *csp, char **header)
             seconds = rtime % 60;
 
             log_error(LOG_LEVEL_HEADER,
-               "Randomized:  %s (%s %d hou%s %d minut%s %d second%s",
+               "Randomized:  %s (%s %ld hou%s %ld minut%s %ld second%s",
                *header, (negative_range) ? "subtracted" : "added", hours,
                (hours == 1) ? "r" : "rs", minutes, (minutes == 1) ? "e" : "es",
                seconds, (seconds == 1) ? ")" : "s)");
@@ -3784,7 +4030,12 @@ static jb_err server_proxy_connection_adder(struct client_state *csp)
     && !(csp->flags & CSP_FLAG_SERVER_SOCKET_TAINTED)
     && !(csp->flags & CSP_FLAG_SERVER_PROXY_CONNECTION_HEADER_SET)
     && ((csp->flags & CSP_FLAG_SERVER_CONTENT_LENGTH_SET)
-       || (csp->flags & CSP_FLAG_CHUNKED)))
+       || (csp->flags & CSP_FLAG_CHUNKED))
+#ifdef FEATURE_HTTPS_INSPECTION
+    && !client_use_ssl(csp)
+    && !csp->http->ssl
+#endif
+       )
    {
       log_error(LOG_LEVEL_HEADER, "Adding: %s", proxy_connection_header);
       err = enlist(csp->headers, proxy_connection_header);
@@ -3800,7 +4051,8 @@ static jb_err server_proxy_connection_adder(struct client_state *csp)
  * Function    :  client_connection_header_adder
  *
  * Description :  Adds a proper "Connection:" header to csp->headers
- *                unless the header was already present. Called from `sed'.
+ *                unless the header was already present or it's a
+ *                CONNECT request. Called from `sed'.
  *
  * Parameters  :
  *          1  :  csp = Current client state (buffers, headers, etc...)
@@ -3819,11 +4071,21 @@ static jb_err client_connection_header_adder(struct client_state *csp)
       return JB_ERR_OK;
    }
 
+   /*
+    * In case of CONNECT requests "Connection: close" is implied,
+    * but actually setting the header has been reported to cause
+    * problems with some forwarding proxies that close the
+    * connection prematurely.
+    */
+   if (csp->http->ssl != 0)
+   {
+      return JB_ERR_OK;
+   }
+
 #ifdef FEATURE_CONNECTION_KEEP_ALIVE
    if ((csp->config->feature_flags & RUNTIME_FEATURE_CONNECTION_KEEP_ALIVE)
       && !(csp->flags & CSP_FLAG_SERVER_SOCKET_TAINTED)
-      && (csp->http->ssl == 0)
-      && !strcmpic(csp->http->ver, "HTTP/1.1"))
+      && !strcmpic(csp->http->version, "HTTP/1.1"))
    {
       csp->flags |= CSP_FLAG_CLIENT_CONNECTION_KEEP_ALIVE;
       return JB_ERR_OK;
@@ -3894,7 +4156,8 @@ static jb_err server_http(struct client_state *csp, char **header)
       return JB_ERR_PARSE;
    }
 
-   if (csp->http->status == 206)
+   if (csp->http->status == 101 ||
+       csp->http->status == 206)
    {
       csp->content_type = CT_TABOO;
    }
@@ -3956,18 +4219,9 @@ static void add_cookie_expiry_date(char **cookie, time_t lifetime)
    char tmp[50];
    struct tm *timeptr = NULL;
    time_t expiry_date = time(NULL) + lifetime;
-#ifdef HAVE_GMTIME_R
    struct tm gmt;
 
-   timeptr = gmtime_r(&expiry_date, &gmt);
-#elif defined(MUTEX_LOCKS_AVAILABLE)
-   privoxy_mutex_lock(&gmtime_mutex);
-   timeptr = gmtime(&expiry_date);
-   privoxy_mutex_unlock(&gmtime_mutex);
-#else
-   timeptr = gmtime(&expiry_date);
-#endif
-
+   timeptr = privoxy_gmtime_r(&expiry_date, &gmt);
    if (NULL == timeptr)
    {
       log_error(LOG_LEVEL_FATAL,
@@ -4310,9 +4564,10 @@ static jb_err parse_header_time(const char *header_time, time_t *result)
          {
             char recreated_date[100];
             struct tm *tm;
+            struct tm storage;
             time_t result2;
 
-            tm = gmtime(result);
+            tm = privoxy_gmtime_r(result, &storage);
             if (!strftime(recreated_date, sizeof(recreated_date),
                time_formats[i], tm))
             {
@@ -4332,7 +4587,7 @@ static jb_err parse_header_time(const char *header_time, time_t *result)
             if (*result != result2)
             {
                log_error(LOG_LEVEL_ERROR, "strftime() and strptime() disagree. "
-                  "Format: '%s'. In: '%s', out: '%s'. %d != %d. Rejecting.",
+                  "Format: '%s'. In: '%s', out: '%s'. %ld != %ld. Rejecting.",
                   time_formats[i], header_time, recreated_date, *result, result2);
                continue;
             }
@@ -4373,7 +4628,10 @@ static jb_err parse_time_header(const char *header, time_t *result)
     * through sed() which requires a header name followed by
     * a colon.
     */
-   assert(header_time != NULL);
+   if (header_time == NULL)
+   {
+      return JB_ERR_PARSE;
+   }
 
    header_time++;
    if (*header_time == ' ')
@@ -4413,8 +4671,6 @@ jb_err get_destination_from_headers(const struct list *headers, struct http_requ
    char *p;
    char *host;
 
-   assert(!http->ssl);
-
    host = get_header_value(headers, "Host:");
 
    if (NULL == host)
@@ -4423,7 +4679,11 @@ jb_err get_destination_from_headers(const struct list *headers, struct http_requ
       return JB_ERR_PARSE;
    }
 
-   p = strdup_or_die(host);
+   p = string_tolower(host);
+   if (p == NULL)
+   {
+      return JB_ERR_MEMORY;
+   }
    chomp(p);
    q = strdup_or_die(p);
 
@@ -4467,7 +4727,7 @@ jb_err get_destination_from_headers(const struct list *headers, struct http_requ
    string_append(&http->cmd, " ");
    string_append(&http->cmd, http->url);
    string_append(&http->cmd, " ");
-   string_append(&http->cmd, http->ver);
+   string_append(&http->cmd, http->version);
    if (http->cmd == NULL)
    {
       return JB_ERR_MEMORY;
@@ -4476,6 +4736,92 @@ jb_err get_destination_from_headers(const struct list *headers, struct http_requ
    return JB_ERR_OK;
 
 }
+
+
+#ifdef FEATURE_HTTPS_INSPECTION
+/*********************************************************************
+ *
+ * Function    :  get_destination_from_https_headers
+ *
+ * Description :  Parse the previously encrypted "Host:" header to
+ *                get the request's destination.
+ *
+ * Parameters  :
+ *          1  :  headers = List of headers (one of them hopefully being
+ *                the "Host:" header)
+ *          2  :  http = storage for the result (host, port and hostport).
+ *
+ * Returns     :  JB_ERR_MEMORY (or terminates) in case of memory problems,
+ *                JB_ERR_PARSE if the host header couldn't be found,
+ *                JB_ERR_OK otherwise.
+ *
+ *********************************************************************/
+jb_err get_destination_from_https_headers(const struct list *headers, struct http_request *http)
+{
+   char *q;
+   char *p;
+   char *host;
+
+   host = get_header_value(headers, "Host:");
+
+   if (NULL == host)
+   {
+      log_error(LOG_LEVEL_ERROR, "No \"Host:\" header found.");
+      return JB_ERR_PARSE;
+   }
+
+   p = string_tolower(host);
+   if (p == NULL)
+   {
+      return JB_ERR_MEMORY;
+   }
+   chomp(p);
+   q = strdup_or_die(p);
+
+   freez(http->hostport);
+   http->hostport = p;
+   freez(http->host);
+   http->host = q;
+   q = strchr(http->host, ':');
+   if (q != NULL)
+   {
+      /* Terminate hostname and evaluate port string */
+      *q++ = '\0';
+      http->port = atoi(q);
+   }
+   else
+   {
+      http->port = 443;
+   }
+
+   /* Rebuild request URL */
+   freez(http->url);
+   http->url = strdup_or_die(http->path);
+
+   log_error(LOG_LEVEL_HEADER,
+      "Destination extracted from \"Host\" header. New request URL: %s",
+      http->url);
+
+   /*
+    * Regenerate request line in "proxy format"
+    * to make rewrites more convenient.
+    */
+   assert(http->cmd != NULL);
+   freez(http->cmd);
+   http->cmd = strdup_or_die(http->gpc);
+   string_append(&http->cmd, " ");
+   string_append(&http->cmd, http->url);
+   string_append(&http->cmd, " ");
+   string_append(&http->cmd, http->version);
+   if (http->cmd == NULL)
+   {
+      return JB_ERR_MEMORY;
+   }
+
+   return JB_ERR_OK;
+
+}
+#endif /* def FEATURE_HTTPS_INSPECTION */
 
 
 /*********************************************************************
@@ -4589,6 +4935,10 @@ static jb_err handle_conditional_hide_referrer_parameter(char **header,
       referer[hostlength+17] = '\0';
    }
    referer_url = strstr(referer, "http://");
+   if (NULL == referer_url)
+   {
+      referer_url = strstr(referer, "https://");
+   }
    if ((NULL == referer_url) || (NULL == strstr(referer_url, host)))
    {
       /* Host has changed, Referer is invalid or a https URL. */
@@ -4628,11 +4978,17 @@ static jb_err handle_conditional_hide_referrer_parameter(char **header,
 static void create_content_length_header(unsigned long long content_length,
                                          char *header, size_t buffer_length)
 {
+#ifdef _WIN32
+#if SIZEOF_LONG_LONG < 8
+#error sizeof(unsigned long long) too small
+#endif
+   snprintf(header, buffer_length, "Content-Length: %I64u", content_length);
+#else
    snprintf(header, buffer_length, "Content-Length: %llu", content_length);
+#endif
 }
 
 
-#ifdef FEATURE_CONNECTION_KEEP_ALIVE
 /*********************************************************************
  *
  * Function    :  get_expected_content_length
@@ -4664,7 +5020,7 @@ unsigned long long get_expected_content_length(struct list *headers)
 
    return content_length;
 }
-#endif
+
 
 /*
   Local Variables:

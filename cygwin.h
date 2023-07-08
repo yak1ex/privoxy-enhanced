@@ -1,6 +1,5 @@
 #ifndef CYGWIN_H_INCLUDED
 #define CYGWIN_H_INCLUDED
-#define CYGWIN_H_VERSION "$Id: cygwin.h,v 1.8 2011/09/04 11:10:56 fabiankeil Exp $"
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/cygwin.h,v $
@@ -9,8 +8,8 @@
  *                will bridge the gaps here.  Perhaps I should convert the
  *                latest SDK too?  Shudder, I think not.
  *
- * Copyright   :  Written by and Copyright (C) 2001 the SourceForge
- *                Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001 members of the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and

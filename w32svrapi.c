@@ -1,4 +1,3 @@
-const char w32_svrapi_rcs[] = "$Id: w32svrapi.c,v 1.5 2011/09/04 11:10:56 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/w32svrapi.c,v $
@@ -17,7 +16,7 @@ const char w32_svrapi_rcs[] = "$Id: w32svrapi.c,v 1.5 2011/09/04 11:10:56 fabian
  *                doing to provide that isolation.
  *
  * Copyright   :  Written by and Copyright (C) 2003, 2006 members of
- *                the Privoxy team.  http://www.privoxy.org/
+ *                the Privoxy team.  https://www.privoxy.org/
  *
  *                Written by and Copyright (C) 2003 Ian Cummings
  *                <ian_a_c@hotmail.com>
@@ -64,8 +63,6 @@ const char w32_svrapi_rcs[] = "$Id: w32svrapi.c,v 1.5 2011/09/04 11:10:56 fabian
 #endif /* ndef _WIN_CONSOLE */
 
 #include "w32svrapi.h"
-const char w32_svrapi_h_rcs[] = W32_SVRAPI_H_VERSION;
-
 
 /* Only the ANSI Win32 APIs are used at this time. If for some
  * reason, we're building under unicode then we must stop
@@ -785,6 +782,9 @@ static void WINAPI privoxy_w32_service_start(DWORD dw, LPSTR* pszArgs)
    w32_set_service_status(hSrv_status, &srv_status);
 
 #ifndef FEATURE_PTHREAD
+   /* NOTE: a cygwin cross-compiler build for --host=i686-w64-mingw32 must disable POSIX threading - eg
+    *         ./configure --host=i686-w64-mingw32 --disable-pthread
+    */
    child_id = _beginthread(w32_service_listen_loop, 0, NULL);
    if (child_id > 0)
 #else

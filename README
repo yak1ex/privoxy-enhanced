@@ -1,11 +1,11 @@
 /*********************************************************************
  *
- * File        :  $Source: /cvsroot/ijbswa/current/README,v $
+ * File        :  README
  *
- * Purpose     :  README file to give a short intro.
+ * Purpose     :  Give a short intro about Privoxy.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2011 the
- *                Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001-2021 the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -32,7 +32,7 @@
  *
  *********************************************************************/
 
-This README is included with Privoxy 3.0.21. See http://www.privoxy.org/ for
+This README is included with Privoxy 3.0.34. See https://www.privoxy.org/ for
 more information. The current code maturity level is "stable".
 
 -------------------------------------------------------------------------------
@@ -44,15 +44,15 @@ flexible configuration and can be customized to suit individual needs and
 tastes. It has application for both stand-alone systems and multi-user
 networks.
 
-Privoxy is Free Software and licensed under the GNU GPLv2.
+Privoxy is Free Software and licensed under the GNU GPLv2 or later.
 
 Privoxy is an associated project of Software in the Public Interest (SPI).
 
 Helping hands and donations are welcome:
 
-  * http://www.privoxy.org/faq/general.html#PARTICIPATE
+  * https://www.privoxy.org/participate
 
-  * http://www.privoxy.org/faq/general.html#DONATE
+  * https://www.privoxy.org/donate
 
 -------------------------------------------------------------------------------
 
@@ -93,7 +93,7 @@ in '*.action' files. 'user.action' should be used for any actions
 customizations. On Unix-like systems, these files are typically installed in /
 etc/privoxy. On Windows, then wherever the executable itself is installed.
 There are many significant changes and advances from earlier versions. The User
-Manual has an explanation of all configuration options, and examples: http://
+Manual has an explanation of all configuration options, and examples: https://
 www.privoxy.org/user-manual/.
 
 Be sure to set your browser(s) for HTTP/HTTPS Proxy at <IP>:<Port>, or whatever
@@ -116,7 +116,7 @@ The source and configuration files are all well commented. The main
 configuration files are: 'config', 'default.action', and 'default.filter'.
 
 Included documentation may vary according to platform and packager. All
-documentation is posted on http://www.privoxy.org, in case you don't have it,
+documentation is posted on https://www.privoxy.org, in case you don't have it,
 or can't find it.
 
 -------------------------------------------------------------------------------
@@ -135,7 +135,7 @@ A lot of support requests don't contain enough information and can't be solved
 without a lot of back and forth which causes unnecessary delays. Reading this
 section should help to prevent that.
 
-Before contacting us to report a problem, please try to verify that it is a
+Before contacting us to report a problem, please try to verify that it is a 
 Privoxy problem, and not a browser or site problem or documented behaviour that
 just happens to be different than what you expected. If unsure, try toggling
 off Privoxy, and see if the problem persists.
@@ -156,14 +156,14 @@ requesting support:
 
   * The operating system and versions you run Privoxy on, e.g. Windows XP SP2.
 
-  * The name, platform, and version of the browser you were using (e.g.
+  * The name, platform, and version of the browser you were using (e.g. 
     Internet Explorer v5.5 for Mac).
 
   * The URL where the problem occurred, or some way for us to duplicate the
     problem (e.g. http://somesite.example.com/?somethingelse=123).
 
-  * Whether your version of Privoxy is one supplied by the Privoxy developers
-    via SourceForge, or if you got your copy somewhere else.
+  * Whether your version of Privoxy is one supplied by the Privoxy developers,
+    or if you got your copy somewhere else.
 
   * Whether you are using Privoxy together with another proxy such as Tor. If
     so, please temporary disable the other proxy to see if the symptoms change.
@@ -177,23 +177,26 @@ requesting support:
     directive is being used and the following debug options are enabled (all of
     them):
 
-    debug     1 # Log the destination for each request Privoxy let through. See also debug 1024.
+    debug     1 # Log the destination for each request. See also debug 1024.
+                #   See also debug 1024.
     debug     2 # show each connection status
-    debug     4 # show I/O status
+    debug     4 # show tagging-related messages
     debug     8 # show header parsing
     debug   128 # debug redirects
     debug   256 # debug GIF de-animation
     debug   512 # Common Log Format
-    debug  1024 # Log the destination for requests Privoxy didn't let through, and the reason why.
+    debug  1024 # Log the destination for requests Privoxy didn't let through,
+                #   and the reason why.
     debug  4096 # Startup banner and warnings.
     debug  8192 # Non-fatal errors
+    debug 65536 # Log applying actions
 
     If you are having trouble with a filter, please additionally enable
 
     debug    64 # debug regular expression filters
 
-    If you are using Privoxy 3.0.17 or later and suspect that it interprets the
-    request or the response incorrectly, please enable
+    If you suspect that Privoxy interprets the request or the response
+    incorrectly, please enable additionally
 
     debug 32768 # log all data read from the network
 
@@ -205,6 +208,8 @@ requesting support:
     Note that Privoxy log files may contain sensitive information so please
     don't submit any logfiles you didn't read first. You can mask sensitive
     information as long as it's clear that you removed something.
+
+    Please clear the browser cache before reproducing the problem.
 
 You don't have to tell us your actual name when filing a problem report, but if
 you don't, please use a nickname so we can differentiate between your messages
@@ -220,9 +225,6 @@ automatically get a mail when someone responds to your request. Please don't
 bother to add an email address when using the tracker. If you prefer to
 communicate through email, just use one of the mailing lists directly.
 
-If you are new to reporting problems, you might be interested in How to Report
-Bugs Effectively.
-
 The appendix of the Privoxy User Manual also has helpful information on
 understanding actions, and action debugging.
 
@@ -230,11 +232,8 @@ understanding actions, and action debugging.
 
 6.2. Get Support
 
-For casual users, our support forum at SourceForge is probably best suited:
-http://sourceforge.net/tracker/?group_id=11118&atid=211118
-
-All users are of course welcome to discuss their issues on the users mailing
-list, where the developers also hang around.
+All users are welcome to discuss their issues on the users mailing list, where
+the developers also hang around.
 
 Please don't send private support requests to individual Privoxy developers,
 either use the mailing lists or the support trackers.
@@ -266,7 +265,8 @@ and you won't see them.
     function properly due to one Privoxy "action" or another being turned "on".
 
   * "Bugs" in the programming code that makes up Privoxy, such as that might
-    cause a crash.
+    cause a crash. Documentation issues, for example spelling errors and
+    unclear descriptions, are bugs, too.
 
 -------------------------------------------------------------------------------
 
@@ -274,32 +274,29 @@ and you won't see them.
 
 Please send feedback on ads that slipped through, innocent images that were
 blocked, sites that don't work properly, and other configuration related
-problem of default.action file, to http://sourceforge.net/tracker/?group_id=
-11118&atid=460288, the Actions File Tracker.
-
-New, improved default.action files may occasionally be made available based on
-your feedback. These will be announced on the ijbswa-announce list and
-available from our the files section of our project page.
+problem of default.action file, to https://sourceforge.net/p/ijbswa/
+actionsfile-feedback/, the Actions File Tracker.
 
 -------------------------------------------------------------------------------
 
 6.3.2. Reporting Bugs
 
-Please report all bugs through our bug tracker: http://sourceforge.net/tracker
-/?group_id=11118&atid=111118.
-
-Before doing so, please make sure that the bug has not already been submitted
-and observe the additional hints at the top of the submit form. If already
-submitted, please feel free to add any info to the original report that might
-help to solve the issue.
+Before reporting bugs, please make sure that the bug has not already been
+submitted and observe the additional hints at the top of the submit form. If
+already submitted, please feel free to add any info to the original report that
+might help to solve the issue.
 
 -------------------------------------------------------------------------------
 
-6.4. Request New Features
+6.4. Reporting security problems
 
-You are welcome to submit ideas on new features or other proposals for
-improvement through our feature request tracker at http://sourceforge.net/
-tracker/?atid=361118&group_id=11118.
+If you discovered a security problem or merely suspect that a bug might be a
+security issue, please mail Fabian Keil <fk@fabiankeil.de> (OpenPGP
+fingerprint: 4F36 C17F 3816 9136 54A1 E850 6918 2291 8BA2 371C).
+
+Usually you should get a response within a day, otherwise it's likely that
+either your mail or the response didn't make it. If that happens, please mail
+to the developer list to request a status update.
 
 -------------------------------------------------------------------------------
 
@@ -310,6 +307,16 @@ feel free to use one of the mailing lists. To discuss issues that haven't been
 completely diagnosed yet, please use the Privoxy users list. Technically
 interested users and people who wish to contribute to the project are always
 welcome on the developers list. You can find an overview of all Privoxy-related
-mailing lists, including list archives, at: http://sourceforge.net/mail/?
-group_id=11118.
+mailing lists, including list archives, at: https://lists.privoxy.org/mailman/
+listinfo. The lists hosted on privoxy.org have been created in 2016, the
+previously-used lists hosted at SourceForge are deprecated but the archives may
+still be useful: https://sourceforge.net/p/ijbswa/mailman/.
+
+-------------------------------------------------------------------------------
+
+6.6. SourceForge support trackers
+
+The SourceForge support trackers may be used as well, but have various
+technical problems that are unlikely to be fixed anytime soon. If you don't get
+a timely response, please try the mailing list as well.
 

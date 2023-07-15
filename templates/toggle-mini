@@ -32,7 +32,7 @@
 #  my-hostname:
 #    The hostname associated with my-ip-addr
 #  admin-address:
-#    The email address of the pxoxy's administrator, as configured
+#    The email address of the proxy administrator, as configured
 #    in the config file
 #  default-cgi:
 #    The URL for the "main menu" builtin CGI of this proxy
@@ -44,8 +44,7 @@
 #    The development status of the proxy software: "alpha", "beta",
 #    or "stable".
 #  homepage:
-#    The URL of the SourceForge ijbswa project, who maintains this
-#    software.
+#    The URL of the Privoxy project, which maintains this software.
 #
 # CONDITIONAL SYMBOLS FOR THIS TEMPLATE AND THEIR DEPANDANT SYMBOLS:
 # ------------------------------------------------------------------
@@ -53,7 +52,7 @@
 #  unstable:
 #    this is an alpha or beta release of the proxy software
 #  have-adminaddr-info:
-#    An e-mail address for the local Privoxy adminstrator has
+#    An e-mail address for the local Privoxy administrator has
 #    been specified and is available through the "admin-address"
 #    symbol
 #  have-proxy-info:
@@ -73,7 +72,7 @@
   <title>@if-enabled-display-then@Enabled@else-not-enabled-display@Disabled@endif-enabled-display@ - Privoxy@@my-hostname@</title>
   <meta http-equiv="Content-Style-Type" content="text/css">
   <meta http-equiv="Content-Script-Type" content="text/javascript">
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name="robots" content="noindex,nofollow">
   <link rel="stylesheet" type="text/css" href="@default-cgi@send-stylesheet">
   <link rel="shortcut icon" href="@default-cgi@favicon.ico" type="image/x-icon">
@@ -81,7 +80,7 @@
 
 <body>
   <p class="whiteframed">
-    <a href="@default-cgi@" target="_blank">Privoxy</a> is
+    <a href="@default-cgi@">Privoxy</a> is
     <b>@if-enabled-display-then@enabled@else-not-enabled-display@disabled@endif-enabled-display@</b>.
     <br><a href="@default-cgi@toggle?mini=y&amp;set=@if-enabled-display-then@disable@else-not-enabled-display@enable@endif-enabled-display@"
     >@if-enabled-display-then@[Disable]@else-not-enabled-display@[Enable]@endif-enabled-display@</a> |

@@ -15,11 +15,6 @@
 #
 # url-pattern-translator.pl old.action > new.action 
 #
-# Only convert your files once, or, as RoboCop used to say,
-# there will be... trouble.
-#
-# $Id: url-pattern-translator.pl,v 1.4 2009/06/21 18:15:24 fabiankeil Exp $
-#
 # Copyright (c) 2008 Fabian Keil <fk@fabiankeil.de>
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -74,6 +69,9 @@ sub convert_host_pattern ($) {
     # Match single character with a dot.
     $hp =~ s@(?<!\))\?@.@g;
 
+    # Add the prefix
+    $hp = "PCRE-HOST-PATTERN:" . $hp;
+
     return $hp;
 }
 
@@ -93,7 +91,11 @@ sub looks_interesting($) {
 
         $type_to_skip = "whitespace";
 
-    } elsif (m@^\s*TAG:@) {
+    } elsif (m@^\s*CLIENT-TAG:@i) {
+
+        $type_to_skip = "client tag patttern";
+
+    } elsif (m@^\s*TAG:@i) {
 
         $type_to_skip = "tag patttern";
 
@@ -104,6 +106,10 @@ sub looks_interesting($) {
     } elsif (m@^\s*standard\.@) {
 
         $type_to_skip = "predefined settings";
+
+    } elsif (m@^\s*PCRE-HOST-PATTERN:@i) {
+
+        $type_to_skip = "already converted pcre host patttern";
 
     }
 

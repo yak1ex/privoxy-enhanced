@@ -1,7 +1,7 @@
 <!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook V3.1//EN" [
 <!entity % dummy "IGNORE">
 <!entity buildsource SYSTEM "buildsource.sgml">
-<!entity p-version "3.0.21">
+<!entity p-version "3.0.34">
 <!entity p-status "stable">
 <!entity % p-stable "INCLUDE">
 <!entity % p-not-stable "IGNORE">
@@ -12,13 +12,11 @@
 <!entity % p-readme "INCLUDE">     <!-- This is now in INSTALL           -->
 ]>
 <!--
- File        :  $Source: /cvsroot/ijbswa/current/doc/source/install.sgml,v $
+ File        :  doc/source/install.sgml
 
  Purpose     :  INSTALL file for Privoxy
 
- $Id: install.sgml,v 2.25 2013/03/01 17:44:24 fabiankeil Exp $
-
- Copyright (C) 2001-2009 Privoxy Developers http://www.privoxy.org/
+ Copyright (C) 2001-2018 Privoxy Developers https://www.privoxy.org/
  See LICENSE.
 
  ========================================================================
@@ -59,7 +57,7 @@
  * Purpose     :  INSTALL file to help with installing from source.
  *
  * Copyright   :  Written by and Copyright (C) 2001-2009 the
- *                Privoxy team. http://www.privoxy.org/
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -85,7 +83,7 @@
  *                USA
  *
  *********************************************************************/
-   </literallayout>
+</literallayout>
   </msgtext>
  </literal>
 </para>

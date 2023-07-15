@@ -7,19 +7,34 @@
  *
  * Purpose     :  Header file for pcrs.c
  *
- * Copyright   :  see pcrs.c
+ * Copyright   :  Written and Copyright (C) 2000, 2001 by Andreas S. Oesterhelt
+ *                <andreas@oesterhelt.org>
+ *
+ *                Copyright (C) 2006, 2007 Fabian Keil <fk@fabiankeil.de>
+ *
+ *                This program is free software; you can redistribute it
+ *                and/or modify it under the terms of the GNU General
+ *                Public License as published by the Free Software
+ *                Foundation; either version 2 of the License, or (at
+ *                your option) any later version.
+ *
+ *                This program is distributed in the hope that it will
+ *                be useful, but WITHOUT ANY WARRANTY; without even the
+ *                implied warranty of MERCHANTABILITY or FITNESS FOR A
+ *                PARTICULAR PURPOSE.  See the GNU General Public
+ *                License for more details.
+ *
+ *                The GNU General Public License should be included with
+ *                this file.  If not, you can view it at
+ *                http://www.gnu.org/copyleft/gpl.html
+ *                or write to the Free Software Foundation, Inc., 59
+ *                Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  *********************************************************************/
-
-#define PCRS_H_VERSION "$Id: pcrs.h,v 1.17 2009/05/16 13:27:20 fabiankeil Exp $"
 
 
 #ifndef _PCRE_H
 #include <pcre.h>
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 /*
@@ -55,6 +70,7 @@ extern "C" {
 #define PCRS_GLOBAL          1      /* Job should be applied globally, as with perl's g option */
 #define PCRS_TRIVIAL         2      /* Backreferences in the substitute are ignored */
 #define PCRS_SUCCESS         4      /* Job did previously match */
+#define PCRS_DYNAMIC         8      /* Job is dynamic (used to disable JIT compilation) */
 
 
 /*
@@ -137,8 +153,8 @@ extern pcrs_job *pcrs_compile_dynamic_command(char *pcrs_command, const struct p
 #define PCRS_BUFFER_SIZE 4000
 #endif /* ndef PCRS_BUFFER_SIZE */
 
-#ifdef __cplusplus
-} /* extern "C" */
+#ifdef FUZZ
+extern pcrs_substitute *pcrs_compile_fuzzed_replacement(const char *replacement, int *errptr);
 #endif
 
 #endif /* ndef PCRS_H_INCLUDED */

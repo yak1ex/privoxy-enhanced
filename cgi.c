@@ -1,15 +1,14 @@
-const char cgi_rcs[] = "$Id: cgi.c,v 1.158 2012/12/07 12:45:20 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/cgi.c,v $
  *
  * Purpose     :  Declares functions to intercept request, generate
- *                html or gif answers, and to compose HTTP resonses.
+ *                html or gif answers, and to compose HTTP responses.
  *                This only contains the framework functions, the
  *                actual handler functions are declared elsewhere.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2004, 2006-2008
- *                the SourceForge Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001-2021
+ *                members of the Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -63,13 +62,16 @@ const char cgi_rcs[] = "$Id: cgi.c,v 1.158 2012/12/07 12:45:20 fabiankeil Exp $"
 #if defined(FEATURE_CGI_EDIT_ACTIONS) || defined(FEATURE_TOGGLE)
 #include "cgiedit.h"
 #endif /* defined(FEATURE_CGI_EDIT_ACTIONS) || defined (FEATURE_TOGGLE) */
+#ifdef FEATURE_HTTPS_INSPECTION
+#include "ssl.h"
+#endif
 
 /* loadcfg.h is for global_toggle_state only */
 #include "loadcfg.h"
 /* jcc.h is for mutex semaphore globals only */
 #include "jcc.h"
 
-const char cgi_h_rcs[] = CGI_H_VERSION;
+static char *make_menu(const struct client_state *csp, const char *self);
 
 /*
  * List of CGI functions: name, handler, description
@@ -96,10 +98,17 @@ static const struct cgi_dispatcher cgi_dispatchers[] = {
         "View the current configuration",
 #endif
          TRUE },
-   { "show-version",
-         cgi_show_version,
-         "View the source code version numbers",
-          TRUE },
+#ifdef FEATURE_CLIENT_TAGS
+   /*
+    * This is marked as harmless because despite the description
+    * used in the menu the actual toggling is done through another
+    * path ("/toggle-client-tag").
+    */
+   { "client-tags",
+         cgi_show_client_tags,
+         "View or toggle the tags that can be set based on the client&#39;s address",
+         TRUE },
+#endif
    { "show-request",
          cgi_show_request,
          "View the request headers",
@@ -114,6 +123,12 @@ static const struct cgi_dispatcher cgi_dispatchers[] = {
          "Toggle Privoxy on or off",
          FALSE },
 #endif /* def FEATURE_TOGGLE */
+#ifdef FEATURE_CLIENT_TAGS
+   { "toggle-client-tag",
+         cgi_toggle_client_tag,
+         NULL,
+         FALSE },
+#endif
 #ifdef FEATURE_FORWARD_CLASS
    { "forward-class",
          cgi_forward_class, 
@@ -212,6 +227,9 @@ static const struct cgi_dispatcher cgi_dispatchers[] = {
    { "user-manual",
           cgi_send_user_manual,
           NULL, TRUE /* Send user-manual */ },
+   { "wpad.dat",
+         cgi_send_wpad,
+         NULL, TRUE /* Send wpad.dat proxy autoconfiguration file */ },
    { NULL, /* NULL Indicates end of list and default page */
          cgi_error_404,
          NULL, TRUE /* Unknown CGI page */ }
@@ -240,7 +258,7 @@ const char image_pattern_data[] =
    "\000\000\000\000\111\105\116\104\256\102\140\202";
 
 /*
- * 1x1 transparant PNG.
+ * 1x1 transparent PNG.
  */
 const char image_blank_data[] =
  "\211\120\116\107\015\012\032\012\000\000\000\015\111\110\104\122"
@@ -263,7 +281,7 @@ const char image_pattern_data[] =
    "\270\005\000\073";
 
 /*
- * 1x1 transparant GIF.
+ * 1x1 transparent GIF.
  */
 const char image_blank_data[] =
    "GIF89a\001\000\001\000\200\000\000\377\377\377\000\000"
@@ -397,8 +415,13 @@ struct http_response *dispatch_cgi(struct client_state *csp)
 static char *grep_cgi_referrer(const struct client_state *csp)
 {
    struct list_entry *p;
+   struct list_entry *first_header =
+#ifdef FEATURE_HTTPS_INSPECTION
+      client_use_ssl(csp) ? csp->https_headers->first :
+#endif
+      csp->headers->first;
 
-   for (p = csp->headers->first; p != NULL; p = p->next)
+   for (p = first_header; p != NULL; p = p->next)
    {
       if (p->str == NULL) continue;
       if (strncmpic(p->str, "Referer: ", 9) == 0)
@@ -430,6 +453,10 @@ static int referrer_is_safe(const struct client_state *csp)
 {
    char *referrer;
    static const char alternative_prefix[] = "http://" CGI_SITE_1_HOST "/";
+#ifdef FEATURE_HTTPS_INSPECTION
+   static const char alt_prefix_https[] = "https://" CGI_SITE_1_HOST "/";
+#endif
+   const char *trusted_cgi_referrer = csp->config->trusted_cgi_referrer;
 
    referrer = grep_cgi_referrer(csp);
 
@@ -439,11 +466,27 @@ static int referrer_is_safe(const struct client_state *csp)
       log_error(LOG_LEVEL_ERROR, "Denying access to %s. No referrer found.",
          csp->http->url);
    }
-   else if ((0 == strncmp(referrer, CGI_PREFIX, sizeof(CGI_PREFIX)-1)
-         || (0 == strncmp(referrer, alternative_prefix, strlen(alternative_prefix)))))
+   else if ((0 == strncmp(referrer, CGI_PREFIX_HTTP, sizeof(CGI_PREFIX_HTTP)-1))
+#ifdef FEATURE_HTTPS_INSPECTION
+         || (0 == strncmp(referrer, CGI_PREFIX_HTTPS, sizeof(CGI_PREFIX_HTTPS)-1))
+         || (0 == strncmp(referrer, alt_prefix_https, strlen(alt_prefix_https)))
+#endif
+         || (0 == strncmp(referrer, alternative_prefix, strlen(alternative_prefix))))
    {
       /* Trustworthy referrer */
       log_error(LOG_LEVEL_CGI, "Granting access to %s, referrer %s is trustworthy.",
+         csp->http->url, referrer);
+
+      return TRUE;
+   }
+   else if ((trusted_cgi_referrer != NULL) && (0 == strncmp(referrer,
+            trusted_cgi_referrer, strlen(trusted_cgi_referrer))))
+   {
+      /*
+       * After some more testing this block should be merged with
+       * the previous one or the log level should bedowngraded.
+       */
+      log_error(LOG_LEVEL_INFO, "Granting access to %s based on trusted referrer %s",
          csp->http->url, referrer);
 
       return TRUE;
@@ -501,9 +544,13 @@ static struct http_response *dispatch_known_cgi(struct client_state * csp,
    if (*query_args_start == '/')
    {
       *query_args_start++ = '\0';
-      if ((param_list = new_map()))
+      param_list = new_map();
+      err = map(param_list, "file", 1, url_decode(query_args_start), 0);
+      if (JB_ERR_OK != err)
       {
-         map(param_list, "file", 1, url_decode(query_args_start), 0);
+         free(param_list);
+         free(path_copy);
+         return cgi_error_memory();
       }
    }
    else
@@ -630,23 +677,10 @@ static struct map *parse_cgi_parameters(char *argstring)
     *      The same hack is used in get_last_url() so it looks like
     *      a real solution is needed.
     */
-   size_t max_segments = strlen(argstring) / 2;
-   if (max_segments == 0)
-   {
-      /*
-       * XXX: If the argstring is empty, there's really
-       *      no point in creating a param list, but currently
-       *      other parts of Privoxy depend on the list's existence.
-       */
-      max_segments = 1;
-   }
+   size_t max_segments = strlen(argstring) / 2 + 1;
    vector = malloc_or_die(max_segments * sizeof(char *));
 
-   if (NULL == (cgi_params = new_map()))
-   {
-      freez(vector);
-      return NULL;
-   }
+   cgi_params = new_map();
 
    /*
     * IE 5 does, of course, violate RFC 2316 Sect 4.1 and sends
@@ -724,22 +758,22 @@ char get_char_param(const struct map *parameters,
  *
  * Function    :  get_string_param
  *
- * Description :  Get a string paramater, to be used as an
- *                ACTION_STRING or ACTION_MULTI paramater.
+ * Description :  Get a string parameter, to be used as an
+ *                ACTION_STRING or ACTION_MULTI parameter.
  *                Validates the input to prevent stupid/malicious
  *                users from corrupting their action file.
  *
  * Parameters  :
  *          1  :  parameters = map of cgi parameters
  *          2  :  param_name = The name of the parameter to read
- *          3  :  pparam = destination for paramater.  Allocated as
+ *          3  :  pparam = destination for parameter.  Allocated as
  *                part of the map "parameters", so don't free it.
  *                Set to NULL if not specified.
  *
- * Returns     :  JB_ERR_OK         on success, or if the paramater
+ * Returns     :  JB_ERR_OK         on success, or if the parameter
  *                                  was not specified.
  *                JB_ERR_MEMORY     on out-of-memory.
- *                JB_ERR_CGI_PARAMS if the paramater is not valid.
+ *                JB_ERR_CGI_PARAMS if the parameter is not valid.
  *
  *********************************************************************/
 jb_err get_string_param(const struct map *parameters,
@@ -819,8 +853,7 @@ jb_err get_number_param(struct client_state *csp,
                         unsigned *pvalue)
 {
    const char *param;
-   char ch;
-   unsigned value;
+   char *endptr;
 
    assert(csp);
    assert(parameters);
@@ -835,35 +868,11 @@ jb_err get_number_param(struct client_state *csp,
       return JB_ERR_CGI_PARAMS;
    }
 
-   /* We don't use atoi because I want to check this carefully... */
-
-   value = 0;
-   while ((ch = *param++) != '\0')
+   *pvalue = (unsigned int)strtol(param, &endptr, 0);
+   if (*endptr != '\0')
    {
-      if ((ch < '0') || (ch > '9'))
-      {
-         return JB_ERR_CGI_PARAMS;
-      }
-
-      ch = (char)(ch - '0');
-
-      /* Note:
-       *
-       * <limits.h> defines UINT_MAX
-       *
-       * (UINT_MAX - ch) / 10 is the largest number that
-       *     can be safely multiplied by 10 then have ch added.
-       */
-      if (value > ((UINT_MAX - (unsigned)ch) / 10U))
-      {
-         return JB_ERR_CGI_PARAMS;
-      }
-
-      value = value * 10 + (unsigned)ch;
+      return JB_ERR_CGI_PARAMS;
    }
-
-   /* Success */
-   *pvalue = value;
 
    return JB_ERR_OK;
 
@@ -992,6 +1001,9 @@ struct http_response *error_response(struct client_state *csp,
          case SOCKS_5T:
             socks_type = "socks5t-";
             break;
+         case FORWARD_WEBSERVER:
+            socks_type = "webserver-";
+            break;
          default:
             log_error(LOG_LEVEL_FATAL, "Unknown socks type: %d.", fwd->type);
       }
@@ -1070,6 +1082,8 @@ jb_err cgi_error_disabled(const struct client_state *csp,
 
    assert(csp);
    assert(rsp);
+
+   rsp->status = strdup_or_die("403 Request not trusted or feature disabled");
 
    if (NULL == (exports = default_exports(csp, "cgi-error-disabled")))
    {
@@ -1196,7 +1210,8 @@ jb_err cgi_error_no_template(const struct client_state *csp,
       ").</p>\n"
       "</body>\n"
       "</html>\n";
-   const size_t body_size = strlen(body_prefix) + strlen(template_name) + strlen(body_suffix) + 1;
+   size_t body_size = strlen(body_prefix) + strlen(body_suffix) + 1;
+   const char *encoded_template_name;
 
    assert(csp);
    assert(rsp);
@@ -1210,9 +1225,17 @@ jb_err cgi_error_no_template(const struct client_state *csp,
    rsp->head_length = 0;
    rsp->is_static = 0;
 
+   encoded_template_name = html_encode(template_name);
+   if (encoded_template_name == NULL)
+   {
+      return JB_ERR_MEMORY;
+   }
+
+   body_size += strlen(encoded_template_name);
    rsp->body = malloc_or_die(body_size);
    strlcpy(rsp->body, body_prefix, body_size);
-   strlcat(rsp->body, template_name, body_size);
+   strlcat(rsp->body, encoded_template_name, body_size);
+   freez(encoded_template_name);
    strlcat(rsp->body, body_suffix, body_size);
 
    rsp->status = strdup(status);
@@ -1234,7 +1257,7 @@ jb_err cgi_error_no_template(const struct client_state *csp,
  *                In this context, "unexpected" means "anything other
  *                than JB_ERR_MEMORY or JB_ERR_CGI_PARAMS" - CGIs are
  *                expected to handle all other errors internally,
- *                since they can give more relavent error messages
+ *                since they can give more relevant error messages
  *                that way.
  *
  *                Note this is not a true CGI, it takes an error
@@ -1268,7 +1291,7 @@ jb_err cgi_error_unknown(const struct client_state *csp,
    static const char body_suffix[] =
       "</b></p>\n"
       "<p>Please "
-      "<a href=\"http://sourceforge.net/tracker/?group_id=11118&amp;atid=111118\">"
+      "<a href=\"https://sourceforge.net/p/ijbswa/bugs/\">"
       "file a bug report</a>.</p>\n"
       "</body>\n"
       "</html>\n";
@@ -1507,13 +1530,15 @@ static void get_locale_time(char *buf, size_t buffer_size)
 #elif defined(MUTEX_LOCKS_AVAILABLE)
    privoxy_mutex_lock(&localtime_mutex);
    timeptr = localtime(&current_time);
-   privoxy_mutex_unlock(&localtime_mutex);
 #else
    timeptr = localtime(&current_time);
 #endif
 
    strftime(buf, buffer_size, "%a %b %d %X %Z %Y", timeptr);
 
+#if !defined(HAVE_LOCALTIME_R) && defined(MUTEX_LOCKS_AVAILABLE)
+   privoxy_mutex_unlock(&localtime_mutex);
+#endif
 }
 
 
@@ -1550,14 +1575,14 @@ char *compress_buffer(char *buffer, size_t *buffer_length, int compression_level
          (Bytef *)buffer, *buffer_length, compression_level))
    {
       log_error(LOG_LEVEL_ERROR,
-         "compress2() failed. Buffer size: %d, compression level: %d.",
+         "compress2() failed. Buffer size: %lu, compression level: %d.",
          new_length, compression_level);
       freez(compressed_buffer);
       return NULL;
    }
 
    log_error(LOG_LEVEL_RE_FILTER,
-      "Compressed content from %d to %d bytes. Compression level: %d",
+      "Compressed content from %lu to %lu bytes. Compression level: %d",
       *buffer_length, new_length, compression_level);
 
    *buffer_length = (size_t)new_length;
@@ -1598,11 +1623,23 @@ struct http_response *finish_http_response(struct client_state *csp, struct http
    }
 
    /*
+    * Add "Cross-origin resource sharing" (CORS) headers if enabled
+    */
+   if (NULL != csp->config->cors_allowed_origin)
+   {
+      enlist_unique_header(rsp->headers, "Access-Control-Allow-Origin",
+         csp->config->cors_allowed_origin);
+      enlist_unique_header(rsp->headers, "Access-Control-Allow-Methods", "GET,POST");
+      enlist_unique_header(rsp->headers, "Access-Control-Allow-Headers", "X-Requested-With");
+      enlist_unique_header(rsp->headers, "Access-Control-Max-Age", "86400");
+   }
+
+   /*
     * Fill in the HTTP Status, using HTTP/1.1
     * unless the client asked for HTTP/1.0.
     */
    snprintf(buf, sizeof(buf), "%s %s",
-      strcmpic(csp->http->ver, "HTTP/1.0") ? "HTTP/1.1" : "HTTP/1.0",
+      strcmpic(csp->http->version, "HTTP/1.0") ? "HTTP/1.1" : "HTTP/1.0",
       rsp->status ? rsp->status : "200 OK");
    err = enlist_first(rsp->headers, buf);
 
@@ -2131,15 +2168,12 @@ jb_err template_fill_for_cgi(const struct client_state *csp,
    err = template_load(csp, &rsp->body, templatename, 0);
    if (err == JB_ERR_FILE)
    {
-      free_map(exports);
-      return cgi_error_no_template(csp, rsp, templatename);
+      err = cgi_error_no_template(csp, rsp, templatename);
    }
-   else if (err)
+   else if (err == JB_ERR_OK)
    {
-      free_map(exports);
-      return err; /* JB_ERR_MEMORY */
+      err = template_fill(&rsp->body, exports);
    }
-   err = template_fill(&rsp->body, exports);
    free_map(exports);
    return err;
 }
@@ -2173,10 +2207,6 @@ struct map *default_exports(const struct client_state *csp, const char *caller)
    assert(csp);
 
    exports = new_map();
-   if (exports == NULL)
-   {
-      return NULL;
-   }
 
    if (csp->config->hostname)
    {
@@ -2198,8 +2228,11 @@ struct map *default_exports(const struct client_state *csp, const char *caller)
    if (!err) err = map(exports, "my-hostname",   1, html_encode(hostname ? hostname : "unknown"), 0);
    freez(hostname);
    if (!err) err = map(exports, "homepage",      1, html_encode(HOME_PAGE_URL), 0);
-   if (!err) err = map(exports, "default-cgi",   1, html_encode(CGI_PREFIX), 0);
-   if (!err) err = map(exports, "menu",          1, make_menu(caller, csp->config->feature_flags), 0);
+   if (!err)
+   {
+      err = map(exports, "default-cgi",   1, html_encode(CGI_PREFIX), 0);
+   }
+   if (!err) err = map(exports, "menu",          1, make_menu(csp, caller), 0);
    if (!err) err = map(exports, "code-status",   1, CODE_STATUS, 1);
    if (!strncmpic(csp->config->usermanual, "file://", 7) ||
        !strncmpic(csp->config->usermanual, "http", 4))
@@ -2210,7 +2243,10 @@ struct map *default_exports(const struct client_state *csp, const char *caller)
    else
    {
       /* Manual is delivered by Privoxy. */
-      if (!err) err = map(exports, "user-manual", 1, html_encode(CGI_PREFIX"user-manual/"), 0);
+      if (!err)
+      {
+         err = map(exports, "user-manual", 1, html_encode(CGI_PREFIX"user-manual/"), 0);
+      }
    }
    if (!err) err = map(exports, "actions-help-prefix", 1, ACTIONS_HELP_PREFIX ,1);
 #ifdef FEATURE_TOGGLE
@@ -2387,15 +2423,14 @@ jb_err map_conditional(struct map *exports, const char *name, int choose_first)
  *                and the toggle CGI if toggling is disabled.
  *
  * Parameters  :
- *          1  :  self = name of CGI to leave out, can be NULL for
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *          2  :  self = name of CGI to leave out, can be NULL for
  *                complete listing.
- *          2  :  feature_flags = feature bitmap from csp->config
- *
  *
  * Returns     :  menu string, or NULL on out-of-memory error.
  *
  *********************************************************************/
-char *make_menu(const char *self, const unsigned feature_flags)
+char *make_menu(const struct client_state *csp, const char *self)
 {
    const struct cgi_dispatcher *d;
    char *result = strdup("");
@@ -2410,7 +2445,7 @@ char *make_menu(const char *self, const unsigned feature_flags)
    {
 
 #ifdef FEATURE_TOGGLE
-      if (!(feature_flags & RUNTIME_FEATURE_CGI_TOGGLE) && !strcmp(d->name, "toggle"))
+      if (!(csp->config->feature_flags & RUNTIME_FEATURE_CGI_TOGGLE) && !strcmp(d->name, "toggle"))
       {
          /*
           * Suppress the toggle link if remote toggling is disabled.

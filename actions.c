@@ -1,12 +1,11 @@
-const char actions_rcs[] = "$Id: actions.c,v 1.87 2012/11/24 13:59:00 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/actions.c,v $
  *
  * Purpose     :  Declares functions to work with actions files
  *
- * Copyright   :  Written by and Copyright (C) 2001-2011 the
- *                Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001-2016 the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -55,12 +54,10 @@ const char actions_rcs[] = "$Id: actions.c,v 1.87 2012/11/24 13:59:00 fabiankeil
 #include "urlmatch.h"
 #include "cgi.h"
 #include "ssplit.h"
+#include "filters.h"
 #ifdef FEATURE_REQUIRED_TAG
 #include "requiredtag.h"
 #endif /* def FEATURE_REQUIRED_TAG */
-
-const char actions_h_rcs[] = ACTIONS_H_VERSION;
-
 
 /*
  * We need the main list of options.
@@ -126,7 +123,10 @@ static const struct action_name action_names[] =
 };
 
 
-static int load_one_actions_file(struct client_state *csp, int fileid);
+#ifndef FUZZ
+static
+#endif
+int load_one_actions_file(struct client_state *csp, int fileid);
 
 
 /*********************************************************************
@@ -520,7 +520,13 @@ jb_err get_actions(char *line,
             switch (action->value_type)
             {
             case AV_NONE:
-               /* ignore any option. */
+               if (value != NULL)
+               {
+                  log_error(LOG_LEVEL_ERROR,
+                     "Action %s does not take parameters but %s was given.",
+                     action->name, value);
+                  return JB_ERR_PARSE;
+               }
                break;
             case AV_ADD_STRING:
                {
@@ -544,6 +550,12 @@ jb_err get_actions(char *line,
                         return JB_ERR_PARSE;
                      }
                   }
+#ifdef FEATURE_EXTENDED_STATISTICS
+                  if (0 == strcmpic(action->name, "+block"))
+                  {
+                     register_block_reason_for_statistics(value);
+                  }
+#endif
                   /* FIXME: should validate option string here */
                   freez (cur_action->string[action->index]);
                   cur_action->string[action->index] = strdup(value);
@@ -867,14 +879,14 @@ int update_action_bits_for_tag(struct client_state *csp, const char *tag)
          }
 #endif
 
-         /* skip the URL patterns, */
-         if (NULL == b->url->tag_regex)
+         /* skip everything but TAG patterns, */
+         if (!(b->url->flags & PATTERN_SPEC_TAG_PATTERN))
          {
             continue;
          }
 
          /* and check if one of the tag patterns matches the tag, */
-         if (0 == regexec(b->url->tag_regex, tag, 0, NULL, 0))
+         if (0 == regexec(b->url->pattern.tag_regex, tag, 0, NULL, 0))
          {
             /* if it does, update the action bit map, */
             if (merge_current_action(csp->action, b->action))
@@ -889,6 +901,76 @@ int update_action_bits_for_tag(struct client_state *csp, const char *tag)
    }
 
    return updated;
+}
+
+
+/*********************************************************************
+ *
+ * Function    :  check_negative_tag_patterns
+ *
+ * Description :  Updates the action bits based on NO-*-TAG patterns.
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *          2  :  flag = The tag pattern type
+ *
+ * Returns     :  JB_ERR_OK in case off success, or
+ *                JB_ERR_MEMORY on out-of-memory error.
+ *
+ *********************************************************************/
+jb_err check_negative_tag_patterns(struct client_state *csp, unsigned int flag)
+{
+   struct list_entry *tag;
+   struct file_list *fl;
+   struct url_actions *b = NULL;
+   int i;
+
+   for (i = 0; i < MAX_AF_FILES; i++)
+   {
+      fl = csp->actions_list[i];
+      if ((fl == NULL) || ((b = fl->f) == NULL))
+      {
+         continue;
+      }
+      for (b = b->next; NULL != b; b = b->next)
+      {
+         int tag_found = 0;
+         if (0 == (b->url->flags & flag))
+         {
+            continue;
+         }
+         for (tag = csp->tags->first; NULL != tag; tag = tag->next)
+         {
+            if (0 == regexec(b->url->pattern.tag_regex, tag->str, 0, NULL, 0))
+            {
+               /*
+                * The pattern matches at least one tag, thus the action
+                * section doesn't apply and we don't need to look at the
+                * other tags.
+                */
+               tag_found = 1;
+               break;
+            }
+         }
+         if (!tag_found)
+         {
+            /*
+             * The pattern doesn't match any tags,
+             * thus the action section applies.
+             */
+            if (merge_current_action(csp->action, b->action))
+            {
+               log_error(LOG_LEVEL_ERROR,
+                  "Out of memory while changing action bits");
+               return JB_ERR_MEMORY;
+            }
+            log_error(LOG_LEVEL_HEADER, "Updated action bits based on: %s",
+               b->url->spec);
+         }
+      }
+   }
+
+   return JB_ERR_OK;
 }
 
 
@@ -978,7 +1060,7 @@ void unload_actions_file(void *file_data)
    while (cur != NULL)
    {
       next = cur->next;
-      free_url_spec(cur->url);
+      free_pattern_spec(cur->url);
       if ((next == NULL) || (next->action != cur->action))
       {
          /*
@@ -1074,6 +1156,52 @@ int load_action_files(struct client_state *csp)
 
 /*********************************************************************
  *
+ * Function    :  filter_type_to_string
+ *
+ * Description :  Converts a filter type enum into a string.
+ *
+ * Parameters  :
+ *          1  :  filter_type = filter_type as enum
+ *
+ * Returns     :  Pointer to static string.
+ *
+ *********************************************************************/
+static const char *filter_type_to_string(enum filter_type filter_type)
+{
+   switch (filter_type)
+   {
+   case FT_CONTENT_FILTER:
+      return "content filter";
+   case FT_CLIENT_HEADER_FILTER:
+      return "client-header filter";
+   case FT_SERVER_HEADER_FILTER:
+      return "server-header filter";
+   case FT_CLIENT_HEADER_TAGGER:
+      return "client-header tagger";
+   case FT_SERVER_HEADER_TAGGER:
+      return "server-header tagger";
+   case FT_SUPPRESS_TAG:
+      return "suppress tag filter";
+   case FT_CLIENT_BODY_FILTER:
+      return "client body filter";
+   case FT_CLIENT_BODY_TAGGER:
+      return "client body tagger";
+   case FT_ADD_HEADER:
+      return "add-header action";
+#ifdef FEATURE_EXTERNAL_FILTERS
+   case FT_EXTERNAL_CONTENT_FILTER:
+      return "external content filter";
+#endif
+   case FT_INVALID_FILTER:
+      return "invalid filter type";
+   }
+
+   return "unknown filter type";
+
+}
+
+/*********************************************************************
+ *
  * Function    :  referenced_filters_are_missing
  *
  * Description :  Checks if any filters of a certain type referenced
@@ -1085,44 +1213,21 @@ int load_action_files(struct client_state *csp)
  *          3  :  multi_index = The index where to look for the filter.
  *          4  :  filter_type = The filter type the caller is interested in.
  *
- * Returns     :  0 => All referenced filters exists, everything else is an error.
+ * Returns     :  0 => All referenced filters exist, everything else is an error.
  *
  *********************************************************************/
 static int referenced_filters_are_missing(const struct client_state *csp,
    const struct action_spec *cur_action, int multi_index, enum filter_type filter_type)
 {
-   int i;
-   struct file_list *fl;
-   struct re_filterfile_spec *b;
    struct list_entry *filtername;
 
    for (filtername = cur_action->multi_add[multi_index]->first;
         filtername; filtername = filtername->next)
    {
-      int filter_found = 0;
-      for (i = 0; i < MAX_AF_FILES; i++)
+      if (NULL == get_filter(csp, filtername->str, filter_type))
       {
-         fl = csp->rlist[i];
-         if ((NULL == fl) || (NULL == fl->f))
-         {
-            continue;
-         }
-
-         for (b = fl->f; b; b = b->next)
-         {
-            if (b->type != filter_type)
-            {
-               continue;
-            }
-            if (strcmp(b->name, filtername->str) == 0)
-            {
-               filter_found = 1;
-            }
-         }
-      }
-      if (!filter_found)
-      {
-         log_error(LOG_LEVEL_ERROR, "Missing filter '%s'", filtername->str);
+         log_error(LOG_LEVEL_ERROR, "Missing %s '%s'",
+            filter_type_to_string(filter_type), filtername->str);
          return 1;
       }
    }
@@ -1157,7 +1262,8 @@ static int action_spec_is_valid(struct client_state *csp, const struct action_sp
       {ACTION_MULTI_CLIENT_HEADER_FILTER, FT_CLIENT_HEADER_FILTER},
       {ACTION_MULTI_SERVER_HEADER_FILTER, FT_SERVER_HEADER_FILTER},
       {ACTION_MULTI_CLIENT_HEADER_TAGGER, FT_CLIENT_HEADER_TAGGER},
-      {ACTION_MULTI_SERVER_HEADER_TAGGER, FT_SERVER_HEADER_TAGGER}
+      {ACTION_MULTI_SERVER_HEADER_TAGGER, FT_SERVER_HEADER_TAGGER},
+      {ACTION_MULTI_CLIENT_BODY_FILTER, FT_CLIENT_BODY_FILTER}
    };
    int errors = 0;
    int i;
@@ -1177,7 +1283,7 @@ static int action_spec_is_valid(struct client_state *csp, const struct action_sp
  *
  * Function    :  load_one_actions_file
  *
- * Description :  Read and parse a action file and add to files
+ * Description :  Read and parse an action file and add to files
  *                list.
  *
  * Parameters  :
@@ -1187,7 +1293,10 @@ static int action_spec_is_valid(struct client_state *csp, const struct action_sp
  * Returns     :  0 => Ok, everything else is an error.
  *
  *********************************************************************/
-static int load_one_actions_file(struct client_state *csp, int fileid)
+#ifndef FUZZ
+static
+#endif
+int load_one_actions_file(struct client_state *csp, int fileid)
 {
 
    /*
@@ -1237,13 +1346,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
       return 1; /* never get here */
    }
 
-   fs->f = last_perm = (struct url_actions *)zalloc(sizeof(*last_perm));
-   if (last_perm == NULL)
-   {
-      log_error(LOG_LEVEL_FATAL, "can't load actions file '%s': out of memory!",
-                csp->config->actions_file[fileid]);
-      return 1; /* never get here */
-   }
+   fs->f = last_perm = zalloc_or_die(sizeof(*last_perm));
 
    if ((fp = fopen(csp->config->actions_file[fileid], "r")) == NULL)
    {
@@ -1405,15 +1508,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
                cur_action = NULL;
             }
             cur_action_used = 0;
-            cur_action = (struct action_spec *)zalloc(sizeof(*cur_action));
-            if (cur_action == NULL)
-            {
-               fclose(fp);
-               log_error(LOG_LEVEL_FATAL,
-                  "can't load actions file '%s': out of memory",
-                  csp->config->actions_file[fileid]);
-               return 1; /* never get here */
-            }
+            cur_action = zalloc_or_die(sizeof(*cur_action));
             init_action(cur_action);
 
             /*
@@ -1424,10 +1519,13 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
              *
              * buf + 1 to skip the leading '{'
              */
-            actions_buf = strdup_or_die(buf + 1);
+            actions_buf = end = strdup_or_die(buf + 1);
 
             /* check we have a trailing } and then trim it */
-            end = actions_buf + strlen(actions_buf) - 1;
+            if (strlen(actions_buf))
+            {
+               end += strlen(actions_buf) - 1;
+            }
             if (*end != '}')
             {
                /* No closing } */
@@ -1526,14 +1624,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
             return 1; /* never get here */
          }
 
-         if ((new_alias = zalloc(sizeof(*new_alias))) == NULL)
-         {
-            fclose(fp);
-            log_error(LOG_LEVEL_FATAL,
-               "can't load actions file '%s': out of memory!",
-               csp->config->actions_file[fileid]);
-            return 1; /* never get here */
-         }
+         new_alias = zalloc_or_die(sizeof(*new_alias));
 
          /* Eat any the whitespace before the '=' */
          end--;
@@ -1584,20 +1675,13 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
          /* it's an URL pattern */
 
          /* allocate a new node */
-         if ((perm = zalloc(sizeof(*perm))) == NULL)
-         {
-            fclose(fp);
-            log_error(LOG_LEVEL_FATAL,
-               "can't load actions file '%s': out of memory!",
-               csp->config->actions_file[fileid]);
-            return 1; /* never get here */
-         }
+         perm = zalloc_or_die(sizeof(*perm));
 
          perm->action = cur_action;
          cur_action_used = 1;
 
          /* Save the URL pattern */
-         if (create_url_spec(perm->url, buf))
+         if (create_pattern_spec(perm->url, buf))
          {
             fclose(fp);
             log_error(LOG_LEVEL_FATAL,
@@ -1697,7 +1781,7 @@ static int load_one_actions_file(struct client_state *csp, int fileid)
  *
  * Function    :  actions_to_text
  *
- * Description :  Converts a actionsfile entry from the internal
+ * Description :  Converts an actionsfile entry from the internal
  *                structure into a text line.  The output is split
  *                into one line for each action with line continuation.
  *
@@ -1783,7 +1867,7 @@ char * actions_to_text(const struct action_spec *action)
  *
  * Function    :  actions_to_html
  *
- * Description :  Converts a actionsfile entry from numeric form
+ * Description :  Converts an actionsfile entry from numeric form
  *                ("mask" and "add") to a <br>-separated HTML string
  *                in which each action is linked to its chapter in
  *                the user manual.
@@ -1890,7 +1974,7 @@ char * actions_to_html(const struct client_state *csp,
  *
  * Function    :  current_actions_to_html
  *
- * Description :  Converts a curren action spec to a <br> separated HTML
+ * Description :  Converts a current action spec to a <br> separated HTML
  *                text in which each action is linked to its chapter in
  *                the user manual.
  *
@@ -1986,7 +2070,7 @@ char *current_action_to_html(const struct client_state *csp,
  *
  * Function    :  action_to_line_of_text
  *
- * Description :  Converts a action spec to a single text line
+ * Description :  Converts an action spec to a single text line
  *                listing the enabled actions.
  *
  * Parameters  :

@@ -1,4 +1,3 @@
-const char deanimate_rcs[] = "$Id: deanimate.c,v 1.23 2012/03/09 16:24:36 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/deanimate.c,v $
@@ -7,11 +6,11 @@ const char deanimate_rcs[] = "$Id: deanimate.c,v 1.23 2012/03/09 16:24:36 fabian
  *                fly.  High-level functions include:
  *                  - Deanimation of GIF images
  *
- * Copyright   :  Written by and Copyright (C) 2001 - 2004, 2006 by the
- *                SourceForge Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001-2021 by the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the GIF file format specification (see
- *                http://tronche.com/computer-graphics/gif/gif89a.html)
+ *                https://tronche.com/computer-graphics/gif/gif89a.html)
  *                and ideas from the Image::DeAnim Perl module by
  *                Ken MacFarlane, <ksm+cpan@universal.dca.net>
  *
@@ -41,12 +40,10 @@ const char deanimate_rcs[] = "$Id: deanimate.c,v 1.23 2012/03/09 16:24:36 fabian
 #include <string.h>
 #include <fcntl.h>
 
-#include "errlog.h"
 #include "project.h"
+#include "errlog.h"
 #include "deanimate.h"
 #include "miscutil.h"
-
-const char deanimate_h_rcs[] = DEANIMATE_H_VERSION;
 
 /*********************************************************************
  *
@@ -134,6 +131,14 @@ static int buf_extend(struct binbuffer *buf, size_t length)
  *********************************************************************/
 static int buf_copy(struct binbuffer *src, struct binbuffer *dst, size_t length)
 {
+   /*
+    * Sanity check: Make sure the source buffer contains
+    * data and there's work to be done.
+    */
+   if (src->buffer == NULL || src->size == 0 || length == 0)
+   {
+      return 1;
+   }
 
    /*
     * Sanity check: Can't copy more data than we have
@@ -307,8 +312,8 @@ static int gif_extract_image(struct binbuffer *src, struct binbuffer *dst)
  *                an (optional) image block and an arbitrary number
  *                of image extension blocks, produce an output GIF with
  *                only one image block that contains the last image
- *                (extenstion) block of the original.
- *                Also strip Comments, Application extenstions, etc.
+ *                (extension) block of the original.
+ *                Also strip Comments, Application extensions, etc.
  *
  * Parameters  :
  *          1  :  src = Pointer to the source binbuffer
@@ -323,8 +328,13 @@ int gif_deanimate(struct binbuffer *src, struct binbuffer *dst, int get_first_im
 {
    unsigned char c;
    struct binbuffer *image;
+   int image_buffered = 0;
 
    if (NULL == src || NULL == dst)
+   {
+      return 1;
+   }
+   if (src->size <= 10)
    {
       return 1;
    }
@@ -367,31 +377,36 @@ int gif_deanimate(struct binbuffer *src, struct binbuffer *dst, int get_first_im
    /*
     * Reserve a buffer for the current image block
     */
-   if (NULL == (image = (struct binbuffer *)zalloc(sizeof(*image))))
-   {
-      return 1;
-   }
+   image = zalloc_or_die(sizeof(*image));
 
    /*
     * Parse the GIF block by block and copy the relevant
     * parts to dst
     */
-   while(src->offset < src->size)
+   while (src->offset < src->size)
    {
-      switch(buf_getbyte(src, 0))
+      switch (buf_getbyte(src, 0))
       {
          /*
-          *  End-of-GIF Marker: Append current image and return
+          * End-of-GIF Marker: Append current image if we got
+          * one and return.
           */
       case 0x3b:
+         if (image->size == 0) goto failed;
          goto write;
 
          /*
           * Image block: Extract to current image buffer.
           */
       case 0x2c:
-         image->offset = 0;
+         if (image_buffered == 1)
+         {
+            /* Discard previous image. */
+            image->offset = 0;
+            image_buffered = 0;
+         }
          if (gif_extract_image(src, image)) goto failed;
+         image_buffered = 1;
          if (get_first_image) goto write;
          continue;
 
@@ -402,14 +417,16 @@ int gif_deanimate(struct binbuffer *src, struct binbuffer *dst, int get_first_im
          switch (buf_getbyte(src, 1))
          {
             /*
-             * Image extension: Copy extension  header and image
-             *                  to the current image buffer
+             * Image extension: Copy extension header
+             * and continue looking for new blocks.
              */
          case 0xf9:
-            image->offset = 0;
-            if (buf_copy(src, image, 8) || buf_getbyte(src, 0) != 0x2c) goto failed;
-            if (gif_extract_image(src, image)) goto failed;
-            if (get_first_image) goto write;
+            if (image_buffered == 1)
+            {
+               image->offset = 0;
+               image_buffered = 0;
+            }
+            if (buf_copy(src, image, 8)) goto failed;
             continue;
 
             /*

@@ -8,7 +8,7 @@
 <!entity history SYSTEM "history.sgml">
 <!entity copyright SYSTEM "copyright.sgml">
 <!entity license SYSTEM "license.sgml">
-<!entity p-version "3.0.21">
+<!entity p-version "3.0.34">
 <!entity p-status "stable">
 <!entity % p-not-stable "IGNORE">
 <!entity % p-stable "INCLUDE">
@@ -21,15 +21,11 @@
 <!entity  my-app "<application>Privoxy</application>">
 ]>
 <!--
- File        :  $Source: /cvsroot/ijbswa/current/doc/source/faq.sgml,v $
+ File        :  doc/source/faq.sgml
 
  Purpose     :  FAQ
-                This file belongs into
-                ijbswa.sourceforge.net:/home/groups/i/ij/ijbswa/htdocs/
 
- $Id: faq.sgml,v 2.92 2013/03/01 17:44:24 fabiankeil Exp $
-
- Copyright (C) 2001-2009 Privoxy Developers http://www.privoxy.org/
+ Copyright (C) 2001-2023 Privoxy Developers https://www.privoxy.org/
  See LICENSE.
 
  Based partially on the Internet Junkbuster FAQ originally written by and
@@ -73,12 +69,10 @@
  <subscript>
 <!-- Completely the wrong markup, but very little is allowed  -->
 <!-- in this part of an article. FIXME -->
- <link linkend="copyright">Copyright</link> &my-copy; 2001-2011 by
- <ulink url="http://www.privoxy.org/">Privoxy Developers</ulink>
+ <link linkend="copyright">Copyright</link> &my-copy; 2001-2023 by
+ <ulink url="https://www.privoxy.org/">Privoxy Developers</ulink>
  </subscript>
 </pubdate>
-
-<pubdate>$Id: faq.sgml,v 2.92 2013/03/01 17:44:24 fabiankeil Exp $</pubdate>
 
 <!--
 
@@ -118,13 +112,9 @@ Hal.
 ]]>
  <para>
  This FAQ gives quick answers to frequently asked questions about
- <ulink url="http://www.privoxy.org/">Privoxy</ulink>.
+ <ulink url="https://www.privoxy.org/">Privoxy</ulink>.
  It is not a substitute for the
  <ulink url="../user-manual/index.html"><citetitle>Privoxy User Manual</citetitle></ulink>.
-<!--
- This works, at least in some situtations:
- Test: <ulink url="privoxy-user-manual.pdf"><citetitle>User Manual</citetitle></ulink>.
--->
  </para>
 
 <!-- Include privoxy.sgml boilerplate: -->
@@ -135,14 +125,11 @@ Hal.
   Please note that this document is a work in progress. This copy represents
   the state at the release of version &p-version;.
   You can find the latest version of the document at <ulink
-  url="http://www.privoxy.org/faq/">http://www.privoxy.org/faq/</ulink>.
+  url="https://www.privoxy.org/faq/">https://www.privoxy.org/faq/</ulink>.
   Please see the <link linkend="contact">Contact section</link> if you want to
   contact the developers.
  </para>
 
-<!--   <para> -->
-<!--    Feel free to send a note to the developers at <email>ijbswa-developers@lists.sourceforge.net</email>. -->
-<!--   </para> -->
 </abstract>
 </artheader>
 
@@ -169,9 +156,9 @@ me?</title>
   strengths is that it is highly configurable giving you the ability to
   completely personalize your installation. Being familiar with, or at least
   having an interest in learning about <ulink
-  url="http://en.wikipedia.org/wiki/Http">HTTP</ulink> and other networking
-  protocols, <ulink url="http://en.wikipedia.org/wiki/Html">HTML</ulink>, and
-  <ulink url="http://en.wikipedia.org/wiki/Regular_expressions"><quote>Regular
+  url="https://en.wikipedia.org/wiki/Http">HTTP</ulink> and other networking
+  protocols, <ulink url="https://en.wikipedia.org/wiki/Html">HTML</ulink>, and
+  <ulink url="https://en.wikipedia.org/wiki/Regular_expressions"><quote>Regular
   Expressions</quote></ulink>
   will be a big plus and will help you get the most out of &my-app;.
   A new installation just includes a very basic configuration. The user
@@ -181,9 +168,9 @@ me?</title>
  </para>
  <para>
   Much of <application>Privoxy's</application> configuration can be done
-  with a <ulink url="http://en.wikipedia.org/wiki/Web_browser">Web browser</ulink>.
+  with a <ulink url="https://en.wikipedia.org/wiki/Web_browser">Web browser</ulink>.
   But there are areas where configuration is done using a
-  <ulink url="http://en.wikipedia.org/wiki/Text_editors">text editor</ulink>
+  <ulink url="https://en.wikipedia.org/wiki/Text_editors">text editor</ulink>
   to edit configuration files. Also note that the web-based action editor
   doesn't use authentication and should only be enabled in environments
   where all clients with access to &my-app; listening port can be trusted.
@@ -193,13 +180,13 @@ me?</title>
 <sect2 renderas="sect3" id="proxymoron"><title>What is a <quote>proxy</quote>? How does
 Privoxy work? </title>
  <para>
-  A <ulink url="http://en.wikipedia.org/wiki/Proxy_server">web proxy</ulink>
+  A <ulink url="https://en.wikipedia.org/wiki/Proxy_server">web proxy</ulink>
   is a service, based on a software such as &my-app;, that clients
   (i.e. browsers) can use instead of connecting to web servers directly.
   The clients then ask the proxy to request objects (web pages, images, movies etc)
   on their behalf and to forward the data to the clients.
   It is a <quote>go-between</quote>. For details, see
-  <ulink url="http://en.wikipedia.org/wiki/Proxy_server">Wikipedia's proxy definition</ulink>.
+  <ulink url="https://en.wikipedia.org/wiki/Proxy_server">Wikipedia's proxy definition</ulink>.
  </para>
  <para>
   There are many reasons to use web proxies, such as security (firewalling),
@@ -236,8 +223,8 @@ Privoxy work? </title>
 </sect2>
 
 
-<sect2 renderas="sect3">
-<title id="whyprivoxy">Why <quote>Privoxy</quote>? Why change the name from
+<sect2 renderas="sect3" id="whyprivoxy">
+<title>Why <quote>Privoxy</quote>? Why change the name from
 Junkbuster at all?</title>
 <para>
  Though outdated, Junkbusters Corporation continued to offer their original
@@ -274,7 +261,7 @@ from the old Junkbuster?</title>
  <application>Junkbuster</application> left off.
  <application>Privoxy</application> still blocks ads and banners,
  still manages <ulink
- url="http://en.wikipedia.org/wiki/Browser_cookie">cookies</ulink>, and still
+ url="https://en.wikipedia.org/wiki/Browser_cookie">cookies</ulink>, and still
  helps protect your privacy. But, most of these features have been enhanced,
  and many new ones have been added, all in the same vein.
  </para>
@@ -289,8 +276,7 @@ from the old Junkbuster?</title>
 </sect2>
 
 <sect2 renderas="sect3" id="whatsanad">
-<title id="knows">How does Privoxy know what is
-an ad, and what is not?</title>
+<title>How does Privoxy know what is an ad, and what is not?</title>
 <para>
  <application>Privoxy</application>'s approach to blocking ads is twofold:
 </para>
@@ -318,8 +304,8 @@ an ad, and what is not?</title>
 </para>
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="mistakes">Can Privoxy make mistakes?
+<sect2 renderas="sect3" id="mistakes">
+<title>Can Privoxy make mistakes?
 This does not sound very scientific.</title>
 <para>
  Actually, it's a black art ;-) And yes, it is always possible to have a broad
@@ -338,8 +324,8 @@ This does not sound very scientific.</title>
 
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="configornot">Will I have to configure Privoxy
+<sect2 renderas="sect3" id="configornot">
+<title>Will I have to configure Privoxy
  before I can use it?</title>
 <para>
  That depends on your expectations.
@@ -394,7 +380,7 @@ Privoxy. Why should I use Privoxy at all?</title>
   and <application>Privoxy's</application> privacy enhancing features
   at the same time. While your browser probably lacks some features
   &my-app; offers, it should also be able to do some things more
-  reliable, for example restricting and suppressing JavaScript.
+  reliably, for example restricting and suppressing JavaScript.
  </para>
 </sect2>
 
@@ -415,12 +401,11 @@ Privoxy. Why should I use Privoxy at all?</title>
 <sect2 renderas="sect3" id="license"><title>Is there is a license or fee? What about a
 warranty? Registration?</title>
  <para>
-  <application>Privoxy</application> is free software and licensed under the <ulink
-  url="http://www.gnu.org/licenses/old-licenses/gpl-2.0.html">GNU General Public License (GPL) version 2</ulink>.
-  It is free to use, copy, modify or distribute as you wish under the terms of this
-  license.  Please see the <link linkend="copyright">Copyright</link> section for more
-  information on the license and copyright. Or the <filename>LICENSE</filename> file
-  that should be included.
+  <application>Privoxy</application> is free software.
+  It is free to use, copy, modify or distribute as you wish under the terms of its
+  license.
+  Please see the <link linkend="copyright">Copyright</link> section for more
+  information on the license and copyright.
  </para>
  <para>
   There is <emphasis>no warranty</emphasis> of any kind, expressed, implied or otherwise.
@@ -463,9 +448,9 @@ warranty? Registration?</title>
 </para>
 </sect2>
 
-<sect2 renderas="sect3" id="help-the-developers"><title id="jointeam">I would like to help you, what can I do?</title>
+<sect2 renderas="sect3" id="help-the-developers"><title>I would like to help you, what can I do?</title>
 
-<sect3 renderas="sect4" id="participate"><title id="jointeam-work">Would you like to participate?</title>
+<sect3 renderas="sect4" id="participate"><title>Would you like to participate?</title>
 <para>
    Well, we <emphasis>always</emphasis> need help. There is something for
    everybody who wants to help us. We welcome new developers, packagers,
@@ -479,14 +464,14 @@ warranty? Registration?</title>
  </para>
  <para>
   So first thing, subscribe to the <ulink
-   url="https://lists.sourceforge.net/lists/listinfo/ijbswa-users">Privoxy Users</ulink>
-  or the <ulink url="https://lists.sourceforge.net/lists/listinfo/ijbswa-developers">Privoxy
+   url="https://lists.privoxy.org/mailman/listinfo/privoxy-users">Privoxy Users</ulink>
+  or the <ulink url="https://lists.privoxy.org/mailman/listinfo/privoxy-devel">Privoxy
   Developers</ulink> mailing list, join the discussion, help out other users, provide general
   feedback or report problems you noticed.
  </para>
  <para>
   If you intend to help out with the trackers, you also might want to <ulink
-   url="https://sourceforge.net/account/register.php">get an account on SourceForge.net</ulink>
+   url="https://sourceforge.net/user/registration">get an account on SourceForge.net</ulink>
    so we don't confuse you with the other name-less users.
  </para>
  <para>
@@ -495,7 +480,7 @@ warranty? Registration?</title>
    While it is partly out of date, it's still worth reading.
 </para>
 <para>
-   Our <ulink url="http://ijbswa.cvs.sourceforge.net/viewvc/ijbswa/current/TODO?view=markup">TODO list</ulink>
+   Our <ulink url="https://www.privoxy.org/gitweb/?p=privoxy.git;a=blob_plain;f=TODO;hb=HEAD">TODO list</ulink>
    may be of interest to you as well.
    Please let us know if you want to work on one of the items listed.
 </para>
@@ -503,64 +488,97 @@ warranty? Registration?</title>
 
 <sect3 renderas="sect4" id="donate"><title>Would you like to donate?</title>
 <para>
- <application>Privoxy</application> is developed by unpaid volunteers
- and thus our current running costs are pretty low. Nevertheless, we
- have plans that will cost money in the future. They include,
- but aren't limited to spending money on:
-
+ Donations are welcome. Our
+ <ulink url="https://www.privoxy.org/gitweb/?p=privoxy.git;a=blob_plain;f=TODO;hb=HEAD">TODO list</ulink>
+ is rather long and being able to pay one (or more) developers to work on Privoxy
+ would make a huge difference, even if it was only for a couple of weeks. Donations may
+ also be used for Privoxy-related travel expenses (for example to attend conferences),
+ for hardware used for Privoxy development and for hosting expenses etc.
 </para>
 
 <para>
-<itemizedlist>
- <listitem>
-   <para>
-     Hardware to help make sure <application>Privoxy</application>
-     keeps running on platforms the developers currently can't test
-     on and can be ported to others.
-   </para>
- </listitem>
- <listitem>
-   <para>
-     Technical books to educate our developers about said platforms
-     or to improve their knowledge in general.
-   </para>
- </listitem>
- <listitem>
-   <para>
-     More reliable hosting,
-   </para>
- </listitem>
-</itemizedlist>
+ <application>Privoxy</application> is an associated
+ project of <ulink url="https://www.spi-inc.org/">Software
+ in the Public Interest (SPI)</ulink>, which allows us to receive
+ tax-deductible donations in the United States.
+ You can <ulink url="https://www.spi-inc.org/projects/privoxy/">donate via Paypal</ulink>
+ and <ulink url="https://co.clickandpledge.com/advanced/default.aspx?wid=34115">Click & Pledge</ulink>.
+ For details, please have a look at
+ <ulink url="https://www.spi-inc.org/donations">SPI's general donation page</ulink>.
 </para>
 
 <para>
- We would like to get this money through donations made by our users.
-</para>
-
-<para>
- <application>Privoxy</application> has therefore become an associated
- project of <ulink url="http://www.spi-inc.org/about-spi/about-spi">Software
- in the Public Interest (SPI)</ulink>, which allows us to receive donations.
- In the United States they are tax-deductible, in a few other western countries
- they might be tax-deductible in the future.
-</para>
-
-<para>
- If you read this section before you may notice that paying for the
- project domain privoxy.org is no longer on the list. It has been
- transferred to SPI is sponsored by Mythic Beasts Ltd.
-</para>
-
-<para>
- If you enjoy our software and feel like helping out with a donation,
- please have a look at
- <ulink url="http://www.spi-inc.org/donations">SPI's donation page</ulink>
- to see what the options are. If you have any questions regarding donations
- please mail to either the public user mailing list or, if it's a private
- matter, to <ulink url="mailto:fk@fabiankeil.de">Fabian Keil</ulink>
- (Privoxy's SPI liason) directly.
+ If you have any questions regarding donations please mail to either the
+ public user mailing list or, if it's a private matter, to
+ <ulink url="mailto:fk@fabiankeil.de">Fabian Keil</ulink> (Privoxy's SPI liaison)
+ directly.
 </para>
 </sect3>
+</sect2>
+<sect2 id="sponsor"><title>How can I become a sponsor and get my logo or link on privoxy.org?</title>
+<para>
+ We are currently offering the following sponsor levels as an experiment:
+</para>
+<variablelist>
+ <varlistentry>
+  <term>Gold (12000 USD/year)</term>
+  <listitem>
+   <para>
+    Logo or text link shown at the bottom of the
+    <ulink url="https://www.privoxy.org/">Privoxy homepage</ulink>.
+    Logo, link and self description on the
+    <ulink url="https://www.privoxy.org/sponsors/">sponsor page</ulink>.
+   </para>
+  </listitem>
+ </varlistentry>
+ <varlistentry>
+  <term>Silver (1200 USD/year)</term>
+  <listitem>
+   <para>
+    Logo or text link shown at the bottom of the
+    <ulink url="https://www.privoxy.org/">Privoxy homepage</ulink>.
+    Logo, link and self description on the
+    <ulink url="https://www.privoxy.org/sponsors/">sponsor page</ulink>.
+   </para>
+  </listitem>
+ </varlistentry>
+ <varlistentry>
+  <term>Bronze (600 USD/year)</term>
+  <listitem>
+   <para>
+    Logo and link on the <ulink url="https://www.privoxy.org/sponsors/">sponsor page</ulink>.
+   </para>
+  </listitem>
+ </varlistentry>
+</variablelist>
+<para>
+ The logo sizes depend on the sponsor level. Logos are served from
+ our server, no requests are made to the sponsor website unless
+ the links are being used. Note that Privoxy comes with a
+ <ulink url="https://www.privoxy.org/user-manual/actions-file.html#HIDE-REFERRER">hide-referrer</ulink>
+ action so Privoxy users following links to sponsor websites
+ may not necessarily send requests with a Referer header set.
+</para>
+<para>
+ Link targets are without path (<quote>https://www.example.org/</quote>
+ not <quote>https://www.example.org/seo/keyword/spam/</quote>).
+</para>
+<para>
+ The details may change over time but changes will only affect new sponsors
+ (or existing sponsors that explicitly agreed to the changes).
+</para>
+<para>
+ Thanks to <ulink url="https://www.spi-inc.org/">Software in the Public Interest (SPI)</ulink>
+ <application>Privoxy</application> sponsors can get a proper invoice.
+</para>
+<para>
+ If you want to become a sponsor, please contact
+ <ulink url="mailto:fk@fabiankeil.de">Fabian Keil</ulink>
+ and include the link target in the mail.
+ New sponsors are only accepted if no
+ <ulink url="../user-manual/copyright.html#AUTHORS">Privoxy team</ulink>
+ member objects.
+</para>
 
 </sect2>
 
@@ -648,8 +666,7 @@ special I have to do now?</title>
  <ulink url="../user-manual/startup.html">the User Manual for more
  details</ulink>. You should also flush your browser's memory and disk
  cache to get rid of any cached junk items, and remove any stored
- <ulink url="http://en.wikipedia.org/wiki/Browser_cookie">cookies</ulink>.
-
+ <ulink url="https://en.wikipedia.org/wiki/Browser_cookie">cookies</ulink>.
 </para>
 
 </sect2>
@@ -712,9 +729,9 @@ All the ads are there. What's wrong?</title>
  <application>Privoxy</application> is not running at all. Check the <ulink
  url="../user-manual/config.html#LOGFILE">log file</ulink>. For instructions
  on starting <application>Privoxy</application> and browser configuration,
- see the <ulink url="http://www.privoxy.org/user-manual/startup.html">chapter
+ see the <ulink url="https://www.privoxy.org/user-manual/startup.html">chapter
  on starting <application>Privoxy</application></ulink> in the
- <ulink url="http://www.privoxy.org/user-manual/">User Manual</ulink>.
+ <ulink url="https://www.privoxy.org/user-manual/">User Manual</ulink>.
 </para>
 
 </sect2>
@@ -727,9 +744,9 @@ Privoxy is running and being used.</title>
  First, make sure that Privoxy is <emphasis>really</emphasis> running and
  being used by visiting <ulink url="http://p.p/">http://p.p/</ulink>. You
  should see the <application>Privoxy</application> main page. If not, see
- the <ulink url="http://www.privoxy.org/user-manual/startup.html">chapter
+ the <ulink url="https://www.privoxy.org/user-manual/startup.html">chapter
  on starting <application>Privoxy</application></ulink> in the
- <ulink url="http://www.privoxy.org/user-manual/">User Manual</ulink>.
+ <ulink url="https://www.privoxy.org/user-manual/">User Manual</ulink>.
 </para>
 
 <para>
@@ -762,8 +779,8 @@ Privoxy is running and being used.</title>
 <!--   ~~~~~       New section      ~~~~~     -->
 
 <sect1 id="configuration"><title>Configuration</title>
-<sect2 renderas="sect3">
-<title id="actionsfile">What exactly is an <quote>actions</quote> file?</title>
+<sect2 renderas="sect3" id="actionsfile">
+<title>What exactly is an <quote>actions</quote> file?</title>
 
 <para>
  &my-app; utilizes the concept of <quote>
@@ -784,7 +801,7 @@ Privoxy is running and being used.</title>
  for single URLs, whole web sites, groups or parts thereof etc. Actions can also be
  grouped together and then applied to requests matching one or more patterns.
  There are many possible actions that might apply to any given site. As an example,
- if you are blocking <ulink url="http://en.wikipedia.org/wiki/Browser_cookie">cookies</ulink>
+ if you are blocking <ulink url="https://en.wikipedia.org/wiki/Browser_cookie">cookies</ulink>
  as one of your default actions, but need to accept cookies from a given site,
  you would need to define an exception for this site in one of your actions
  files, preferably in <filename>user.action</filename>.
@@ -807,8 +824,8 @@ some of these <quote>actions</quote>.</title>
 </sect2>
 
 
-<sect2 renderas="sect3">
-<title id="actconfig">How are actions files configured? What is the easiest
+<sect2 renderas="sect3" id="actconfig">
+<title>How are actions files configured? What is the easiest
 way to do this?</title>
 
 <para>
@@ -826,7 +843,7 @@ way to do this?</title>
 </sect2>
 
 
-<sect2 renderas="sect3">
+<sect2 renderas="sect3" id="actionfile-differences">
 <title>There are several different <quote>actions</quote> files. What are
 the differences?</title>
 <para>
@@ -839,17 +856,16 @@ the differences?</title>
 <sect2 renderas="sect3" id="getupdates"><title>Where can I get updated Actions Files?</title>
  <para>
   Based on your feedback and the continuing development, updates of
-  <filename>default.action</filename> will be
-  made available from time to time on the <ulink
-  url="http://sourceforge.net/project/showfiles.php?group_id=11118">files section</ulink> of
-  our <ulink url="http://sf.net/projects/ijbswa/">project page</ulink>.
+  <filename>default.action</filename> are available from
+  <ulink
+  url="https://www.privoxy.org/gitweb/?p=privoxy.git;a=blob_plain;f=default.action.master;hb=HEAD">git</ulink>.
  </para>
 
  <para>
   If you wish to receive an email notification whenever we release updates of
   <application>Privoxy</application> or the actions file, <ulink
-  url="http://lists.sourceforge.net/lists/listinfo/ijbswa-announce/">subscribe
-  to our announce mailing list</ulink>, ijbswa-announce@lists.sourceforge.net.
+  url="https://lists.privoxy.org/mailman/listinfo/privoxy-announce">subscribe
+  to our announce mailing list</ulink>, privoxy-announce@lists.privoxy.org.
  </para>
 
 </sect2>
@@ -867,13 +883,23 @@ the differences?</title>
 <sect2 renderas="sect3" id="difficult">
 <title>Why is the configuration so complicated?</title>
  <para>
-  <quote>Complicated</quote> is in the eye of the beholder. Those that are
-  familiar with some of the underlying concepts, such as regular expression
-  syntax, take to it like a fish takes to water. Also, software that tries
-  hard to be <quote>user friendly</quote>, often lacks sophistication and
-  flexibility. There is always that trade-off there between power vs.
-  easy-of-use. Furthermore, anyone is welcome to contribute ideas and
-  implementations to enhance &my-app;.
+  <quote>Complicated</quote> is in the eye of the beholder.
+ </para>
+ <para>
+  Privoxy is currently mainly written by and for people who are already
+  familiar with the underlying concepts like regular expressions, HTTP and HTML,
+  or are willing to become familiar with them to be able to get the most
+  out of a powerful and flexible tool such as Privoxy.
+ </para>
+ <para>
+  While everybody is expected to be able to get a Privoxy default installation
+  up and running, fine-tuning requires a certain amount of background
+  information and Privoxy's documentation mainly concentrates on the
+  Privoxy-specific parts while only providing references to the rest.
+ </para>
+ <para>
+  If you or anyone you know has the skills, time and energy to
+  reduce the barrier of entry, please <link linkend="participate">get involved</link>.
  </para>
 </sect2>
 
@@ -881,34 +907,32 @@ the differences?</title>
  <para>
   The default configuration shouldn't impact the usability of any of these services.
   It may, however, make all <ulink
- url="http://en.wikipedia.org/wiki/Browser_cookie">cookies</ulink>
+ url="https://en.wikipedia.org/wiki/Browser_cookie">cookies</ulink>
   temporary, so that your browser will forget your
   login credentials in between browser sessions. If you would like not to have to log
   in manually each time you access those websites, simply turn off all cookie handling
   for them in the <filename>user.action</filename> file. An example for yahoo might
   look like:
  </para>
- <para>
   <screen># Allow all cookies for Yahoo login:
 #
 { -<ulink url="../user-manual/actions-file.html#CRUNCH-INCOMING-COOKIES">crunch-incoming-cookies</ulink> -<ulink url="../user-manual/actions-file.html#CRUNCH-OUTGOING-COOKIES">crunch-outgoing-cookies</ulink> -<ulink url="../user-manual/actions-file.html#SESSION-COOKIES-ONLY">session-cookies-only</ulink> }
 .login.yahoo.com</screen>
- </para>
  <para>
   These kinds of sites are often quite complex and heavy with
-  <ulink url="http://en.wikipedia.org/wiki/Javascript">Javascript</ulink> and
+  <ulink url="https://en.wikipedia.org/wiki/Javascript">Javascript</ulink> and
   thus <quote>fragile</quote>. So if <emphasis>still</emphasis> a problem,
   we have an <ulink
   url="../user-manual/actions-file.html#ALIASES">alias</ulink> just for such
   sticky situations:
  </para>
- <para>
-  <screen># Gmail is a _fragile_ site:
+ <screen>
+# Gmail is a _fragile_ site:
 #
 { <literal>fragile</literal> }
- # Gmail is ...
- mail.google.com</screen>
- </para>
+# Gmail is ...
+mail.google.com
+</screen>
  <para>
   Be sure to flush your browser's caches whenever making these kinds of
   changes, just to make sure the changes <quote>take</quote>.
@@ -983,8 +1007,8 @@ with a browser? Does that not raise security issues?</title>
 </sect2>
 
 
-<sect2 renderas="sect3">
-<title id="filterfile">What is the <filename>default.filter</filename> file? What is a <quote>filter</quote>?</title>
+<sect2 renderas="sect3" id="filterfile">
+<title>What is the <filename>default.filter</filename> file? What is a <quote>filter</quote>?</title>
 <para>
  The <ulink url="../user-manual/filter-file.html"><filename>default.filter</filename></ulink>
  file is where <emphasis>filters</emphasis> as supplied by the developers are defined.
@@ -1037,7 +1061,7 @@ with a browser? Does that not raise security issues?</title>
 <para>
  If you intend to develop your own filters, you might want to have a look at
  <ulink
- url="http://www.fabiankeil.de/sourcecode/pft/">Privoxy-Filter-Test</ulink>.
+ url="https://www.fabiankeil.de/sourcecode/pft/">Privoxy-Filter-Test</ulink>.
 </para>
 
 </sect2>
@@ -1059,10 +1083,8 @@ with a browser? Does that not raise security issues?</title>
  should look like:
 </para>
 
-<para>
  <screen>
-  listen-address  192.168.1.1:8118</screen>
-</para>
+listen-address  192.168.1.1:8118</screen>
 
 <para>
  Save the file, and restart <application>Privoxy</application>. Configure
@@ -1074,10 +1096,8 @@ with a browser? Does that not raise security issues?</title>
  all available interfaces:
 </para>
 
-<para>
  <screen>
-  listen-address    :8118</screen>
-</para>
+listen-address    :8118</screen>
 
 <para>
  And then use <application>Privoxy's</application>
@@ -1102,8 +1122,8 @@ with a browser? Does that not raise security issues?</title>
 </sect2>
 
 
-<sect2 renderas="sect3">
-<title id="noseeum">Instead of ads, now I get a checkerboard pattern. I don't want to see anything.</title>
+<sect2 renderas="sect3" id="noseeum">
+<title>Instead of ads, now I get a checkerboard pattern. I don't want to see anything.</title>
 <para>
  The replacement for blocked images can be controlled with the <ulink
  url="../user-manual/actions-file.html#SET-IMAGE-BLOCKER"><literal>set-image-blocker</literal>
@@ -1125,8 +1145,8 @@ with a browser? Does that not raise security issues?</title>
 
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="whyseeum">Why would anybody want to see a checkerboard pattern?</title>
+<sect2 renderas="sect3" id="whyseeum">
+<title>Why would anybody want to see a checkerboard pattern?</title>
 <para>
  Remember that <link linkend="whatsanad">telling which image is an ad and which
  isn't</link>, is an educated guess. While we hope that the standard configuration
@@ -1140,8 +1160,8 @@ with a browser? Does that not raise security issues?</title>
 
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="blockedbytext">I see some images being replaced with text
+<sect2 renderas="sect3" id="blockedbytext">
+<title>I see some images being replaced with text
 instead of the checkerboard image. Why and how do I get rid of this?</title>
 <para>
  This happens when the banners are not embedded in the HTML code of the
@@ -1171,17 +1191,11 @@ instead of the checkerboard image. Why and how do I get rid of this?</title>
 <title>Can Privoxy run as a service
 on Win2K/NT/XP?</title>
 <para>
-<![%p-newstuff;[
- Yes. Version 3.0.5 introduces full <application>Windows</application> service
- functionality. See <ulink url="../user-manual/installation.html#installation-pack-win">
+ Yes. Full <application>Windows</application> service
+ functionality was introduced in <application>Privoxy</application> 3.0.5.
+ See <ulink url="../user-manual/installation.html#INSTALLATION-PACK-WIN">
  the <citetitle>User Manual</citetitle></ulink> for details on how to install and configure
  <application>Privoxy</application> as a service.
-</para>
-<para>
- Earlier ]]>3.x versions could run as a system service using <command>srvany.exe</command>.
- See the discussion at <ulink
- url="http://sourceforge.net/tracker/?func=detail&#38;atid=361118&#38;aid=485617&#38;group_id=11118">http://sourceforge.net/tracker/?func=detail&#38;atid=361118&#38;aid=485617&#38;group_id=11118</ulink>,
- for details, and a sample configuration.
 </para>
 </sect2>
 
@@ -1220,7 +1234,7 @@ and thus avoid individual browser configuration?</title>
  The whole idea of Privoxy is to modify client requests
  and server responses in all sorts of ways and therefore
  it's not a transparent proxy as described in
- <ulink url="http://tools.ietf.org/html/rfc2616">RFC 2616</ulink>.
+ <ulink url="https://tools.ietf.org/html/rfc2616">RFC 2616</ulink>.
 </para>
 <para>
  However, some people say <quote>transparent proxy</quote> when they
@@ -1286,7 +1300,8 @@ and thus avoid individual browser configuration?</title>
 <para>
  For a good discussion of some of the issues involved (including privacy and
  security issues), see
- <ulink url="http://sourceforge.net/tracker/?func=detail&#38;atid=211118&#38;aid=629518&#38;group_id=11118">http://sourceforge.net/tracker/?func=detail&#38;atid=211118&#38;aid=629518&#38;group_id=11118</ulink>.
+ <ulink url="https://sourceforge.net/p/ijbswa/support-requests/107/"
+  >https://sourceforge.net/p/ijbswa/support-requests/107/</ulink>.
 </para>
 </sect2>
 
@@ -1294,19 +1309,20 @@ and thus avoid individual browser configuration?</title>
 <title>I sometimes notice cookies sneaking through. How?</title>
 <para>
  <ulink
- url="http://en.wikipedia.org/wiki/Browser_cookie">Cookies</ulink> can be
+ url="https://en.wikipedia.org/wiki/Browser_cookie">Cookies</ulink> can be
  set in several ways. The classic method is via the
  <literal>Set-Cookie</literal> HTTP header. This is straightforward, and an
  easy one to manipulate, such as the &my-app; concept of
  <ulink url="../user-manual/actions-file.html#SESSION-COOKIES-ONLY">session-cookies-only</ulink>.
  There is also the possibility of using
-  <ulink url="http://en.wikipedia.org/wiki/Javascript">Javascript</ulink> to
+  <ulink url="https://en.wikipedia.org/wiki/Javascript">Javascript</ulink> to
  set cookies (&my-app; calls these <literal>content-cookies</literal>). This
  is trickier because the syntax can vary widely, and thus requires a certain
  amount of guesswork. It is not realistic to catch all of these short of
  disabling Javascript, which would break many sites. And lastly, if the
  cookies are embedded in a HTTPS/SSL secure session via Javascript, they are beyond
- <application>Privoxy's</application> reach.
+ <application>Privoxy's</application> reach unless you enable
+ <ulink url="../user-manual/actions-file.html#HTTPS-INSPECTION">https-inspection</ulink>.
 </para>
 <para>
  All in all, &my-app; can help manage cookies in general, can help minimize
@@ -1320,7 +1336,7 @@ and thus avoid individual browser configuration?</title>
 <para>
  No, in fact there are many beneficial uses of
  <ulink
- url="http://en.wikipedia.org/wiki/Browser_cookie">cookies</ulink>. Cookies are just a
+ url="https://en.wikipedia.org/wiki/Browser_cookie">cookies</ulink>. Cookies are just a
  method that browsers can use to store data between pages, or between browser
  sessions. Sometimes there is a good reason for this, and the user's life is a
  bit easier as a result. But there is a long history of some websites taking
@@ -1332,7 +1348,7 @@ and thus avoid individual browser configuration?</title>
 </para>
 <para>
   See the
-   <ulink url="http://en.wikipedia.org/wiki/Browser_cookie">Wikipedia cookie
+   <ulink url="https://en.wikipedia.org/wiki/Browser_cookie">Wikipedia cookie
   definition</ulink> for more.
 </para>
 </sect2>
@@ -1350,11 +1366,10 @@ and thus avoid individual browser configuration?</title>
   To disable all cookie actions, so that cookies are allowed unrestricted,
   both in and out, for <literal>example.com</literal>:
 </para>
-<para>
  <screen>
- { -crunch-incoming-cookies -crunch-outgoing-cookies -session-cookies-only -filter{content-cookies} }
-  .example.com</screen>
-</para>
+{ -crunch-incoming-cookies -crunch-outgoing-cookies -session-cookies-only -filter{content-cookies} }
+.example.com
+</screen>
 <para>
  Place the above in <filename>user.action</filename>. Note that some of these may
  be off by default anyway, so this might be redundant, but there is no harm
@@ -1390,19 +1405,20 @@ and thus avoid individual browser configuration?</title>
  Here's one real easy one:
 </para>
  <screen>
- ############################################################
- # Blacklist
- ############################################################
- { <ulink url="../user-manual/actions-file.html#BLOCK">+block</ulink> }
- / # Block *all* URLs
+############################################################
+# Blacklist
+############################################################
+{ <ulink url="../user-manual/actions-file.html#BLOCK">+block</ulink> }
+/ # Block *all* URLs
 
- ############################################################
- # Whitelist
- ############################################################
- { <ulink url="../user-manual/actions-file.html#BLOCK">-block</ulink> }
-  kids.example.com
-  toys.example.com
-  games.example.com</screen>
+############################################################
+# Whitelist
+############################################################
+{ <ulink url="../user-manual/actions-file.html#BLOCK">-block</ulink> }
+kids.example.com
+toys.example.com
+games.example.com
+</screen>
 <para>
  This allows access to only those three sites by first blocking all URLs, and
  then subsequently allowing three specific exceptions.
@@ -1445,25 +1461,23 @@ and thus avoid individual browser configuration?</title>
  can very easily over-ride <emphasis>all</emphasis> blocking with the
  following very simple rule in your <filename>user.action</filename>:
  </para>
- <para>
  <screen>
- # Unblock everybody, everywhere
- { <ulink url="../user-manual/actions-file.html#BLOCK">-block</ulink> }
- / # UN-Block *all* URLs</screen>
-</para>
+# Unblock everybody, everywhere
+{ <ulink url="../user-manual/actions-file.html#BLOCK">-block</ulink> }
+/ # UN-Block *all* URLs
+</screen>
 <para>
  Or even a more comprehensive reversing of various ad related actions:
 </para>
-<para>
  <screen>
- # Unblock everybody, everywhere, and turn off appropriate filtering, etc
- { <ulink url="../user-manual/actions-file.html#BLOCK">-block</ulink> \
+# Unblock everybody, everywhere, and turn off appropriate filtering, etc
+{ <ulink url="../user-manual/actions-file.html#BLOCK">-block</ulink> \
   <ulink url="../user-manual/actions-file.html#FILTER-BANNERS-BY-SIZE">-filter{banners-by-size}</ulink> \
   <ulink url="../user-manual/actions-file.html#FILTER-BANNERS-BY-LINK">-filter{banners-by-link}</ulink> \
   <literal>allow-popups</literal> \
- }
- / # UN-Block *all* URLs and allow ads</screen>
-</para>
+}
+/ # UN-Block *all* URLs and allow ads
+</screen>
 <para>
  This last <quote>action</quote> in this compound statement,
  <literal>allow-popups</literal>, is an <ulink
@@ -1487,7 +1501,7 @@ and thus avoid individual browser configuration?</title>
  during upgrades. You can, however, create completely new templates,
  place them in another directory and specify the alternate path in the main
  <filename>config</filename>. For details, have a look at the <ulink
- url="../user-manual/config.html#templdir">templdir</ulink> option.
+ url="../user-manual/config.html#TEMPLDIR">templdir</ulink> option.
 </para>
 </sect2>
 
@@ -1504,10 +1518,9 @@ the <emphasis>BLOCKED</emphasis> page?</title>
  available as compile-time options. You should
  <command>configure</command> the sources as follows:
 </para>
-<para>
- <screen>
- ./configure  --disable-toggle  --disable-editor  --disable-force</screen>
-</para>
+<screen>
+./configure  --disable-toggle  --disable-editor  --disable-force
+</screen>
 <para>
  This will create an executable with hard-coded security features so that
  &my-app; does not allow easy bypassing of blocked sites, or changing the
@@ -1530,8 +1543,8 @@ the <emphasis>BLOCKED</emphasis> page?</title>
 
 <sect1 id="misc"><title>Miscellaneous</title>
 
-<sect2 renderas="sect3">
-<title id="slowsme">How much does Privoxy slow my browsing down? This
+<sect2 renderas="sect3" id="slowsme">
+<title>How much does Privoxy slow my browsing down? This
 has to add extra time to browsing.</title>
 <para>
  How much of an impact depends on many things, including the CPU of the host
@@ -1621,6 +1634,13 @@ delays in page requests. What's wrong?</title>
  hence it could not be intercepted, and you have accessed the <emphasis>real</emphasis>
  web site at config.privoxy.org.
 </para>
+<para>
+ Note that config.privoxy.org resolves to a public IP address.
+ If you use config.privoxy.org as ping or traceroute target you will
+ reach the system on the Internet (Privoxy can't intercept ICMP requests).
+ If you want to ping the system Privoxy runs on,
+ you should use its IP address or local DNS name (if it has got one).
+</para>
 
 </sect2>
 
@@ -1704,8 +1724,8 @@ us help you. Your efforts are not wasted, and we do appreciate them.
 </para>
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="anonforsure">Can Privoxy guarantee I am anonymous?</title>
+<sect2 renderas="sect3" id="anonforsure">
+<title>Can Privoxy guarantee I am anonymous?</title>
 <para>
  No. Your chances of remaining anonymous are improved, but unless you
  <ulink url="#TOR">chain <application>Privoxy</application> with <application>Tor</application></ulink>
@@ -1748,8 +1768,8 @@ us help you. Your efforts are not wasted, and we do appreciate them.
 
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="proxytest">A test site says I am not using a Proxy.</title>
+<sect2 renderas="sect3" id="proxytest">
+<title>A test site says I am not using a Proxy.</title>
 <para>
  Good! Actually, they are probably testing for some other kinds of proxies.
  Hiding yourself completely would require additional steps.
@@ -1793,7 +1813,7 @@ us help you. Your efforts are not wasted, and we do appreciate them.
 </para>
 
 <para>
- Since <application>Privoxy</application> 3.0.5, its
+ <application>Privoxy's</application>
  <ulink url="../user-manual/config.html">main configuration file</ulink>
  is already prepared for <application>Tor</application>, if you are using a
  default <application>Tor</application> configuration and run it on the same
@@ -1801,23 +1821,26 @@ us help you. Your efforts are not wasted, and we do appreciate them.
  <ulink url="../user-manual/config.html#FORWARDING">forwarding section</ulink>
  and uncomment the line:
 </para>
-<para>
  <screen>
-#        forward-socks5             /     127.0.0.1:9050 .
- </screen>
+#        forward-socks5t             /     127.0.0.1:9050 .
+</screen>
+<para>
+ Note that if you got Tor through one of the bundles, you may
+ have to change the port from 9050 to 9150 (or even another one).
+ For details, please check the documentation on the
+ <ulink url="https://torproject.org/">Tor website</ulink>.
 </para>
+
 <para>
  This is enough to reach the Internet, but additionally you might want to
  uncomment the following forward rules, to make sure your local network is still
  reachable through Privoxy:
 </para>
-<para>
  <screen>
 #        forward         192.168.*.*/     .
 #        forward            10.*.*.*/     .
 #        forward           127.*.*.*/     .
- </screen>
-</para>
+</screen>
 <para>
  Unencrypted connections to systems in these address ranges will
  be as (un)secure as the local network is, but the alternative is
@@ -1831,11 +1854,9 @@ us help you. Your efforts are not wasted, and we do appreciate them.
  network by using their names, you will need additional exceptions
  that look like this:
 </para>
-<para>
  <screen>
 #        forward           localhost/     .
- </screen>
-</para>
+</screen>
 <para>
  Save the modified configuration file and open
  <ulink url="http://config.privoxy.org/show-status">http://config.privoxy.org/show-status</ulink>
@@ -1854,8 +1875,8 @@ us help you. Your efforts are not wasted, and we do appreciate them.
 </para>
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="sitebreak">Might some things break because header information or
+<sect2 renderas="sect3" id="sitebreak">
+<title>Might some things break because header information or
 content is being altered?</title>
 
 <para>
@@ -1904,13 +1925,13 @@ content is being altered?</title>
 </sect2>
 
 
-<sect2 renderas="sect3">
-<title id="caching">Can Privoxy act as a <quote>caching</quote> proxy to
+<sect2 renderas="sect3" id="caching">
+<title>Can Privoxy act as a <quote>caching</quote> proxy to
 speed up web browsing?</title>
 <para>
  No, it does not have this ability at all. You want something like
  <ulink url="http://www.squid-cache.org/">Squid</ulink> or
- <ulink url="http://www.pps.jussieu.fr/~jch/software/polipo/">Polipo</ulink> for this.
+ <ulink url="https://www.irif.fr/~jch//software/polipo/">Polipo</ulink> for this.
  And, yes, before you ask, <application>Privoxy</application> can co-exist
  with other kinds of proxies like <application>Squid</application>.
  See the <ulink url="../user-manual/config.html#FORWARDING">forwarding
@@ -1919,8 +1940,8 @@ speed up web browsing?</title>
 </para>
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="firewall">What about as a firewall? Can Privoxy protect me?</title>
+<sect2 renderas="sect3" id="firewall">
+<title>What about as a firewall? Can Privoxy protect me?</title>
 <para>
  Not in the way you mean, or in the way some firewall vendors claim they can.
  <application>Privoxy</application> can help protect your privacy, but can't
@@ -1929,8 +1950,8 @@ speed up web browsing?</title>
 </para>
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="wasted">I have large empty spaces / a checkerboard pattern now where
+<sect2 renderas="sect3" id="wasted">
+<title>I have large empty spaces / a checkerboard pattern now where
 ads used to be. Why?</title>
 <para>
  It is technically possible to eliminate banners and ads in a way that frees
@@ -1958,12 +1979,20 @@ ads used to be. Why?</title>
 </para>
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="ssl">How can Privoxy filter Secure (HTTPS) URLs?</title>
+<sect2 renderas="sect3" id="ssl">
+<title>How can Privoxy filter Secure (HTTPS) URLs?</title>
 <para>
- Since secure HTTP connections are encrypted SSL sessions between your browser
- and the secure site, and are meant to be reliably <emphasis>secure</emphasis>,
- there is little that <application>Privoxy</application> can do but hand the raw
+ If you enable
+ <ulink url="../user-manual/actions-file.html#HTTPS-INSPECTION">https-inspection</ulink>
+ <application>Privoxy</application> will impersonate the destination
+ server and can thus filter encrypted requests and responses as well.
+</para>
+<para>
+ Without
+ <ulink url="../user-manual/actions-file.html#HTTPS-INSPECTION">https-inspection</ulink>
+ secure HTTP connections are encrypted SSL sessions between your
+ browser and the secure site, and there is little
+ that <application>Privoxy</application> can do but hand the raw
  gibberish data though from one end to the other unprocessed.
 </para>
 <para>
@@ -1990,8 +2019,23 @@ ads used to be. Why?</title>
 
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="secure">Privoxy runs as a <quote>server</quote>. How
+<sect2 renderas="sect3" id="http2">
+<title>Does Privoxy support HTTP/2?</title>
+<para>
+  Privoxy currently doesn't parse HTTP/2 but applications
+  can tunnel HTTP/2 through Privoxy if Privoxy is configured
+  to allow CONNECT requests (default) which are also used
+  for HTTPS.
+</para>
+<para>
+  Adding HTTP/2 support is on the
+  <ulink url="https://www.privoxy.org/gitweb/?p=privoxy.git;a=blob_plain;f=TODO;hb=HEAD">TODO</ulink>
+  list but currently nobody is known to work on it.
+</para>
+</sect2>
+
+<sect2 renderas="sect3" id="secure">
+<title>Privoxy runs as a <quote>server</quote>. How
 secure is it? Do I need to take any special precautions?</title>
 <para>
  On Unix-like systems, <application>Privoxy</application> can run as a non-privileged
@@ -2062,7 +2106,7 @@ out of the picture?</title>
 <title>My logs show Privoxy <quote>crunches</quote>
 ads, but also its own internal CGI pages. What is a <quote>crunch</quote>?</title>
 <para>
- A <quote>crunch</quote> simply means <application>Privoxy</application> intercepted
+ A <quote>crunch</quote> means <application>Privoxy</application> intercepted
  <emphasis>something</emphasis>, nothing more. Often this is indeed ads or
  banners, but <application>Privoxy</application> uses the same mechanism for
  trapping requests for its own internal pages. For instance, a request for
@@ -2079,7 +2123,7 @@ ads, but also its own internal CGI pages. What is a <quote>crunch</quote>?</titl
 </sect2>
 
 <sect2 renderas="sect3" id="downloads">
-<title>Can Privoxy effect files that I download
+<title>Can Privoxy affect files that I download
 from a webserver? FTP server?</title>
 <para>
  From the webserver's perspective, there is no difference between
@@ -2166,14 +2210,13 @@ altered it! Yikes, what is wrong!</title>
  your hosts list is neglected by <application>Privoxy's </application>
  configuration, consider adding your list to your <filename>user.action</filename> file:
 </para>
-<para>
  <screen>
-  { +block }
-   www.ad.example1.com
-   ad.example2.com
-   ads.galore.example.com
-   etc.example.com</screen>
-</para>
+{ +block }
+www.ad.example1.com
+ad.example2.com
+ads.galore.example.com
+etc.example.com
+</screen>
 </sect2>
 
 <sect2 renderas="sect3" id="seealso">
@@ -2232,11 +2275,11 @@ and related issues?</title>
 </para>
 <para>
  Lately there have been reports of problems with some kind of
- Privoxy versions that come preinstalled on some Netbooks.
- Some of the problems described are inconsistent with the behaviour
- of official Privoxy versions, which suggests that the preinstalled
- software may contain vendor modifications that we don't know about
- and thus can't debug.
+ "parental control" software based on Privoxy that came preinstalled on
+ certain <ulink url="https://sourceforge.net/p/ijbswa/bugs/813/">ASUS Netbooks</ulink>.
+ The problems described are inconsistent with the behaviour of official
+ Privoxy versions, which suggests that the preinstalled software may
+ contain vendor modifications that we don't know about and thus can't debug.
 </para>
 <para>
  Privoxy's <link linkend="copyright">license</link> allows vendor
@@ -2263,13 +2306,12 @@ and related issues?</title>
 <sect1 id="trouble">
 <title>Troubleshooting</title>
 
-<sect2 renderas="sect3">
-<title id="refused">I cannot connect to any websites. Or, I am getting
+<sect2 renderas="sect3" id="refused">
+<title>I cannot connect to any websites. Or, I am getting
 <quote>connection refused</quote> message with every web page. Why?</title>
 <para>
  There are several possibilities:
 </para>
-<para>
 <itemizedlist>
 <listitem><para>
 <application>Privoxy</application> is not running. Solution: verify
@@ -2289,7 +2331,6 @@ and related issues?</title>
   try disabling or removing the firewall as a simple test.
  </para></listitem>
 </itemizedlist>
-</para>
 
 </sect2>
 
@@ -2305,8 +2346,8 @@ and related issues?</title>
  </para>
 </sect2>
 
-<sect2 renderas="sect3">
-<title id="flushit">I just added a new rule, but the steenkin ad is
+<sect2 renderas="sect3" id="flushit">
+<title>I just added a new rule, but the steenkin ad is
 still getting through. How?</title>
 <para>
  If the ad had been displayed before you added its URL, it will probably be
@@ -2342,7 +2383,6 @@ still getting through. How?</title>
  our job a little easier. &my-app; has <quote>crunched</quote> (meaning caught
  and BLOCKED) quite a few items in this example, but perhaps missed a few as well.
 </para>
-<para>
 <screen>
 <![CDATA[
 Request: www.example.com/
@@ -2380,7 +2420,6 @@ Request: www.adtrak.net/adlog.php?bannerid=1309&clientid=439&zoneid=58&source=Ua
 Request: 66.70.21.80/scripts/click.php?hid=a71b9f6504b0c5681fa5&si=Ua
 ]]>
 </screen>
-</para>
 <para>
  Despite 12 out of 32 requests being blocked, the page looked, and seemed to
  behave perfectly <quote>normal</quote> (minus some ads, of course).
@@ -2388,8 +2427,8 @@ Request: 66.70.21.80/scripts/click.php?hid=a71b9f6504b0c5681fa5&si=Ua
 
 </sect2>
 
-<sect2 id="badsite" renderas="sect3">
-<title >One of my favorite sites does not work with Privoxy.
+<sect2 renderas="sect3" id="badsite">
+<title>One of my favorite sites does not work with Privoxy.
 What can I do?</title>
 
 <para>
@@ -2459,7 +2498,7 @@ What can I do?</title>
 every time I start IE. What gives?</title>
 
 <para>
- This is a quirk that effects the installation of
+ This is a quirk that affects the installation of
  <application>Privoxy</application>, in conjunction with Internet Explorer and
  Internet Connection Sharing on Windows 2000 and Windows XP. The symptoms may
  appear to be corrupted or invalid DUN settings, or passwords.
@@ -2574,7 +2613,6 @@ every time I start IE. What gives?</title>
  </para>
 </sect2>
 
-
 <!--   ~~~~~       New section      ~~~~~     -->
 <sect2 renderas="sect3" id="macosximages">
 <title>In Mac OS X Panther (10.3), images often fail to load and/or I
@@ -2589,33 +2627,20 @@ every time I start IE. What gives?</title>
 </sect2>
 
 <!--   ~~~~~       New section      ~~~~~     -->
-<!-- XXX: Is this still relevant now that we have gzip support? -->
-<sect2 renderas="sect3" id="blankpage">
-<title>I get a completely blank page at one site. <quote>View Source</quote>
- shows only: <markup><![CDATA[<html><body></body></html>]]></markup>. Without
- Privoxy the page loads fine.</title>
+<sect2 renderas="sect3" id="macosxaccountdeletion">
+<title>I just upgraded to Mac OS X 10.9 (Mavericks) and now &my-app; has stopped
+ working.</title>
  <para>
-  Chances are that the site suffers from a bug in
-  <ulink url="http://www.php.net/"><application>PHP</application></ulink>,
-  which results in empty pages being sent if the client explicitly requests
-  an uncompressed page, like <application>Privoxy</application> does.
-  This bug has been fixed in PHP 4.2.3.
- </para>
- <para>
-  To find out if this is in fact the source of the problem, try adding
-  the site to a <literal>-prevent-compression</literal> section in
-  <filename>user.action</filename>:
- </para>
- <screen>
-   # Make exceptions for ill-behaved sites:
-   #
-   {-prevent-compression}
-    .example.com</screen>
- <para>
-  If that works, you may also want to report the problem to the
-  site's webmasters, telling them to use zlib.output_compression
-  instead of ob_gzhandler in their PHP applications (workaround)
-  or upgrade to PHP 4.2.3 or later (fix).
+  The upgrade process to Mac OS X Mavericks (10.9) from an earlier version of OS
+  X deletes all user accounts that are either not part of OS X itself or are
+  not interactive user accounts (ones you log in with). Since, for the sake of
+  security, &my-app; runs as a non-privileged user that is created by its
+  installer (_privoxy), it can no longer start up once that account gets deleted.
+  The solution is to perform a complete uninstall using the supplied
+  <application>uninstall.command</application> script (either back up your
+  configuration files or select to not have the uninstaller remove them when it
+  prompts you) and then reinstall &my-app; using the installer package and merge
+  in your configuration.
  </para>
 </sect2>
 
@@ -2668,11 +2693,24 @@ Why?</title>
  Pages with UTF-8 fonts are garbled.
 </title>
 <para>
- This is caused by the <quote>demoronizer</quote> filter. You should either
- upgrade <application>Privoxy</application>, or at least upgrade to the most
- recent <filename>default.action</filename> file available from <ulink
- url="http://sourceforge.net/project/showfiles.php?group_id=11118">SourceForge</ulink>.
- Or you can simply disable the demoronizer filter.
+ This may be the result of an overly aggressive filter. The filters that
+ are enabled in the default configuration aren't expected to cause problems
+ like this. If you enabled the <quote>demoronizer</quote> filter, please
+ try temporarily disabling it.
+</para>
+<para>
+ If that doesn't help, temporarily disable all filters to see if another
+ filter could be the culprit. If the problem disappears, enable the filters
+ one by one, until the problem reappears and the offending filter is found.
+</para>
+<para>
+ Once the problem-causing filter is known, it can be fixed or disabled.
+</para>
+<para>
+ Upgrading <application>Privoxy</application>, or going to the most recent
+ <filename>default.action</filename> file available from <ulink
+ url="https://www.privoxy.org/gitweb/?p=privoxy.git;a=blob_plain;f=default.action.master;hb=HEAD">git</ulink>
+ might be worth a try, too.
 </para>
 </sect2>
 
@@ -2682,13 +2720,11 @@ Why?</title>
  is used?
 </title>
 <para>
- This may also be caused by the <quote>demoronizer</quote> filter,
- in conjunction with a web server that is misreporting the content type. Binary
- files are exempted from <application>Privoxy's</application> filtering
- (unless the web server by mistake says the file is something else). Either
- upgrade <application>Privoxy</application>, or go to the most recent
- <filename>default.action</filename> file available from <ulink
- url="http://sourceforge.net/project/showfiles.php?group_id=11118">SourceForge</ulink>.
+ This may also be caused by an (<link linkend="DEMORONIZER">overly aggressive
+ filter</link> in conjunction with a web server that is misreporting the content
+ type. By default binary files are exempted from
+ <application>Privoxy's</application> filtering
+ (unless the web server by mistake says the file is something else).
 </para>
 </sect2>
 
@@ -2727,7 +2763,7 @@ Why?</title>
 </title>
 <para>
  <application>Privoxy</application> is attempting to disable malicious
-  <ulink url="http://en.wikipedia.org/wiki/Javascript">Javascript</ulink>
+  <ulink url="https://en.wikipedia.org/wiki/Javascript">Javascript</ulink>
   in this case, with the <literal>unsolicited-popups</literal>
  filter. <application>Privoxy</application> cannot tell very well
  <quote>good</quote> code snippets from <quote>bad</quote> code snippets.
@@ -2843,14 +2879,12 @@ browsing has slowed to a crawl. What gives? </title>
  To do that, enable logging to figure out which requests get blocked by
  &my-app; and add the hosts (no path patterns) to a section like this:
 </para>
-<para>
 <screen>
 <![CDATA[
 {+redirect{http://127.0.0.1:0/} -block -limit-connect}
 .ivwbox.de:443/
 ]]>
 </screen>
-</para>
 <para>
  Additionally you have to configure your browser to contact
  <quote>127.0.0.1:0</quote> directly (instead of through &my-app;).
@@ -2861,6 +2895,11 @@ browsing has slowed to a crawl. What gives? </title>
  button located on the <quote>Network</quote> tab in the <quote>Advanced</quote>
  section, and add <quote>127.0.0.1:0</quote> in the <quote>No Proxy for:</quote>
  field.
+</para>
+<para>
+ You can also prevent the problem by enabling
+ <ulink url="../user-manual/actions-file.html#HTTPS-INSPECTION">https-inspection</ulink>
+ in which case Privoxy's error messages are delivered encrypted.
 </para>
 </sect2>
 
@@ -2911,6 +2950,104 @@ browsing has slowed to a crawl. What gives? </title>
 </para>
 </sect2>
 
+<sect2 renderas="sect3" id="tainted-sockets">
+<title>What are tainted sockets and how do I prevent them?</title>
+<para>
+ &my-app; marks sockets as tainted when it can't use them to
+ serve additional requests.
+ This does not necessarily mean that something went wrong and
+ information about tainted sockets is only logged if connection
+ debugging is enabled (debug 2).
+</para>
+<para>
+ For example server sockets that were used for CONNECT requests
+ (which are used to tunnel https:// requests) are considered tainted
+ once the client closed its connection to &my-app;.
+ Technically &my-app; could keep the connection to the server open,
+ but the server would not accept requests that do not belong to the
+ previous TLS/SSL session (and the client may even have terminated
+ the session).
+</para>
+<para>
+ Server sockets are also marked tainted when a client requests a
+ resource, but closes the connection before &my-app; has completely
+ received (and forwarded) the resource to the client.
+ In this case the server would (probably) accept additional requests,
+ but &my-app; could not get the response without completely reading
+ the leftovers from the previous response.
+</para>
+<para>
+ These are just two examples, there are currently a bit more than
+ 25 scenarios in which a socket is considered tainted.
+</para>
+<para>
+ While sockets can also be marked tainted as a result of a technical
+ problem that may be worth fixing, the problem will be explicitly
+ logged as error.
+</para>
+</sect2>
+
+<sect2 renderas="sect3" id="pcre-stack-limit">
+<title>After adding my custom filters, &my-app; crashes when visitting certain websites</title>
+<para>
+ This can happen if your custom filters require more memory than &my-app;
+ is allowed to use.
+ Usually the problem is that the operating system enforces a stack size limit
+ that isn't sufficient.
+</para>
+<para>
+ Unless the problem occurs with the filters available in the default configuration,
+ this is not considered a Privoxy bug.
+</para>
+<para>
+ To prevent the crashes you can rewrite your filter to use less resources,
+ increase the relevant memory limit or recompile pcre to use less stack space.
+ For details please see the
+ <ulink url="https://pcre.org/original/doc/html/pcrestack.html">pcrestack man page</ulink>
+ and the documentation of your operating system.
+</para>
+</sect2>
+
+<sect2 renderas="sect3" id="file-permissions">
+<title>What to do if editing the config file of privoxy is access denied?</title>
+<para>
+ Your userid probably isn't allowed to edit the file.
+ <!--  show how to check permissions? -->
+ On Windows you can use the windows equivalent of sudo:
+</para>
+ <screen>runas /user:administrator "notepad \privoxy\config.txt"</screen>
+
+<para>
+ or fix the file permissions:
+</para>
+<screen>C:\Privoxy>icacls config.txt
+config.txt BUILTIN\Administrators:(I)(F)
+           NT AUTHORITY\SYSTEM:(I)(F)
+           BUILTIN\Users:(I)(RX)
+           NT AUTHORITY\Authenticated Users:(I)(M)
+
+Successfully processed 1 files; Failed processing 0 files
+
+C:\Privoxy>icacls config.txt /grant Lee:F
+processed file: config.txt
+Successfully processed 1 files; Failed processing 0 files
+
+C:\Privoxy>icacls config.txt
+config.txt I3668\Lee:(F)
+           BUILTIN\Administrators:(I)(F)
+           NT AUTHORITY\SYSTEM:(I)(F)
+           BUILTIN\Users:(I)(RX)
+           NT AUTHORITY\Authenticated Users:(I)(M)
+
+Successfully processed 1 files; Failed processing 0 files
+
+C:\Privoxy></screen>
+
+<para>
+ or try to point-n-click your way through adjusting the file
+ permissions in windows explorer.
+</para>
+</sect2>
 
 </sect1>
 
@@ -2936,7 +3073,7 @@ browsing has slowed to a crawl. What gives? </title>
   </para>
 
  <!--   ~~~~~       New section      ~~~~~     -->
- <sect2><title>License</title>
+ <sect2 id="privoxy-license"><title>License</title>
  <!-- Include copyright.sgml: -->
   &license;
  <!-- end copyright -->
@@ -2944,7 +3081,7 @@ browsing has slowed to a crawl. What gives? </title>
  <!--  ~  End section  ~  -->
 
  <!--   ~~~~~       New section      ~~~~~     -->
- <sect2><title>History</title>
+ <sect2 id="history"><title>History</title>
  <!-- Include history.sgml -->
   &history;
  <!-- end -->
@@ -2967,10 +3104,7 @@ browsing has slowed to a crawl. What gives? </title>
 </sect1>
 -->
 
-<!-- hhmts end -->
  <!--
- Tue 09/11/01 06:38:14 PM EST: Test SGML doc by Hal Burgiss.
-
  This program is free software; you can redistribute it
  and/or modify it under the terms of the GNU General
  Public License as published by the Free Software
@@ -2988,648 +3122,6 @@ browsing has slowed to a crawl. What gives? </title>
  http://www.gnu.org/copyleft/gpl.html
  or write to the Free Software Foundation, Inc.,
  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
-
-$Log: faq.sgml,v $
-Revision 2.92  2013/03/01 17:44:24  fabiankeil
-Bump entities for 3.0.21 stable
-
-Revision 2.91  2013/02/26 15:09:35  fabiankeil
-Bump entities for 3.0.21 UNRELEASED
-
-Revision 2.90  2013/01/06 11:25:52  fabiankeil
-Set entities to 3.0.20 beta
-
-Revision 2.89  2012/06/19 12:49:48  fabiankeil
-Update Junkbuster-related FAQ sections
-
-Remove the dead links and use the past tense as
-the fork happened years ago.
-
-Revision 2.88  2012/04/22 12:16:24  fabiankeil
-Remove an obsolete newstuff marker
-
-Revision 2.87  2012/04/22 12:16:09  fabiankeil
-Fix an URL in the "Privoxy with Tor" FAQ
-
-Revision 2.86  2012/03/18 15:41:49  fabiankeil
-Bump entities to 3.0.20 UNRELEASED
-
-Revision 2.85  2011/12/26 17:05:40  fabiankeil
-Bump entities for 3.0.19
-
-Revision 2.84  2011/11/13 17:03:54  fabiankeil
-Bump entities for 3.0.18 stable
-
-Revision 2.83  2011/11/13 16:53:24  fabiankeil
-Rephrase the donations section some more
-
-Mention that the domain is now sponsored by Mythic Beasts Ltd
-and make it clear that asking questions about donations is
-possible, too.
-
-Revision 2.82  2011/11/13 16:50:34  fabiankeil
-Note that donations for Privoxy are currently only tax-deductible in the US
-
-As it turns out tax-deductible donations in a few other western
-countries are theoretically possible through partner organizations
-but aren't available out of the box.
-
-Revision 2.81  2011/09/04 11:10:12  fabiankeil
-Ditch trailing whitespace
-
-Revision 2.80  2011/08/18 11:42:50  fabiankeil
-Bump some more documentation copyright ranges.
-
-Revision 2.79  2011/08/17 10:40:07  fabiankeil
-Update the entities.
-
-This commit is chronological out of order.
-
-Revision 2.78  2011/04/19 13:14:10  fabiankeil
-Fix spelling errors in the documentation. Found with codespell.
-
-Revision 2.77  2011/03/03 14:22:12  fabiankeil
-Remove duplicated 'the'
-
-Revision 2.76  2010/11/22 10:35:02  fabiankeil
-Mention socks5 in another part of the Tor section.
-
-Revision 2.75  2010/11/13 10:08:00  fabiankeil
-Fix a link to the 'intercepting' entry and add another one
-
-Revision 2.74  2010/11/13 10:07:46  fabiankeil
-Remove the product names in the 'otherproxy' entry's title.
-
-I'm tired of getting the 'otherproxy' entry as first hit
-when searching the index for the Tor FAQ.
-
-Revision 2.73  2010/11/06 12:55:48  fabiankeil
-Set p-version to 3.0.17
-
-Revision 2.72  2010/02/27 12:13:17  fabiankeil
-Fix spelling.
-
-Revision 2.71  2010/02/27 12:12:13  fabiankeil
-Consistently recommending socks5 in the Tor entry and mention its advantage compared to socks4a.
-Reported by David in #2960129.
-
-Revision 2.70  2010/02/20 18:08:31  ler762
-fix typo
-
-Revision 2.69  2010/02/13 17:38:27  fabiankeil
-Update entities for 3.0.16 stable.
-
-Revision 2.68  2010/01/30 19:51:28  fabiankeil
-New FAQ entry: How did you manage to get Privoxy on my computer without my consent?
-
-Also bump copyright.
-
-Revision 2.67  2009/11/15 14:24:12  fabiankeil
-Prepare to generate docs for 3.0.16 UNRELEASED.
-
-Revision 2.66  2009/10/10 05:48:55  fabiankeil
-Prepare for 3.0.15 beta.
-
-Revision 2.65  2009/07/18 16:24:39  fabiankeil
-Bump entities for 3.0.14 beta.
-
-Revision 2.64  2009/07/18 12:18:52  fabiankeil
-Don't describe the action files in the FAQ when we can simply link to the description in the User Manual.
-
-Revision 2.63  2009/06/15 15:08:03  fabiankeil
-Patch #2806626 from Frédéric Crozat to fix a closing tag.
-
-Revision 2.62  2009/06/12 14:30:58  fabiankeil
-Update entities for 3.0.13 beta.
-
-Revision 2.61  2009/06/12 11:52:33  fabiankeil
-Mention the TODO list in the participate entry.
-
-Revision 2.60  2009/04/07 12:25:05  fabiankeil
-In the "I would like to help ..." entry:
-- Change the ids to more general ones as helping out doesn't require
-  joining the team (and joining the team requires significantly helping
-  out first, anyway).
-- Add links to the subscription pages for the main mailing lists.
-
-Revision 2.59  2009/03/28 15:33:41  fabiankeil
-Recommend the use of forward-socks5 when forwarding to Tor.
-The error messages are more detailed than with forward-socks4a.
-
-Revision 2.58  2009/03/21 12:27:44  fabiankeil
-Turn the donation entry title into a question,
-also rephrase the content a bit.
-
-Revision 2.57  2009/03/19 19:07:49  fabiankeil
-First draft of a "Donating" entry. To be polished tomorrow.
-
-Revision 2.56  2009/02/19 17:05:05  fabiankeil
-Explain slowness when build with Gentoo's portage.
-
-Revision 2.55  2009/02/19 02:20:21  hal9
-Make some links in seealso conditional. Man page is now privoxy only links.
-
-Revision 2.54  2009/02/15 20:47:12  hal9
-Fix small typo.
-
-Revision 2.53  2009/02/15 20:46:13  hal9
-Update Outlook HTML rendering engine comments re: Office 2007.
-
-Revision 2.52  2009/02/14 10:27:52  fabiankeil
-Finish last paragraph in the selinux entry which
-I unintentionally committed with the last commit.
-
-Revision 2.51  2009/02/12 16:08:26  fabiankeil
-Declare the code stable.
-
-Revision 2.50  2009/02/11 18:13:36  fabiankeil
-State the obvious.
-
-Revision 2.49  2009/02/10 16:30:20  fabiankeil
-Add a workaround for "unauthenticated content" warnings on HTTPS sites.
-
-Revision 2.48  2009/01/13 16:50:35  fabiankeil
-The standard.action file is gone.
-
-Revision 2.47  2008/11/24 18:29:39  fabiankeil
-Two changes suggested by Roger Dingledine:
-- Use https://www.torproject.org/ in section 4.7, too.
-- Replace the Tor wiki URL in section 4.10 with one
-  with a more useful anchor name.
-
-Revision 2.46  2008/08/30 15:37:35  fabiankeil
-Update entities.
-
-Revision 2.45  2008/08/16 08:51:28  fabiankeil
-Update version-related entities.
-
-Revision 2.44  2008/06/19 01:41:36  hal9
-Add short note about zlib being enabled in 3.0.9
-
-Revision 2.43  2008/06/14 13:21:25  fabiankeil
-Prepare for the upcoming 3.0.9 beta release.
-
-Revision 2.42  2008/06/07 13:11:15  fabiankeil
-- Note that the "100% cpu problem" is worth
-  reporting if it happens with a recent release.
-- Mention the hostname option as a workaround for
-  the "can't get my own hostname" issue.
-- The profile formerly known as "Adventuresome"
-  is called "Advanced" now.
-- Some white-space fixes.
-
-Revision 2.41  2008/06/06 15:32:09  fabiankeil
-- Minor rewordings.
-- Don't claim that all the old Junkbuster features remain.
-  Some of them have been removed or replaced with better ones.
-
-Revision 2.40  2008/02/22 05:54:27  markm68k
-updates for mac os x
-
-Revision 2.39  2008/02/03 21:37:41  hal9
-Apply patch from Mark: s/OSX/OS X/
-
-Revision 2.38  2008/01/19 17:52:39  hal9
-Re-commit to fix various minor issues for new release.
-
-Revision 2.37  2008/01/19 15:03:05  hal9
-Doc sources tagged for 3.0.8 release.
-
-Revision 2.36  2008/01/17 01:49:51  hal9
-Change copyright notice for docs s/2007/2008/. All these will be rebuilt soon
-enough.
-
-Revision 2.35  2007/11/19 17:57:59  fabiankeil
-A bunch of rewordings, minor updates and fixes.
-
-Revision 2.34  2007/11/19 02:38:11  hal9
-Minor revisions and rebuild
-
-Revision 2.33  2007/11/15 03:30:20  hal9
-Results of spell check.
-
-Revision 2.32  2007/11/13 03:03:42  hal9
-Various changes to reflect new features and revised configuration for the
-upcoming release.
-
-Revision 2.31  2007/11/05 02:34:53  hal9
-Various changes in preparation for the upcoming release. Much yet to be done.
-
-Revision 2.30  2007/11/04 15:16:40  hal9
-Fix one silly typo.
-
-Revision 2.29  2007/11/04 15:12:47  hal9
-Various minor adjustments.
-
-Revision 2.28  2007/10/27 15:14:16  fabiankeil
-Change Tor links to use the new domain torproject.org.
-
-Revision 2.27  2007/10/22 19:47:05  fabiankeil
-- Bump version and copyright.
-- Adjust Tor section to make it clear that forward exceptions
-  aren't required and may not even be desired.
-- A bunch of other minor rewordings.
-- Fix markup problems Roland noticed (hopefully without adding new ones).
-
-Revision 2.26  2007/08/05 15:37:55  fabiankeil
-- Don't claim that thousands of people read our code.
-- Specify the GPL version and link to GPLv2 instead of v3.
-- Note that configuration syntax may change between releases.
-- Mention zlib support.
-- Answer the "transparent proxy" question properly.
-- Add "intercepting proxy" entry.
-- Mention Polipo.
-- Rephrase some other sentences for various reasons.
-
-Revision 2.25  2007/07/18 11:00:34  hal9
-Add misc note about valid mark-up in Privoxy.
-
-Revision 2.24  2006/11/14 01:57:46  hal9
-Dump all docs prior to 3.0.6 release. Various minor changes to faq and user
-manual.
-
-Revision 2.23  2006/10/21 22:19:52  hal9
-Two new FAQs, a rewrite or two, and some touch ups.
-
-Revision 2.22  2006/10/14 20:33:10  hal9
-Three new FAQ's re: templates and blocking, and various minor touch-ups/improvements.
-
-Revision 2.21  2006/10/03 14:40:51  fabiankeil
-Added links from the Tor faq to the
-configuration chapter in the User Manual.
-
-Revision 2.20  2006/09/26 10:12:37  fabiankeil
-Spelling fix.
-
-Revision 2.19  2006/09/22 10:54:32  hal9
-Change references to 3.0.4 to 3.0.5 and minor adjustments.
-
-Revision 2.18  2006/09/22 01:27:55  hal9
-Final commit of probably various minor changes here and there. Unless
-something changes this should be ready for pending release.
-
-Revision 2.17  2006/09/17 14:56:32  hal9
-This includes yet several more new FAQs, some improved wording, enhanced
-mark-up, various hyper links to wikipedia to explain key terminology to the
-uninitiated, etc. This is ready for release IMO pending final tagging of cvs
-and Privoxy version stamping.
-
-Revision 2.16  2006/09/10 15:30:46  hal9
-Spell check.
-
-Revision 2.15  2006/09/08 23:05:07  hal9
-Fix broken links. Add faq on hosts files. Move most of new windows service
-feature to user manual and reference in faq. Various other small changes.
-
-Revision 2.14  2006/09/05 13:25:12  david__schmidt
-Add Windows service invocation stuff (duplicated) in FAQ and in user manual under Windows startup.  One probably ought to reference the other.
-
-Revision 2.13  2006/09/04 19:20:33  fabiankeil
-Adjusted anonymity related sections to match reality.
-Added a section about using Privoxy with Tor.
-
-Revision 2.12  2006/09/03 14:15:30  hal9
-Various updates, including 7 or 8 new FAQs, and updates/changes to various
-other ones to better reflect improvements, additions and changes for the
-upcoming release. This is close to final form for 3.0.4 IMHO.
-
-Revision 2.11  2006/07/18 14:48:50  david__schmidt
-Reorganizing the repository: swapping out what was HEAD (the old 3.1 branch)
-with what was really the latest development (the v_3_0_branch branch)
-
-Revision 1.61.2.41  2004/04/05 13:44:05  oes
-Fixed allow-all-cookies alias name; closes SR #929746
-
-Revision 1.61.2.40  2004/01/30 17:00:33  oes
-Added Mac OS X Panther problem
-
-Revision 1.61.2.39  2004/01/29 22:53:08  hal9
-Minor changes for exempting docs of text/plain. Change copyright date.
-
-Revision 1.61.2.38  2003/12/10 03:39:45  hal9
-Added FAQs for: demoronizer, related problems and why its included. Also,
-port 8118 already in use questions, and PrivoxyWindowOpen() questions. All in
-troubleshooting section.
-
-Revision 1.61.2.37  2003/10/17 11:01:50  oes
-Added Q&A for "not being used" page problem
-
-Revision 1.61.2.36  2003/06/26 23:49:20  hal9
-More on the filter/source code problem.
-
-Revision 1.61.2.35  2003/06/26 13:38:08  hal9
-Add FAQ on whether configuring Privoxy is necessary or not.
-
-Revision 1.61.2.34  2003/06/26 03:00:03  hal9
-Sorry, found another copyright date.
-
-Revision 1.61.2.33  2003/06/26 02:57:05  hal9
-Fix typo (finally!) and very minor modifications.
-
-Revision 1.61.2.32  2003/06/26 02:52:04  hal9
-Test, no changes.
-
-Revision 1.61.2.31  2003/06/25 01:27:51  hal9
-Fix copyright, and a few nits.
-
-Revision 1.61.2.30  2003/06/25 01:13:52  hal9
-Add:
-
- - FAQ on "Unable to get my own hostname"
- - Another one on filtering effects on text files.
-
-Revision 1.61.2.29  2003/06/15 21:32:58  hal9
-Add to the 4.17 (filtering effects on downloaded files).
-
-Revision 1.61.2.28  2003/03/18 19:37:21  oes
-s/Advanced|Radical/Adventuresome/g to avoid complaints re fun filter
-
-Revision 1.61.2.27  2002/12/01 06:31:58  hal9
-Add faq on win32 error 503 due to ZoneAlarm.
-
-Revision 1.61.2.26  2002/11/17 06:41:06  hal9
-Move default profiles table from FAQ to U-M, and other minor related changes.
-Add faq on cookies.
-
-Revision 1.61.2.25  2002/10/29 03:21:50  hal9
-Add 3 Q/A's relating to HTML in email. Other minor touchups.
-
-Revision 1.61.2.24  2002/10/15 12:50:22  oes
-s/Advanced/Radical/ (stupid me)
-
-Revision 1.61.2.23  2002/10/15 12:38:56  oes
-Added Microsuck faq; more detail for PHP problem
-
-Revision 1.61.2.22  2002/10/12 01:13:13  hal9
-Updates for demoronizer, more commentary on Radical profile, and update on
-the srvany.exe/icon fix.
-
-Revision 1.61.2.21  2002/10/10 04:09:35  hal9
-s/Advanced/Radical/ and added very brief note.
-
-Revision 1.61.2.20  2002/09/26 01:22:45  hal9
-Small additions for LAN setup, content-cookies/SSL, and FTP non-support.
-
-Revision 1.61.2.19  2002/08/25 23:31:56  hal9
-Fix one grammatical error. Add brief FAQ relating to tranparent proxies (ie
-port 80 setting). Add FAQ on effects of Privoxy on downloaded files
-(especially filtering).
-
-Revision 1.61.2.18  2002/08/14 16:39:37  hal9
-Fix wrong tag on FAQ addition.
-
-Revision 1.61.2.17  2002/08/14 00:01:18  hal9
-Add a crunch FAQ.
-
-Revision 1.61.2.16  2002/08/13 00:10:38  hal9
-Add faq to troubleshooting re: blank page syndrome, ie {-prevent-compression}.
-
-Revision 1.61.2.15  2002/08/10 11:34:22  oes
-Add disclaimer about probably being out-of-date
-
-Revision 1.61.2.14  2002/08/07 02:53:43  hal9
-Fix some minor markup errors, and move one Mac OS X Q/A to troubleshooting section.
-
-Revision 1.61.2.13  2002/08/06 11:55:32  oes
-Added missing close tag
-
-Revision 1.61.2.12  2002/08/06 11:43:46  david__schmidt
-Updated Mac OS X uninstall FAQ... we have an uninstall script now.
-
-Revision 1.61.2.11  2002/08/06 08:54:03  oes
-Style police: Fixed formatting details
-
-Revision 1.61.2.10  2002/08/02 14:00:25  david__schmidt
-Made the Mac OS X removal commands far less dangerous
-
-Revision 1.61.2.9  2002/08/02 13:14:45  oes
-Added warning about sudo rm -r for Mac OS X deinstallation; moved this item to install section
-
-Revision 1.61.2.8  2002/08/02 02:01:42  david__schmidt
-Add FAQ item for MSIE on Mac OS X HTTP proxy confusion
-
-Revision 1.61.2.7  2002/08/02 01:46:01  david__schmidt
-Added FAQ item for Mac OS X uninstall woes
-
-Revision 1.61.2.6  2002/07/30 20:04:56  hal9
-Fix typo: 'schould'.
-
-Revision 1.61.2.5  2002/07/26 15:22:58  oes
-- Updated to reflect changes in standard.action
-- Added info on where to get updated actions files
-
-Revision 1.61.2.4  2002/07/25 21:42:29  hal9
-Add brief notes on not proxying non-HTTP protocols.
-
-Revision 1.61.2.3  2002/06/09 16:36:33  hal9
-Clarifications on filtering and MIME. Hardcode 'latest release' in index.html.
-
-Revision 1.61.2.2  2002/06/06 02:51:34  hal9
-Fix typo in URL http:/config.privoxy.org
-
-Revision 1.61.2.1  2002/06/05 23:10:43  hal9
-Add new FAQ re: DUN/IE. Change release date from May to June :)
-
-Revision 1.61  2002/05/25 12:37:25  hal9
-Various minor changes and edits.
-
-Revision 1.60  2002/05/22 17:17:48  oes
-Proofread & added more links into u-m
-
-Revision 1.59  2002/05/15 04:03:30  hal9
-Fix ulink -> link markup.
-
-Revision 1.58  2002/05/10 01:48:20  hal9
-This is mostly proposed copyright/licensing additions and changes. Docs
-are still GPL, but licensing and copyright are more visible. Also, copyright
-changed in doc header comments (eliminate references to JB except FAQ).
-
-Revision 1.57  2002/05/05 20:26:02  hal9
-Sorting out license vs copyright in these docs.
-
-Revision 1.56  2002/05/04 08:44:44  swa
-bumped version
-
-Revision 1.55  2002/05/04 00:41:56  hal9
--Remove TOC/first page kludge in favor of proper handling via dsl file.
-
-Revision 1.54  2002/05/03 05:06:44  hal9
-Add brief Q/A on transparent proxies.
-
-Revision 1.53  2002/05/03 01:34:52  hal9
-Fix section numbering for new sections (due to TOC kludge).
-
-Revision 1.52  2002/04/29 03:08:43  hal9
--Added new Q/A on new actions file set up (pointer to u-m)
--Fixed a few broken links and converted old actions as a result of
- recent changes.
-
-Revision 1.51  2002/04/26 17:24:31  swa
-bookmarks cleaned, changed structure of user manual, screen and programlisting cleanups, and numerous other changes that I forgot
-
-Revision 1.50  2002/04/26 05:25:23  hal9
-Mass commit to catch a few scattered fixes.
-
-Revision 1.49  2002/04/12 10:10:18  swa
-version update
-
-Revision 1.48  2002/04/10 18:45:15  swa
-generated
-
-Revision 1.47  2002/04/10 04:05:32  hal9
-More on BML, etc.
-
-Revision 1.45  2002/04/08 22:59:26  hal9
-Version update. Spell chkconfig correctly :)
-
-Revision 1.44  2002/04/07 21:24:29  hal9
-Touch up on name change.
-
-Revision 1.43  2002/04/04 21:59:53  hal9
-Added NT/W2K service/icon situation.
-
-Revision 1.42  2002/04/04 18:46:47  swa
-consistent look. reuse of copyright, history et. al.
-
-Revision 1.41  2002/04/04 06:48:37  hal9
-Structural changes to allow for conditional inclusion/exclusion of content
-based on entity toggles, e.g. 'entity % p-not-stable  "INCLUDE"'. And
-definition of internal entities, e.g. 'entity p-version "2.9.13"' that will
-eventually be set by Makefile.
-More boilerplate text for use across multiple docs.
-
-Revision 1.40  2002/04/03 04:22:03  hal9
-Fixed several typos.
-
-Revision 1.39  2002/04/03 03:53:03  hal9
-Revert some changes, and then make some news, to layout, and appearance.
-
-Revision 1.38  2002/04/02 03:49:10  hal9
-Major changes to doc structure and layout. Sections are not automatically
-numbered now. TOC is on page by itself.
-
-Revision 1.37  2002/04/01 16:24:07  hal9
--Rework of supported Q/A.
--Set up entities to include boilerplate text.
-
-Revision 1.36  2002/03/31 23:18:47  hal9
-More on dealing with BLOCKED.
-
-Revision 1.35  2002/03/30 04:14:19  hal9
-Fix privoxy.org/config links.
-
-Revision 1.34  2002/03/29 04:35:56  hal9
-Touch ups.
-
-Revision 1.33  2002/03/29 01:31:48  hal9
-Several new Q/A's and other touch ups.
-
-Revision 1.32  2002/03/27 00:57:03  hal9
-Touch ups for name change.
-
-Revision 1.31  2002/03/26 22:29:55  swa
-we have a new homepage!
-
-Revision 1.30  2002/03/25 16:39:22  hal9
-A few new sections. Made all links relative to user-manual.
-
-Revision 1.29  2002/03/25 05:23:57  hal9
-Moved section, and touch ups.
-
-Revision 1.28  2002/03/25 04:27:33  hal9
-New section related to name change.
-
-Revision 1.25  2002/03/24 16:08:08  swa
-we are too lazy to make a block-built
-privoxy logo. hence removed the option.
-
-Revision 1.24  2002/03/24 15:46:20  swa
-name change related issue.
-
-Revision 1.23  2002/03/24 12:33:01  swa
-more additions.
-
-Revision 1.22  2002/03/24 11:51:00  swa
-name change. changed filenames.
-
-Revision 1.21  2002/03/24 11:01:06  swa
-name change
-
-Revision 1.20  2002/03/23 15:13:11  swa
-renamed every reference to the old name with foobar.
-fixed "application foobar application" tag, fixed
-"the foobar" with "foobar". left junkbustser in cvs
-comments and remarks to history untouched.
-
-Revision 1.19  2002/03/21 17:01:54  hal9
-Some touch ups.
-
-Revision 1.18  2002/03/18 16:40:31  hal9
-More additions.
-
-Revision 1.17  2002/03/18 03:53:53  hal9
-Some new additions.
-
-Revision 1.16  2002/03/17 21:32:56  hal9
-A few more additions.
-
-Revision 1.15  2002/03/17 07:25:59  hal9
-Correcting some of my typos, and some additions.
-
-Revision 1.14  2002/03/17 02:39:13  hal9
-A little more added ...
-
-Revision 1.13  2002/03/17 00:22:20  hal9
-Adding new stuff, and trying to incorporate stuff from old faq.
-
-Revision 1.12  2002/03/11 20:13:21  swa
-typo
-
-Revision 1.11  2002/03/11 18:42:27  swa
-new section
-
-Revision 1.10  2002/03/11 13:13:27  swa
-correct feedback channels
-
-Revision 1.9  2002/03/10 23:34:04  swa
-more info on not hiding ip address
-
-Revision 1.8  2002/03/09 15:55:48  swa
-added default config section
-
-Revision 1.7  2002/03/07 18:16:55  swa
-looks better
-
-Revision 1.6  2002/03/07 13:16:31  oes
-Committing changes by Stefan
-
-Revision 1.5  2002/03/02 15:50:04  swa
-2.9.11 version. more input for docs.
-
-Revision 1.4  2002/02/24 14:34:24  jongfoster
-Formatting changes.  Now changing the doctype to DocBook XML 4.1
-will work - no other changes are needed.
-
-Revision 1.3  2001/09/23 10:13:48  swa
-upload process established. run make webserver and
-the documentation is moved to the webserver. documents
-are now linked correctly.
-
-Revision 1.2  2001/09/13 15:20:17  swa
-merged standards into developer manual
-
-Revision 1.1  2001/09/12 15:36:41  swa
-source files for junkbuster documentation
-
-Revision 1.3  2001/09/10 17:43:59  swa
-first proposal of a structure.
-
-Revision 1.2  2001/06/13 14:28:31  swa
-docs should have an author.
-
-Revision 1.1  2001/06/13 14:20:37  swa
-first import of project's documentation for the webserver.
-
 -->
 
 </article>

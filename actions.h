@@ -1,6 +1,5 @@
 #ifndef ACTIONS_H_INCLUDED
 #define ACTIONS_H_INCLUDED
-#define ACTIONS_H_VERSION "$Id: actions.h,v 1.21 2012/07/27 17:39:57 fabiankeil Exp $"
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/actions.h,v $
@@ -8,8 +7,8 @@
  * Purpose     :  Declares functions to work with actions files
  *                Functions declared include: FIXME
  *
- * Copyright   :  Written by and Copyright (C) 2001-2007 the SourceForge
- *                Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001-2007 members of the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -36,11 +35,6 @@
  *********************************************************************/
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
 struct action_spec;
 struct current_action_spec;
 struct client_state;
@@ -65,10 +59,11 @@ extern void init_action(struct action_spec *dest);
 extern void free_action(struct action_spec *src);
 extern jb_err merge_actions (struct action_spec *dest,
                              const struct action_spec *src);
-#if 1
+#ifdef FEATURE_MANUAL_TAGGER
 extern int update_action_bits_for_all_tags(struct client_state *csp);
 #endif
 extern int update_action_bits_for_tag(struct client_state *csp, const char *tag);
+extern jb_err check_negative_tag_patterns(struct client_state *csp, unsigned int flag);
 extern jb_err copy_action (struct action_spec *dest,
                            const struct action_spec *src);
 extern char * actions_to_text     (const struct action_spec *action);
@@ -85,19 +80,14 @@ extern char * actions_to_line_of_text(const struct current_action_spec *action);
 extern jb_err get_action_token(char **line, char **name, char **value);
 extern void unload_actions_file(void *file_data);
 extern int load_action_files(struct client_state *csp);
+#ifdef FUZZ
+extern int load_one_actions_file(struct client_state *csp, int fileid);
+#endif
 
 #ifdef FEATURE_GRACEFUL_TERMINATION
 void unload_current_actions_file(void);
 #endif
 
-
-/* Revision control strings from this header and associated .c file */
-extern const char actions_rcs[];
-extern const char actions_h_rcs[];
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 #endif /* ndef ACTIONS_H_INCLUDED */
 

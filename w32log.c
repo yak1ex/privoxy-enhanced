@@ -1,13 +1,12 @@
-const char w32log_rcs[] = "$Id: w32log.c,v 1.48 2012/05/27 15:45:05 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/w32log.c,v $
  *
  * Purpose     :  Functions for creating and destroying the log window,
- *                ouputting strings, processing messages and so on.
+ *                outputting strings, processing messages and so on.
  *
  * Copyright   :  Written by and Copyright (C) 2001-2009 members of
- *                the Privoxy team.  http://www.privoxy.org/
+ *                the Privoxy team.  https://www.privoxy.org/
  *
  *                Written by and Copyright (C) 1999 Adam Lock
  *                <locka@iol.ie>
@@ -41,6 +40,7 @@ const char w32log_rcs[] = "$Id: w32log.c,v 1.48 2012/05/27 15:45:05 fabiankeil E
 #ifndef STRICT
 #define STRICT
 #endif
+#include <winsock2.h>
 #include <windows.h>
 #include <richedit.h>
 
@@ -56,15 +56,6 @@ const char w32log_rcs[] = "$Id: w32log.c,v 1.48 2012/05/27 15:45:05 fabiankeil E
 #ifdef FEATURE_MANUAL_TAGGER
 #include "list.h"
 #endif
-
-const char w32res_h_rcs[] = W32RES_H_VERSION;
-
-#ifdef __MINGW32__
-#include "cygwin.h"
-const char cygwin_h_rcs[] = CYGWIN_H_VERSION;
-#endif
-
-const char w32log_h_rcs[] = W32LOG_H_VERSION;
 
 #ifndef _WIN_CONSOLE /* entire file */
 
@@ -181,6 +172,9 @@ static struct _Pattern
    { "Connect: Reusing server socket",     STYLE_HIGHLIGHT },
    { "Connect: Created new connection to", STYLE_HIGHLIGHT },
    { "hung up on us",               STYLE_HIGHLIGHT },
+   { "Info: Loading actions file:", STYLE_HIGHLIGHT },
+   { "Info: Loading filter file:",  STYLE_HIGHLIGHT },
+   { "Info: Now toggled ",          STYLE_HIGHLIGHT },
    { "Crunching Referer:",          STYLE_HIGHLIGHT },
    /* what are all the possible error strings?? */
    { "Error:",                      STYLE_HIGHLIGHT },
@@ -740,8 +734,8 @@ HWND CreateLogWindow(HINSTANCE hInstance, int nCmdShow)
 /* SendMessage(g_hwndLogBox, EM_SETWORDWRAPMODE, 0, 0); */
 
    /* Subclass the control to catch certain messages */
-   g_fnLogBox = (WNDPROC) GetWindowLong(g_hwndLogBox, GWL_WNDPROC);
-   SetWindowLong(g_hwndLogBox, GWL_WNDPROC, (LONG) LogRichEditProc);
+   g_fnLogBox = (WNDPROC) GetWindowLongPtr(g_hwndLogBox, GWLP_WNDPROC);
+   SetWindowLongPtr(g_hwndLogBox, GWLP_WNDPROC, (LONG_PTR) LogRichEditProc);
 
    /* Minimizing looks stupid when the log window is not on the task bar, so hide instead */
    if (!g_bShowOnTaskBar &&
@@ -1367,7 +1361,7 @@ LRESULT CALLBACK LogWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 
       case WM_SHOWWINDOW:
          g_bShowLogWindow = wParam;
-      case WM_SIZE:
+      case WM_SIZE:  /* note: implicit-fallthrough */
          /* Resize the logging window to fit the new frame */
          if (g_hwndLogBox)
          {

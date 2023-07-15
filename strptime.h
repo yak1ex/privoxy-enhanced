@@ -297,7 +297,7 @@ strptime_internal (rp, fmt, tm, decided, era_cnt)
 	}
 
       /* Any character but `%' must be matched by the same character
-	 in the iput string.  */
+	 in the input string.  */
       if (*fmt != '%')
 	{
 	  match_char (*fmt++, *rp++);
@@ -535,11 +535,12 @@ strptime_internal (rp, fmt, tm, decided, era_cnt)
 	      *decided = raw;
 	    }
 #endif
-	  if (!match_string (HERE_AM_STR, rp))
+	  if (!match_string (HERE_AM_STR, rp)) {
 	    if (match_string (HERE_PM_STR, rp))
 	      is_pm = 1;
 	    else
 	      return NULL;
+          }
 	  break;
 	case 'r':
 #ifdef _NL_CURRENT

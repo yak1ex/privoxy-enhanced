@@ -5,7 +5,7 @@
 <!entity history SYSTEM "history.sgml">
 <!entity copyright SYSTEM "copyright.sgml">
 <!entity license SYSTEM "license.sgml">
-<!entity p-version "3.0.21">
+<!entity p-version "3.0.34">
 <!entity p-status "stable">
 <!entity % p-not-stable "IGNORE">
 <!entity % p-stable "INCLUDE">
@@ -14,15 +14,11 @@
 <!entity % p-index "IGNORE">       <!-- toggle for local doc index        -->
 ]>
 <!--
- File        :  $Source: /cvsroot/ijbswa/current/doc/source/webserver/index.sgml,v $
+ File        :  doc/source/webserver/index.sgml
 
  Purpose     :  Index file of the project's homepage and also documentation index
-                This file belongs into
-                ijbswa.sourceforge.net:/home/groups/i/ij/ijbswa/htdocs/
                 
- $Id: index.sgml,v 2.27 2013/03/01 17:44:24 fabiankeil Exp $
-
- Copyright (C) 2001-2009 Privoxy Developers <ijbswa-developers@lists.sourceforge.net>
+ Copyright (C) 2001-2023 Privoxy developers <privoxy-devel@lists.privoxy.org>
  See LICENSE.
 
  ========================================================================
@@ -77,32 +73,29 @@
 
 <sect1 renderas="sect2" id="download" label=""><title>Download</title>
 <para>
- <itemizedlist>
-  <listitem>
-   <para>
-    <ulink url="https://sourceforge.net/projects/ijbswa/files/">Download recent releases</ulink>
-   </para>
-  </listitem>
- <!-- 
- deprecated
-  <listitem>
-   <para>
-    <ulink url="http://cvs.sourceforge.net/cvstarballs/ijbswa-cvsroot.tar.bz2">Download the latest CVS snapshot (source tarball)</ulink>
-   </para>
-  </listitem>
- --> 
-  <listitem>
-   <para>
-    <ulink url="user-manual/quickstart.html">Quickstart after installation</ulink>
-   </para>
-  </listitem>
- </itemizedlist>
+ You can <ulink url="/sf-download-mirror/">download Privoxy here</ulink>,
+ from <ulink url="https://www.silvester.org.uk/privoxy/">this mirror</ulink>,
+ or from <ulink url="https://sourceforge.net/projects/ijbswa/files/">SourceForge</ulink>.
+</para>
+<para>
+ Note that the Privoxy project currently has no trusted build infrastructure.
+ Binary packages are built and uploaded by individual members of the Privoxy
+ project or external contributors. For details check the signatures.
+</para>
+<para>
+ Subscribe to the <ulink url="/feeds/privoxy-releases.xml">release feed</ulink>
+ to get informed when new releases are available.
 </para>
 </sect1>
 
 <sect1 renderas="sect2" id="docs" label=""><title>Documentation</title>
 <para>
  <itemizedlist>
+  <listitem>
+   <para>
+    <ulink url="user-manual/quickstart.html">Quickstart after installation</ulink>
+   </para>
+  </listitem>
   <listitem>
    <para>
     <ulink url="user-manual/index.html">User manual</ulink>
@@ -147,19 +140,9 @@
   </listitem>
   <listitem>
    <para>
-    <ulink url="https://sourceforge.net/projects/ijbswa/">The project page</ulink>
-   </para>
-  </listitem>
-  <listitem>
-   <para>
-    <ulink url="user-manual/seealso.html">Related links</ulink>
-   </para>
-  </listitem>
-  <listitem>
-   <para>
     <!-- please leave this link absolute so this file can be bundled with -->
     <!-- documentation and still used locally -->
-    <ulink url="http://www.privoxy.org/team/index.html">Pictures of the Privoxy Team</ulink>
+    <ulink url="https://www.privoxy.org/team/index.html">Pictures of the Privoxy Team</ulink>
    </para>
   </listitem>
  </itemizedlist>
@@ -172,35 +155,12 @@
 <!-- dummy section, for spacing -->
 <title></title>
 <para>
-<!-- show the SF logo per AUP -->
-<informaltable frame=none label="" pgwide="1">
- <tgroup cols=1 align="center" colsep=1 rowsep=1>
-  <colspec colname=c1 align="center">
-  <tbody>
-   <row>
-    <entry align="center">Privoxy is developed on:</entry>
-   </row>
-   <row>
-    <entry align="center">
-     <ulink url="http://sourceforge.net/">
-      <inlinegraphic  fileref="http://sourceforge.net/sflogo.php?group_id=11118&#38;type=1&#38;dummy=.gif"></inlinegraphic>
-     </ulink>
-    </entry>
-   </row>
-  </tbody>
- </tgroup>
-</informaltable>
+ <subscript>
+   The Privoxy website is also available as
+   <ulink url="http://l3tczdiiwoo63iwxty4lhs6p7eaxop5micbn7vbliydgv63x5zrrrfyd.onion/">Tor onion service</ulink>.
+ </subscript>
 </para>
 ]]>
-
-<!--
-<informalfigure pgwide="1">
- <ulink url="http://sourceforge.net/">
-  <inlinegraphic align="center" fileref="http://sourceforge.net/sflogo.php?group_id=11118&#38;type=1&#38;dummy=.gif"></inlinegraphic>
- </ulink>
-</informalfigure>
--->
-
 
 <![%p-index;[
 <sect1 label=""><title></title>
@@ -212,9 +172,26 @@
 <!-- GNUMakefile is inserting this now -->
 <para>
  <subscript>
-  Copyright __copy 2001-2013 by Privoxy Developers
+  Copyright __copy 2001-2023 by Privoxy Developers
  </subscript>
 </para>
+
+<![%p-homepage;[
+<para>
+ <subscript>
+  Hosting and development is funded in part by:
+ </subscript>
+ <subscript>
+  <!-- The GNUMakefile will turn this marker into an image link -->
+  www.lalal.ai
+ </subscript>
+</para>
+<para>
+ <subscript>
+  <ulink url="/sponsor">Become a sponsor</ulink>
+ </subscript>
+</para>
+]]>
 
 </sect1>
  

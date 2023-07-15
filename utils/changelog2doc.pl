@@ -2,8 +2,6 @@
 
 ##########################################################################
 #
-# $Id: changelog2doc.pl,v 1.8 2011/11/13 17:00:54 fabiankeil Exp $
-#
 # Filter to parse the ChangeLog and translate the changes for
 # the most recent version into something that looks like markup
 # for the documentation but still needs fine-tuning.
@@ -41,7 +39,7 @@ sub read_entries() {
         next unless $section_reached;
         next if /^\s*$/;
 
-        if (/^(\s*)-/) {
+        if (/^(\s*)- /) {
             my $indentation = length($1);
             if ($i > 1 and $entries[$i]{indentation} > $indentation) {
                 $entries[$i]{last_list_item} = 1;

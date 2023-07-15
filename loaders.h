@@ -1,6 +1,5 @@
 #ifndef LOADERS_H_INCLUDED
 #define LOADERS_H_INCLUDED
-#define LOADERS_H_VERSION "$Id: loaders.h,v 1.30 2012/12/07 12:43:05 fabiankeil Exp $"
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/loaders.h,v $
@@ -11,7 +10,7 @@
  *                unload files that are no longer in use.
  *
  * Copyright   :  Written by and Copyright (C) 2001-2010 the
- *                Privoxy team. http://www.privoxy.org/
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -38,17 +37,8 @@
  *********************************************************************/
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* Structures taken from project.h */
-struct client_state;
-struct file_list;
-struct configuration_spec;
-struct url_spec;
-
 extern unsigned int sweep(void);
+extern void free_csp_resources(struct client_state *csp);
 extern char *read_config_line(FILE *fp, unsigned long *linenum, char **buf);
 extern int check_file_changed(const struct file_list * current,
                               const char * filename,
@@ -84,6 +74,9 @@ extern jb_err simple_read_line(FILE *fp, char **dest, int *newline);
 extern short int MustReload;
 extern int load_action_files(struct client_state *csp);
 extern int load_re_filterfiles(struct client_state *csp);
+#ifdef FUZZ
+extern int load_one_re_filterfile(struct client_state *csp, int fileid);
+#endif
 
 #ifdef FEATURE_TRUST
 extern int load_trustfile(struct client_state *csp);
@@ -103,14 +96,6 @@ extern void add_loader(int (*loader)(struct client_state *),
 extern int run_loader(struct client_state *csp);
 
 extern int any_loaded_file_changed(const struct client_state *csp);
-
-/* Revision control strings from this header and associated .c file */
-extern const char loaders_rcs[];
-extern const char loaders_h_rcs[];
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 #endif /* ndef LOADERS_H_INCLUDED */
 

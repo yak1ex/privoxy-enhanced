@@ -1,4 +1,3 @@
-const char w32taskbar_rcs[] = "$Id: w32taskbar.c,v 1.14 2012/03/09 17:55:50 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/w32taskbar.c,v $
@@ -7,7 +6,7 @@ const char w32taskbar_rcs[] = "$Id: w32taskbar.c,v 1.14 2012/03/09 17:55:50 fabi
  *                workspace tray icon
  *
  * Copyright   :  Written by and Copyright (C) 2001-2002 members of
- *                the Privoxy team.  http://www.privoxy.org/
+ *                the Privoxy team.  https://www.privoxy.org/
  *
  *                Written by and Copyright (C) 1999 Adam Lock
  *                <locka@iol.ie>
@@ -45,8 +44,6 @@ const char w32taskbar_rcs[] = "$Id: w32taskbar.c,v 1.14 2012/03/09 17:55:50 fabi
 #include "w32taskbar.h"
 #include "w32res.h"
 #include "w32log.h"
-
-const char w32taskbar_h_rcs[] = W32TASKBAR_H_VERSION;
 
 #ifndef _WIN_CONSOLE /* entire file */
 

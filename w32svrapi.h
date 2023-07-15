@@ -1,6 +1,5 @@
 #ifndef W32_SVRAPI_H_INCLUDED
 #define W32_SVRAPI_H_INCLUDED
-#define W32_SVRAPI_H_VERSION "$Id: w32svrapi.h,v 1.3 2011/09/04 11:10:56 fabiankeil Exp $"
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/w32svrapi.h,v $
@@ -19,7 +18,7 @@
  *                doing to provide that isolation.
  *
  * Copyright   :  Written by and Copyright (C) 2003 members of
- *                the Privoxy team.  http://www.privoxy.org/
+ *                the Privoxy team.  https://www.privoxy.org/
  *
  *                Written by and Copyright (C) 2003 Ian Cummings
  *                <ian_a_c@hotmail.com>
@@ -49,10 +48,6 @@
  *
  *********************************************************************/
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifdef _WIN32
 
@@ -130,10 +125,6 @@ extern BOOL w32_set_service_status(
 
 #endif  /* def _WIN32 */
 
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 #endif /* ndef W32_SVRAPI_H_INCLUDED */
 

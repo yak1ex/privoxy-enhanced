@@ -1,4 +1,3 @@
-const char encode_rcs[] = "$Id: encode.c,v 1.29 2013/02/19 11:14:05 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/encode.c,v $
@@ -7,7 +6,7 @@ const char encode_rcs[] = "$Id: encode.c,v 1.29 2013/02/19 11:14:05 fabiankeil E
  *                encode cookies and HTML text.
  *
  * Copyright   :  Written by and Copyright (C) 2001 the
- *                Privoxy team. http://www.privoxy.org/
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -43,8 +42,6 @@ const char encode_rcs[] = "$Id: encode.c,v 1.29 2013/02/19 11:14:05 fabiankeil E
 
 #include "miscutil.h"
 #include "encode.h"
-
-const char encode_h_rcs[] = ENCODE_H_VERSION;
 
 /* Maps special characters in a URL to their equivalent % codes. */
 static const char url_code_map[256][4] = {

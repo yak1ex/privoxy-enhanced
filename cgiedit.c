@@ -1,4 +1,3 @@
-const char cgiedit_rcs[] = "$Id: cgiedit.c,v 1.76 2012/07/23 12:42:53 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/cgiedit.c,v $
@@ -13,8 +12,8 @@ const char cgiedit_rcs[] = "$Id: cgiedit.c,v 1.76 2012/07/23 12:42:53 fabiankeil
  *
  *                Stick to the short names in this file for consistency.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2008 the SourceForge
- *                Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001-2014 the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -71,8 +70,6 @@ const char cgiedit_rcs[] = "$Id: cgiedit.c,v 1.76 2012/07/23 12:42:53 fabiankeil
 #endif /* def FEATURE_TOGGLE */
 #include "urlmatch.h"
 
-const char cgiedit_h_rcs[] = CGIEDIT_H_VERSION;
-
 
 #ifdef FEATURE_CGI_EDIT_ACTIONS
 
@@ -120,19 +117,6 @@ struct file_line
          int ivalue;
 
       } setting;
-
-      /* Add more data types here... e.g.
-
-
-      struct url_spec url[1];
-
-      struct
-      {
-         struct action_spec action[1];
-         const char * name;
-      } alias;
-
-      */
 
    } data;
 
@@ -204,7 +188,7 @@ struct editable_file
  * Information about the filter types.
  * Used for macro replacement in cgi_edit_actions_for_url.
  */
-struct filter_type_info
+struct action_type_info
 {
    const int multi_action_index; /**< The multi action index as defined in project.h */
    const char *macro_name;       /**< Name of the macro that has to be replaced
@@ -224,7 +208,7 @@ struct filter_type_info
 };
 
 /* Accessed by index, keep the order in the way the FT_ macros are defined. */
-static const struct filter_type_info filter_type_info[] =
+static const struct action_type_info action_type_info[] =
 {
    {
       ACTION_MULTI_FILTER,
@@ -255,6 +239,56 @@ static const struct filter_type_info filter_type_info[] =
       "server-header-tagger-params", "server-header-tagger",
       "server-header-tagger-all", "server_header_tagger_all",
       "E", "SERVER-HEADER-TAGGER"
+   },
+   {
+      ACTION_MULTI_SUPPRESS_TAG,
+      "suppress-tag-params", "suppress-tag",
+      "suppress-tag-all", "suppress_tag_all",
+      "U", "SUPPRESS-TAG"
+   },
+   {
+      ACTION_MULTI_CLIENT_BODY_FILTER,
+      "client-body-filter-params", "client-body-filter",
+      "client-body-filter-all", "client_body_filter_all",
+      "P", "CLIENT-BODY-FILTER"
+   },
+   {
+      ACTION_MULTI_ADD_HEADER,
+      "add-header-params", "add-header",
+      "add-header-all", "add_header_all",
+      "H", "ADD-HEADER"
+   },
+#ifdef FEATURE_EXTERNAL_FILTERS
+   {
+      ACTION_MULTI_EXTERNAL_FILTER,
+      "external-content-filter-params", "external-filter",
+      "external-content-filter-all", "external_content_filter_all",
+      "E", "EXTERNAL-CONTENT-FILTER"
+   },
+#endif
+};
+
+/**
+ * Information about the string filter actions.
+ * Used for macro replacement in action_render_string_actions_template
+ */
+struct string_action_type_info
+{
+   const enum filter_type action_type; /**< Action type */
+   const char *description;            /**< Action description */
+   const char *input_description;      /**< Input field description */
+};
+
+/* String action types: special CGI handling */
+static const struct string_action_type_info string_action_type_info[] =
+{
+   {
+      FT_SUPPRESS_TAG,
+      "Suppress tag", "Tag to suppress"
+   },
+   {
+      FT_ADD_HEADER,
+      "Add HTTP client header", "HTTP client header to add"
    },
 };
 
@@ -314,6 +348,10 @@ static jb_err actions_to_radio(struct map * exports,
                                const struct action_spec *action);
 static jb_err actions_from_radio(const struct map * parameters,
                                  struct action_spec *action);
+static jb_err action_render_string_actions_template(struct map * exports,
+                                                    const struct action_spec *action,
+                                                    const char* action_template,
+                                                    const struct string_action_type_info *string_action_type);
 
 
 static jb_err map_copy_parameter_html(struct map *out,
@@ -351,7 +389,7 @@ static char *section_target(const unsigned sectionid)
 {
    char buf[30];
 
-   snprintf(buf, sizeof(buf), "#l%d", sectionid);
+   snprintf(buf, sizeof(buf), "#l%u", sectionid);
    return(strdup(buf));
 
 }
@@ -373,7 +411,7 @@ static char *stringify(const unsigned number)
 {
    char buf[6];
 
-   snprintf(buf, sizeof(buf), "%i", number);
+   snprintf(buf, sizeof(buf), "%u", number);
    return strdup(buf);
 }
 
@@ -848,11 +886,7 @@ jb_err edit_write_file(struct editable_file * file)
    freez(file->version_str);
    snprintf(version_buf, sizeof(version_buf), "%u", file->version);
    version_buf[sizeof(version_buf)-1] = '\0';
-   file->version_str = strdup(version_buf);
-   if (version_buf == NULL)
-   {
-      return JB_ERR_MEMORY;
-   }
+   file->version_str = strdup_or_die(version_buf);
 
    return JB_ERR_OK;
 }
@@ -1112,7 +1146,7 @@ jb_err edit_parse_actions_file(struct editable_file * file)
 
    /* alias_list contains the aliases defined in this file.
     * It might be better to use the "file_line.data" fields
-    * in the relavent places instead.
+    * in the relevant places instead.
     */
 
    cur_line = file->lines;
@@ -1216,6 +1250,7 @@ jb_err edit_parse_actions_file(struct editable_file * file)
             err = split_line_on_equals(cur_line->unprocessed, &name, &value);
             if (err == JB_ERR_MEMORY)
             {
+               free_alias_list(alias_list);
                return err;
             }
             else if (err != JB_ERR_OK)
@@ -1223,17 +1258,11 @@ jb_err edit_parse_actions_file(struct editable_file * file)
                /* Line does not contain a name=value pair */
                file->parse_error = cur_line;
                file->parse_error_text = "Expected a name=value pair on this {{alias}} line, but couldn't find one.";
+               free_alias_list(alias_list);
                return JB_ERR_PARSE;
             }
 
-            if ((new_alias = zalloc(sizeof(*new_alias))) == NULL)
-            {
-               /* Out of memory */
-               free(name);
-               free(value);
-               free_alias_list(alias_list);
-               return JB_ERR_MEMORY;
-            }
+            new_alias = zalloc_or_die(sizeof(*new_alias));
 
             err = get_actions(value, alias_list, new_alias->action);
             if (err)
@@ -1401,11 +1430,7 @@ jb_err edit_read_file_lines(FILE *fp, struct file_line ** pfile, int *newline)
 
    *pfile = NULL;
 
-   cur_line = first_line = zalloc(sizeof(struct file_line));
-   if (cur_line == NULL)
-   {
-      return JB_ERR_MEMORY;
-   }
+   cur_line = first_line = zalloc_or_die(sizeof(struct file_line));
 
    cur_line->type = FILE_LINE_UNPROCESSED;
 
@@ -1421,13 +1446,7 @@ jb_err edit_read_file_lines(FILE *fp, struct file_line ** pfile, int *newline)
    do
    {
       prev_line = cur_line;
-      cur_line = prev_line->next = zalloc(sizeof(struct file_line));
-      if (cur_line == NULL)
-      {
-         /* Out of memory */
-         edit_free_file_lines(first_line);
-         return JB_ERR_MEMORY;
-      }
+      cur_line = prev_line->next = zalloc_or_die(sizeof(struct file_line));
 
       cur_line->type = FILE_LINE_UNPROCESSED;
 
@@ -1557,12 +1576,7 @@ jb_err edit_read_file(struct client_state *csp,
       return err;
    }
 
-   file = (struct editable_file *) zalloc(sizeof(*file));
-   if (err)
-   {
-      edit_free_file_lines(lines);
-      return err;
-   }
+   file = zalloc_or_die(sizeof(*file));
 
    file->lines = lines;
    file->newline = newline;
@@ -1574,12 +1588,7 @@ jb_err edit_read_file(struct client_state *csp,
    freez(file->version_str);
    snprintf(version_buf, sizeof(version_buf), "%u", file->version);
    version_buf[sizeof(version_buf)-1] = '\0';
-   file->version_str = strdup(version_buf);
-   if (version_buf == NULL)
-   {
-      edit_free_file(file);
-      return JB_ERR_MEMORY;
-   }
+   file->version_str = strdup_or_die(version_buf);
 
    *pfile = file;
    return JB_ERR_OK;
@@ -1840,7 +1849,7 @@ static jb_err get_url_spec_param(struct client_state *csp,
    const char *orig_param;
    char *param;
    char *s;
-   struct url_spec compiled[1];
+   struct pattern_spec compiled[1];
    jb_err err;
 
    assert(csp);
@@ -1888,14 +1897,14 @@ static jb_err get_url_spec_param(struct client_state *csp,
       free(param);
       return JB_ERR_MEMORY;
    }
-   err = create_url_spec(compiled, s);
+   err = create_pattern_spec(compiled, s);
    free(s);
+   free_pattern_spec(compiled);
    if (err)
    {
       free(param);
       return (err == JB_ERR_MEMORY) ? JB_ERR_MEMORY : JB_ERR_CGI_PARAMS;
    }
-   free_url_spec(compiled);
 
    if (param[strlen(param) - 1] == '\\')
    {
@@ -1924,14 +1933,14 @@ static jb_err get_url_spec_param(struct client_state *csp,
          free(param);
          return JB_ERR_MEMORY;
       }
-      err = create_url_spec(compiled, s);
+      err = create_pattern_spec(compiled, s);
       free(s);
+      free_pattern_spec(compiled);
       if (err)
       {
          free(param);
          return (err == JB_ERR_MEMORY) ? JB_ERR_MEMORY : JB_ERR_CGI_PARAMS;
       }
-      free_url_spec(compiled);
    }
 
    *pvalue = param;
@@ -2354,7 +2363,7 @@ jb_err cgi_edit_actions_list(struct client_state *csp,
             {
                if (!strncmp(b->url->spec, "standard.", 9) && *(b->url->spec + 9) != '\0')
                {
-                  if (err || (NULL == (section_exports = new_map())))
+                  if (err)
                   {
                      freez(buttons);
                      free(section_template);
@@ -2363,6 +2372,7 @@ jb_err cgi_edit_actions_list(struct client_state *csp,
                      return JB_ERR_MEMORY;
                   }
 
+                  section_exports = new_map();
                   err = map(section_exports, "button-name", 1, b->url->spec + 9, 1);
 
                   if (err || (NULL == (s = strdup(section_template))))
@@ -2391,9 +2401,9 @@ jb_err cgi_edit_actions_list(struct client_state *csp,
        */
       if (!err) err = map_conditional(exports, "all-urls-present", 1);
 
-      snprintf(buf, sizeof(buf), "%d", line_number);
+      snprintf(buf, sizeof(buf), "%u", line_number);
       if (!err) err = map(exports, "all-urls-s", 1, buf, 1);
-      snprintf(buf, sizeof(buf), "%d", line_number + 2);
+      snprintf(buf, sizeof(buf), "%u", line_number + 2);
       if (!err) err = map(exports, "all-urls-s-next", 1, buf, 1);
       if (!err) err = map(exports, "all-urls-actions", 1,
                           actions_to_html(csp, cur_line->data.action), 0);
@@ -2494,17 +2504,9 @@ jb_err cgi_edit_actions_list(struct client_state *csp,
 
    while ((cur_line != NULL) && (cur_line->type == FILE_LINE_ACTION))
    {
-      if (NULL == (section_exports = new_map()))
-      {
-         free(sections);
-         free(section_template);
-         free(url_template);
-         edit_free_file(file);
-         free_map(exports);
-         return JB_ERR_MEMORY;
-      }
+      section_exports = new_map();
 
-      snprintf(buf, sizeof(buf), "%d", line_number);
+      snprintf(buf, sizeof(buf), "%u", line_number);
       err = map(section_exports, "s", 1, buf, 1);
       if (!err) err = map(section_exports, "actions", 1,
                           actions_to_html(csp, cur_line->data.action), 0);
@@ -2524,7 +2526,7 @@ jb_err cgi_edit_actions_list(struct client_state *csp,
       if (prev_section_line_number != ((unsigned)(-1)))
       {
          /* Not last section */
-         snprintf(buf, sizeof(buf), "%d", prev_section_line_number);
+         snprintf(buf, sizeof(buf), "%u", prev_section_line_number);
          if (!err) err = map(section_exports, "s-prev", 1, buf, 1);
          if (!err) err = map_block_keep(section_exports, "s-prev-exists");
       }
@@ -2566,19 +2568,9 @@ jb_err cgi_edit_actions_list(struct client_state *csp,
 
       while ((cur_line != NULL) && (cur_line->type == FILE_LINE_URL))
       {
-         if (NULL == (url_exports = new_map()))
-         {
-            free(urls);
-            free(sections);
-            free(section_template);
-            free(url_template);
-            edit_free_file(file);
-            free_map(exports);
-            free_map(section_exports);
-            return JB_ERR_MEMORY;
-         }
+         url_exports = new_map();
 
-         snprintf(buf, sizeof(buf), "%d", line_number);
+         snprintf(buf, sizeof(buf), "%u", line_number);
          err = map(url_exports, "p", 1, buf, 1);
 
          snprintf(buf, sizeof(buf), "%d", url_1_2);
@@ -2644,7 +2636,7 @@ jb_err cgi_edit_actions_list(struct client_state *csp,
 
       /* Could also do section-specific exports here, but it wouldn't be as fast */
 
-      snprintf(buf, sizeof(buf), "%d", line_number);
+      snprintf(buf, sizeof(buf), "%u", line_number);
       if (!err) err = map(section_exports, "s-next", 1, buf, 1);
 
       if ((cur_line != NULL)
@@ -2739,6 +2731,7 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
                                 const struct map *parameters)
 {
    struct map * exports;
+   char *filter_template;
    unsigned sectionid;
    struct editable_file * file;
    struct file_line * cur_line;
@@ -2788,11 +2781,26 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
       return JB_ERR_MEMORY;
    }
 
+   err = template_load(csp, &filter_template, "edit-actions-for-url-string-action", 0);
+   if (err)
+   {
+       edit_free_file(file);
+       free_map(exports);
+       return cgi_error_no_template(csp, rsp, "edit-actions-for-url-string-action");
+   }
+
    err = map(exports, "f", 1, stringify(file->identifier), 0);
    if (!err) err = map(exports, "v", 1, file->version_str, 1);
    if (!err) err = map(exports, "s", 1, url_encode(lookup(parameters, "s")), 0);
 
    if (!err) err = actions_to_radio(exports, cur_line->data.action);
+
+   for (i = 0; !err && i < SZ(string_action_type_info); i++)
+   {
+      err = action_render_string_actions_template(exports, cur_line->data.action, filter_template,
+                                                  &string_action_type_info[i]);
+   }
+   freez(filter_template);
 
    /*
     * XXX: Some browsers (at least IE6 and IE7) have an artificial URL
@@ -2804,7 +2812,7 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
     * browsers (BR #1570678).
     *
     * The config option split-large-forms works around this browser
-    * bug (HTTP has no URL length limitation) by deviding the action
+    * bug (HTTP has no URL length limitation) by dividing the action
     * list form into multiple smaller ones. It means the URLs are shorter
     * and work in broken browsers as well, but the user can no longer change
     * all actions with one submit.
@@ -2833,6 +2841,13 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
       }
    }
 
+#ifndef FEATURE_EXTERNAL_FILTERS
+   if (!err) err = map_block_killer(exports, "external-content-filters");
+#endif
+#ifndef FEATURE_HTTPS_INSPECTION
+   if (!err) err = map_block_killer(exports, "https-inspection");
+#endif
+
    if (err)
    {
       edit_free_file(file);
@@ -2849,7 +2864,6 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
       /*
        * List available filters and their settings.
        */
-      char *filter_template;
       int filter_identifier = 0;
       char *prepared_templates[MAX_FILTER_TYPES];
 
@@ -2883,8 +2897,8 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
                char number[20];
                struct list_entry *filter_name;
                struct map *line_exports;
-               const int type = filter_group->type;
-               const int multi_action_index = filter_type_info[type].multi_action_index;
+               const enum filter_type type = filter_group->type;
+               const int multi_action_index = action_type_info[type].multi_action_index;
 
                assert(type < MAX_FILTER_TYPES);
 
@@ -2930,9 +2944,9 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
                   if (!err) err = map(line_exports, "name",  1, filter_group->name, 1);
                   if (!err) err = map(line_exports, "description",  1, filter_group->description, 1);
                   if (!err) err = map_radio(line_exports, "this-filter", "ynx", current_mode);
-                  if (!err) err = map(line_exports, "filter-type", 1, filter_type_info[type].type, 1);
-                  if (!err) err = map(line_exports, "abbr-filter-type", 1, filter_type_info[type].abbr_type, 1);
-                  if (!err) err = map(line_exports, "anchor", 1, filter_type_info[type].anchor, 1);
+                  if (!err) err = map(line_exports, "filter-type", 1, action_type_info[type].type, 1);
+                  if (!err) err = map(line_exports, "abbr-action-type", 1, action_type_info[type].abbr_type, 1);
+                  if (!err) err = map(line_exports, "anchor", 1, action_type_info[type].anchor, 1);
 
                   if (!err)
                   {
@@ -2940,7 +2954,7 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
                      if (filter_line == NULL) err = JB_ERR_MEMORY;
                   }
                   if (!err) err = template_fill(&filter_line, line_exports);
-                  string_join(&prepared_templates[type], filter_line);
+                  if (!err) err = string_join(&prepared_templates[type], filter_line);
 
                   free_map(line_exports);
                }
@@ -2953,7 +2967,7 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
       for (i = 0; i < MAX_FILTER_TYPES; i++)
       {
          if (err) break;
-         err = map(exports, filter_type_info[i].macro_name, 1, prepared_templates[i], 0);
+         err = map(exports, action_type_info[i].macro_name, 1, prepared_templates[i], 0);
       }
 
       if (err)
@@ -2969,10 +2983,10 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
    /* Check or uncheck the "disable all of this type" radio buttons. */
    for (i = 0; i < MAX_FILTER_TYPES; i++)
    {
-      const int a = filter_type_info[i].multi_action_index;
+      const int a = action_type_info[i].multi_action_index;
       const int disable_all = cur_line->data.action->multi_remove_all[a];
       if (err) break;
-      err = map_radio(exports, filter_type_info[i].disable_all_option, "nx", (disable_all ? 'n' : 'x'));
+      err = map_radio(exports, action_type_info[i].disable_all_option, "nx", (disable_all ? 'n' : 'x'));
    }
 
    edit_free_file(file);
@@ -2984,6 +2998,215 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
    }
 
    return template_fill_for_cgi(csp, "edit-actions-for-url", exports, rsp);
+}
+
+
+/*********************************************************************
+ *
+ * Function    :  get_number_of_filters
+ *
+ * Description :  Counts the number of filter available.
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *
+ * Returns     :  Number of filters available.
+ *
+ *********************************************************************/
+static int get_number_of_filters(const struct client_state *csp)
+{
+   int i;
+   struct re_filterfile_spec *b;
+   struct file_list *fl;
+   int number_of_filters = 0;
+
+   for (i = 0; i < MAX_AF_FILES; i++)
+   {
+     fl = csp->rlist[i];
+     if ((NULL == fl) || (NULL == fl->f))
+     {
+        /*
+         * Either there are no filter files left or this
+         * filter file just contains no valid filters.
+         *
+         * Continue to be sure we don't miss valid filter
+         * files that are chained after empty or invalid ones.
+         */
+        continue;
+     }
+
+     for (b = fl->f; b != NULL; b = b->next)
+     {
+        number_of_filters++;
+     }
+   }
+
+   return number_of_filters;
+
+}
+
+
+/*********************************************************************
+ *
+ * Function    :  cgi_edit_process_string_action
+ *
+ * Description :  Helper CGI function that actually edits the Actions list for
+ *                the action string parameters.
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *          2  :  rsp = http_response data structure for output
+ *          3  :  parameters = map of cgi parameters
+ *          4  :  cur_line = current config file line
+ *          5  :  action_type = string filter type to process
+ *
+ * Returns     :  JB_ERR_OK     on success
+ *                JB_ERR_MEMORY on out-of-memory
+ *                JB_ERR_CGI_PARAMS if the CGI parameters are not
+ *                                  specified or not valid.
+ *
+ *********************************************************************/
+static jb_err cgi_edit_process_string_action(struct client_state *csp,
+                                             struct http_response *rsp,
+                                             const struct map *parameters,
+                                             struct file_line *cur_line,
+                                             enum filter_type action_type)
+{
+   jb_err err = JB_ERR_OK;
+   const char *abbr_type = action_type_info[action_type].abbr_type;
+   int action_identifier = 0;
+
+   /* process existing string filter actions */
+   for (action_identifier = 0; !err; action_identifier++)
+   {
+      char key_value[30];
+      char key_name[30];
+      char old_name[30];
+      char key_type[30];
+      const char *name, *new_name;
+      char value; /*
+                   * Action state. Valid states are: 'Y' (active),
+                   * 'N' (inactive) and 'X' (no change).
+                   * XXX: bad name.
+                   */
+      char type;  /*
+                   * Abbreviated filter type. Valid types are: 'U' (suppress tag), 'H' (add header)
+                   */
+      int multi_action_index = 0;
+
+      /* Generate the keys */
+      snprintf(key_value, sizeof(key_value), "string_action_%s_r%x", abbr_type, action_identifier);
+      snprintf(key_name, sizeof(key_name), "string_action_%s_n%x", abbr_type, action_identifier);
+      snprintf(old_name, sizeof(old_name), "string_action_%s_o%x", abbr_type, action_identifier);
+      snprintf(key_type, sizeof(key_type), "string_action_%s_t%x", abbr_type, action_identifier);
+
+      err = get_string_param(parameters, old_name, &name);
+      if (err) break;
+
+      if (name == NULL)
+      {
+         /* The action identifier isn't present: we're done! */
+         break;
+      }
+
+      err = get_string_param(parameters, key_name, &new_name);
+      if (err) break;
+      if (new_name == NULL) new_name = name;
+
+      type = get_char_param(parameters, key_type);
+      switch (type)
+      {
+         case 'U':
+            multi_action_index = ACTION_MULTI_SUPPRESS_TAG;
+            break;
+         case 'H':
+            multi_action_index = ACTION_MULTI_ADD_HEADER;
+            break;
+         default:
+            log_error(LOG_LEVEL_ERROR,
+               "Unknown action type: %c for action %s. Action ignored.", type, name);
+            continue;
+      }
+
+      value = get_char_param(parameters, key_value);
+      if (value == 'X' || value == 'Y' || value == 'N')
+      {
+         list_remove_item(cur_line->data.action->multi_add[multi_action_index], name);
+         list_remove_item(cur_line->data.action->multi_remove[multi_action_index], name);
+      }
+
+      if (value == 'Y')
+      {
+         err = enlist(cur_line->data.action->multi_add[multi_action_index], new_name);
+      }
+      else if (value == 'N')
+      {
+         err = enlist(cur_line->data.action->multi_remove[multi_action_index], new_name);
+      }
+   }
+
+   /* process new string filter actions */
+   for (action_identifier = 0; !err; action_identifier++)
+   {
+      char key_value[30];
+      char key_name[30];
+      char key_type[30];
+      const char *name;
+      char value; /*
+                   * Action state. Valid states are: 'Y' (active),
+                   * 'N' (inactive) and 'X' (no change).
+                   * XXX: bad name.
+                   */
+      char type;  /*
+                   * Abbreviated filter type. Valid types are: 'U' (suppress tag), 'H' (add header)
+                   */
+      int multi_action_index = 0;
+
+      /* Generate the keys */
+      snprintf(key_value, sizeof(key_value), "new_string_action_%s_r%x", abbr_type, action_identifier);
+      snprintf(key_name, sizeof(key_name), "new_string_action_%s_n%x", abbr_type, action_identifier);
+      snprintf(key_type, sizeof(key_type), "new_string_action_%s_t%x", abbr_type, action_identifier);
+
+      err = get_string_param(parameters, key_name, &name);
+      if (err) break;
+
+      if (name == NULL)
+      {
+         /* The action identifier isn't present: we've done! */
+         break;
+      }
+
+      type = get_char_param(parameters, key_type);
+      switch (type)
+      {
+         case 'U':
+            multi_action_index = ACTION_MULTI_SUPPRESS_TAG;
+            break;
+         case 'H':
+            multi_action_index = ACTION_MULTI_ADD_HEADER;
+            break;
+         default:
+            log_error(LOG_LEVEL_ERROR,
+               "Unknown filter type: %c for filter %s. Filter ignored.", type, name);
+            continue;
+      }
+
+      value = get_char_param(parameters, key_value);
+      if (value == 'Y')
+      {
+         list_remove_item(cur_line->data.action->multi_add[multi_action_index], name);
+         if (!err) err = enlist(cur_line->data.action->multi_add[multi_action_index], name);
+         list_remove_item(cur_line->data.action->multi_remove[multi_action_index], name);
+      }
+      else if (value == 'N')
+      {
+         list_remove_item(cur_line->data.action->multi_add[multi_action_index], name);
+         list_remove_item(cur_line->data.action->multi_remove[multi_action_index], name);
+         if (!err) err = enlist(cur_line->data.action->multi_remove[multi_action_index], name);
+      }
+      /* nothing to do if the value is 'X' */
+   }
+   return err;
 }
 
 
@@ -3025,6 +3248,7 @@ jb_err cgi_edit_actions_submit(struct client_state *csp,
    const char * action_set_name;
    struct file_list * fl;
    struct url_actions * b;
+   int number_of_filters;
 
    if (0 == (csp->config->feature_flags & RUNTIME_FEATURE_CGI_EDIT_ACTIONS))
    {
@@ -3098,8 +3322,8 @@ jb_err cgi_edit_actions_submit(struct client_state *csp,
    /* Check the "disable all of this type" parameters. */
    for (i = 0; i < MAX_FILTER_TYPES; i++)
    {
-      const int multi_action_index = filter_type_info[i].multi_action_index;
-      const char ch = get_char_param(parameters, filter_type_info[i].disable_all_param);
+      const int multi_action_index = action_type_info[i].multi_action_index;
+      const char ch = get_char_param(parameters, action_type_info[i].disable_all_param);
 
       if (ch == 'N')
       {
@@ -3113,7 +3337,9 @@ jb_err cgi_edit_actions_submit(struct client_state *csp,
       }
    }
 
-   for (filter_identifier = 0; !err; filter_identifier++)
+   number_of_filters = get_number_of_filters(csp);
+
+   for (filter_identifier = 0; filter_identifier < number_of_filters && !err; filter_identifier++)
    {
       char key_value[30];
       char key_name[30];
@@ -3142,8 +3368,8 @@ jb_err cgi_edit_actions_submit(struct client_state *csp,
 
       if (name == NULL)
       {
-         /* End of list */
-         break;
+         /* The filter identifier isn't present. Try the next one. */
+         continue;
       }
 
       type = get_char_param(parameters, key_type);
@@ -3163,6 +3389,9 @@ jb_err cgi_edit_actions_submit(struct client_state *csp,
             break;
          case 'E':
             multi_action_index = ACTION_MULTI_SERVER_HEADER_TAGGER;
+            break;
+         case 'P':
+            multi_action_index = ACTION_MULTI_CLIENT_BODY_FILTER;
             break;
          default:
             log_error(LOG_LEVEL_ERROR,
@@ -3192,6 +3421,13 @@ jb_err cgi_edit_actions_submit(struct client_state *csp,
          list_remove_item(cur_line->data.action->multi_add[multi_action_index], name);
          list_remove_item(cur_line->data.action->multi_remove[multi_action_index], name);
       }
+   }
+
+   /* process new string filters */
+   for (i = 0; !err && i < SZ(string_action_type_info); i++)
+   {
+      err = cgi_edit_process_string_action(csp, rsp, parameters, cur_line,
+                                           string_action_type_info[i].action_type);
    }
 
    if (err)
@@ -3243,8 +3479,8 @@ jb_err cgi_edit_actions_submit(struct client_state *csp,
       return err;
    }
 
-   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%i#l%d",
-            (long) time(NULL), file->identifier, sectionid);
+   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%u#l%u",
+            (unsigned long) time(NULL), file->identifier, sectionid);
 
    edit_free_file(file);
 
@@ -3364,8 +3600,8 @@ jb_err cgi_edit_actions_url(struct client_state *csp,
       return err;
    }
 
-   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%i#l%d",
-            (long) time(NULL), file->identifier, section_start_line_number);
+   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%u#l%u",
+            (unsigned long) time(NULL), file->identifier, section_start_line_number);
 
    edit_free_file(file);
 
@@ -3460,13 +3696,7 @@ jb_err cgi_edit_actions_add_url(struct client_state *csp,
    /* At this point, the section header is in cur_line - add after this. */
 
    /* Allocate the new line */
-   new_line = (struct file_line *)zalloc(sizeof(*new_line));
-   if (new_line == NULL)
-   {
-      free(new_pattern);
-      edit_free_file(file);
-      return JB_ERR_MEMORY;
-   }
+   new_line = zalloc_or_die(sizeof(*new_line));
 
    /* Fill in the data members of the new line */
    new_line->raw = NULL;
@@ -3493,8 +3723,8 @@ jb_err cgi_edit_actions_add_url(struct client_state *csp,
       return err;
    }
 
-   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%i#l%d",
-            (long) time(NULL), file->identifier, sectionid);
+   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%u#l%u",
+            (unsigned long) time(NULL), file->identifier, sectionid);
 
    edit_free_file(file);
 
@@ -3604,8 +3834,8 @@ jb_err cgi_edit_actions_remove_url(struct client_state *csp,
       return err;
    }
 
-   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%i#l%d",
-            (long) time(NULL), file->identifier, section_start_line_number);
+   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%u#l%u",
+            (unsigned long) time(NULL), file->identifier, section_start_line_number);
 
    edit_free_file(file);
 
@@ -3726,8 +3956,8 @@ jb_err cgi_edit_actions_section_remove(struct client_state *csp,
       return err;
    }
 
-   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%i",
-            (long) time(NULL), file->identifier);
+   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%u",
+            (unsigned long) time(NULL), file->identifier);
 
    edit_free_file(file);
 
@@ -3853,13 +4083,7 @@ jb_err cgi_edit_actions_section_add(struct client_state *csp,
    }
 
    /* Allocate the new line */
-   new_line = (struct file_line *)zalloc(sizeof(*new_line));
-   if (new_line == NULL)
-   {
-      free(new_text);
-      edit_free_file(file);
-      return JB_ERR_MEMORY;
-   }
+   new_line = zalloc_or_die(sizeof(*new_line));
 
    /* Fill in the data members of the new line */
    new_line->raw = NULL;
@@ -3895,8 +4119,8 @@ jb_err cgi_edit_actions_section_add(struct client_state *csp,
       return err;
    }
 
-   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%i",
-            (long) time(NULL), file->identifier);
+   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%u",
+            (unsigned long) time(NULL), file->identifier);
 
    edit_free_file(file);
 
@@ -4289,8 +4513,8 @@ jb_err cgi_edit_actions_section_swap(struct client_state *csp,
       }
    } /* END if (section1 != section2) */
 
-   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%i",
-            (long) time(NULL), file->identifier);
+   snprintf(target, sizeof(target), CGI_PREFIX "edit-actions-list?foo=%lu&f=%u",
+            (unsigned long) time(NULL), file->identifier);
 
    edit_free_file(file);
 
@@ -4464,6 +4688,88 @@ static jb_err actions_to_radio(struct map * exports,
    return JB_ERR_OK;
 }
 
+/*********************************************************************
+ *
+ * Function    :  action_render_string_actions_template
+ *
+ * Description :  Converts a actionsfile entry into HTML template for actions with string
+ *                filters (currently SUPPRESS-TAG actions only)
+ *
+ * Parameters  :
+ *          1  :  exports = List of substitutions to add to.
+ *          2  :  action  = Action to read
+ *          3  :  action_template  = template to fill
+ *          4  :  type  = filter type info for rendered values/macro name
+ *
+ * Returns     :  JB_ERR_OK     on success
+ *                JB_ERR_MEMORY on out-of-memory
+ *
+ *********************************************************************/
+static jb_err action_render_string_actions_template(struct map * exports,
+                                       const struct action_spec *action,
+                                       const char* action_template,
+                                       const struct string_action_type_info *string_action_type)
+{
+   jb_err err = JB_ERR_OK;
+   int filter_identifier = 0;
+   int i;
+   char *prepared_template = strdup("");
+   const struct action_type_info *type = &action_type_info[string_action_type->action_type];
+
+   struct action_multi {
+       char radio;
+       struct list_entry *list;
+   };
+
+   struct action_multi desc[] = {
+       { 'y', action->multi_add[type->multi_action_index][0].first },
+       { 'n', action->multi_remove[type->multi_action_index][0].first }
+   };
+
+   for (i = 0; i < SZ(desc); ++i)
+   {
+      const char radio = desc[i].radio;
+      struct list_entry *entry = desc[i].list;
+      for (;(!err) && (entry != NULL); entry = entry->next)
+      {
+         char number[20];
+         struct map *line_exports;
+
+         /* Generate a unique serial number */
+         snprintf(number, sizeof(number), "%x", filter_identifier++);
+
+         line_exports = new_map();
+         if (line_exports == NULL)
+         {
+            err = JB_ERR_MEMORY;
+         }
+         else
+         {
+            char *action_line;
+            if (!err) err = map(line_exports, "index", 1, number, 1);
+            if (!err) err = map(line_exports, "name",  1, entry->str, 1);
+            if (!err) err = map_radio(line_exports, "this-filter", "ynx", radio);
+            if (!err) err = map(line_exports, "filter-type", 1, type->type, 1);
+            if (!err) err = map(line_exports, "abbr-action-type", 1, type->abbr_type, 1);
+            if (!err) err = map(line_exports, "anchor", 1, type->anchor, 1);
+            if (!err) err = map(line_exports, "desc", 1, string_action_type->description, 1);
+            if (!err) err = map(line_exports, "input_desc", 1, string_action_type->input_description, 1);
+            if (!err)
+            {
+               action_line = strdup(action_template);
+               if (action_line == NULL) err = JB_ERR_MEMORY;
+            }
+            if (!err) err = template_fill(&action_line, line_exports);
+            if (!err) err = string_join(&prepared_template, action_line);
+
+            free_map(line_exports);
+        }
+      }
+   }
+   if (!err) map(exports, type->macro_name, 1, prepared_template, 1);
+   freez(prepared_template);
+   return err;
+}
 
 /*********************************************************************
  *
@@ -4670,6 +4976,8 @@ jb_err cgi_toggle(struct client_state *csp,
       /* Toggle */
       global_toggle_state = !global_toggle_state;
    }
+
+   log_error(LOG_LEVEL_INFO, "Now toggled %s.", global_toggle_state ? "ON" : "OFF");
 
    if (NULL == (exports = default_exports(csp, "toggle")))
    {

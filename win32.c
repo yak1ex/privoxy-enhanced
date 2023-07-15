@@ -1,4 +1,3 @@
-const char win32_rcs[] = "$Id: win32.c,v 1.19 2012/03/09 16:23:50 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/win32.c,v $
@@ -6,7 +5,7 @@ const char win32_rcs[] = "$Id: win32.c,v 1.19 2012/03/09 16:23:50 fabiankeil Exp
  * Purpose     :  Win32 User Interface initialization and message loop
  *
  * Copyright   :  Written by and Copyright (C) 2001-2002 members of
- *                the Privoxy team.  http://www.privoxy.org/
+ *                the Privoxy team.  https://www.privoxy.org/
  *
  *                Written by and Copyright (C) 1999 Adam Lock
  *                <locka@iol.ie>
@@ -60,18 +59,16 @@ const char win32_rcs[] = "$Id: win32.c,v 1.19 2012/03/09 16:23:50 fabiankeil Exp
 
 #include "win32.h"
 
-const char win32_h_rcs[] = WIN32_H_VERSION;
-
 /**
  * A short introductory text about Privoxy.  Used for the "About" box
  * or the console startup message.
  */
 const char win32_blurb[] =
 "Privoxy version " VERSION " for Windows\n"
-"Copyright (C) 2000-2010 the Privoxy Team (" HOME_PAGE_URL ")\n"
+"Copyright (C) 2000-2023 the Privoxy Team (" HOME_PAGE_URL ")\n"
 "Based on the Internet Junkbuster by Junkbusters Corp.\n"
 "This is free software; it may be used and copied under the\n"
-"GNU General Public License, version 2: http://www.gnu.org/licenses/old-licenses/gpl-2.0.html\n"
+"GNU General Public License, version 2: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html\n"
 "This program comes with ABSOLUTELY NO WARRANTY OF ANY KIND.\n";
 
 #ifdef _WIN_CONSOLE
@@ -166,7 +163,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 #if 0
    /*
     * Cheat in parsing the command line.  We only ever have at most one
-    * paramater, which may optionally be specified inside double quotes.
+    * parameter, which may optionally be specified inside double quotes.
     */
 
    if (lpCmdLine != NULL)
@@ -204,7 +201,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    g_nCmdShow = nCmdShow;
    _beginthread(UserInterfaceThread, 0, &hInitCompleteEvent);
    WaitForSingleObject(hInitCompleteEvent, INFINITE);
-   DeleteObject(hInitCompleteEvent);
+   CloseHandle(hInitCompleteEvent);
 #endif
 
 #ifdef __MINGW32__

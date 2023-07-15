@@ -1,6 +1,5 @@
 #ifndef LIST_H_INCLUDED
 #define LIST_H_INCLUDED
-#define LIST_H_VERSION "$Id: list.h,v 1.18 2011/09/04 11:10:56 fabiankeil Exp $"
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/list.h,v $
@@ -9,8 +8,8 @@
  *                Functions declared include:
  *                   `destroy_list', `enlist' and `list_to_text'
  *
- * Copyright   :  Written by and Copyright (C) 2001-2007 the SourceForge
- *                Privoxy team. http://www.privoxy.org/
+ * Copyright   :  Written by and Copyright (C) 2001-2007 members of the
+ *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
  *                by and Copyright (C) 1997 Anonymous Coders and
@@ -38,11 +37,6 @@
 
 
 #include "project.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 
 /*
  * struct list
@@ -88,15 +82,6 @@ extern jb_err       map      (struct map * the_map,
 extern jb_err       unmap    (struct map *the_map,
                               const char *name);
 extern const char * lookup   (const struct map * the_map, const char * name);
-
-
-/* Revision control strings from this header and associated .c file */
-extern const char list_rcs[];
-extern const char list_h_rcs[];
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 #endif /* ndef LIST_H_INCLUDED */
 

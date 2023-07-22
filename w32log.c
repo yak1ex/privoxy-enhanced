@@ -226,6 +226,10 @@ static int g_nAnimFrame;
 static BOOL g_bClipPending = FALSE;
 static int g_nRichEditVersion = 0;
 
+#if defined(FEATURE_FORWARD_CLASS) || defined(FEATURE_MANUAL_TAGGER)
+static UINT g_uQueryMessage;
+#endif
+
 /*
  * Private functions
  */
@@ -283,6 +287,10 @@ BOOL InitLogWindow(void)
 
    /* Create a critical section to protect multi-threaded access to certain things */
    InitializeCriticalSection(&g_criticalsection);
+
+#if defined(FEATURE_FORWARD_CLASS) || defined(FEATURE_MANUAL_TAGGER)
+   g_uQueryMessage = RegisterWindowMessage("PrivoxyEnhancedQueryMessage");
+#endif
 
    return TRUE;
 
@@ -1131,6 +1139,96 @@ void OnLogTimer(int nTimer)
 }
 
 
+#if defined(FEATURE_FORWARD_CLASS) || defined(FEATURE_MANUAL_TAGGER)
+/*********************************************************************
+ *
+ * Function    :  OnLogQuery
+ *
+ * Description :  Handler for PrivoxyEnhancedQueryMessage messages.
+ *
+ * Parameters  :
+ *          1  :  nID = query target and command
+ *                (ID_FORWARD_CLASS or ID_MANUAL_TAGGER) +
+ *                0 = query max count (defult 10)
+ *                1 = get status
+ *                2 = set status by lParam
+ *          2  :  uParam = lParam for query type 2
+ *
+ * Returns     :  if query type = 0,
+ *                   returns MAX_FORWARD_CLASSES or MAX_MANUAL_TAGGERS
+ *                if query type = 1,
+ *                   returns packed bits flag of global_forward_class_state
+ *                   or global_manual_tagger
+ *                   LSB represents ID 0
+ *                if query type = 2, returns set state
+ *
+ *********************************************************************/
+LRESULT OnLogQuery(int nID, unsigned int uParam)
+{
+   int i;
+   unsigned int uResult = 0;
+
+   switch (nID)
+   {
+      /* forward class */ /* assuming MAX_FORWARD_CLASSES <= 32 */
+      case ID_FORWARD_CLASS:
+         return MAX_FORWARD_CLASSES;
+
+      case ID_FORWARD_CLASS + 1: /* get */
+         for (i = 0; i < MAX_FORWARD_CLASSES; i++)
+         {
+            if (global_forward_class_state[i])
+            {
+               uResult |= (1U << i);
+            }
+         }
+         return uResult;
+
+      case ID_FORWARD_CLASS + 2: /* set */
+         for (i = 0; i < MAX_FORWARD_CLASSES; i++)
+         {
+            global_forward_class_state[i] = (uParam & 1U);
+            if (global_forward_class_state[i])
+            {
+               uResult |= (1U << i);
+            }
+            uParam >>= 1;
+         }
+         return uResult;
+
+      /* manual tagger */ /* assuming MAX_MANUAL_TAGGERS <= 32 */
+      case ID_MANUAL_TAGGER:
+         return MAX_MANUAL_TAGGERS;
+
+      case ID_MANUAL_TAGGER + 1: /* get */
+         for (i = 0; i < MAX_MANUAL_TAGGERS; i++)
+         {
+            if (g_manual_tagger[i].name
+                  && list_contains_item(global_manual_tagger, g_manual_tagger[i].tag))
+            {
+               uResult |= (1U << i);
+            }
+         }
+         return uResult;
+
+      case ID_MANUAL_TAGGER + 2: /* set */
+         list_remove_all(global_manual_tagger);
+         for (i = 0; i < MAX_MANUAL_TAGGERS; i++)
+         {
+            if (g_manual_tagger[i].name && (uParam & 1u))
+            {
+               enlist_unique(global_manual_tagger, g_manual_tagger[i].tag, 0);
+               uResult |= (1U << i);
+            }
+            uParam >>= 1;
+         }
+         return uResult;
+   }
+   return 0; // not reached
+}
+#endif
+
+
 #ifdef FEATURE_MANUAL_TAGGER
 /*********************************************************************
  *
@@ -1407,6 +1505,12 @@ LRESULT CALLBACK LogWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPara
          }
          break;
    }
+#if defined(FEATURE_FORWARD_CLASS) || defined(FEATURE_MANUAL_TAGGER)
+   if (uMsg == g_uQueryMessage)
+   {
+      return OnLogQuery(wParam, lParam);
+   }
+#endif
 
    return DefWindowProc(hwnd, uMsg, wParam, lParam);
 

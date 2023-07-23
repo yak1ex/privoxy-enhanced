@@ -131,7 +131,7 @@ static const struct cgi_dispatcher cgi_dispatchers[] = {
 #endif
 #ifdef FEATURE_FORWARD_CLASS
    { "forward-class",
-         cgi_forward_class, 
+         cgi_forward_class,
          "View & change the forward class state",
          FALSE },
 #endif /* def FEATURE_FORWARD_CLASS */

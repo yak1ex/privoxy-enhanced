@@ -5128,13 +5128,13 @@ static void create_content_length_header(unsigned long long content_length,
  *
  * Description :  Helper for client_referrer to forge a referer as
  *                'http://[hostname:port/dir/index.html' or
-                  'http://[hostname:port/dir/' to fool stupid
- *                checks for in-site links 
+ *                'http://[hostname:port/dir/' to fool stupid
+ *                checks for in-site links
  *
  * Parameters  :
  *          1  :  header   = Pointer to header pointer
  *          2  :  url      = Target URL
- *          3  :  is_index = Boolean to signal whether index or 
+ *          3  :  is_index = Boolean to signal whether index or
  *                           directory (0 : directory / 1 : index)
  *          4  :  is_add   = Boolean to signal whether add or hide
  *                           (0 : hide / 1 : add)

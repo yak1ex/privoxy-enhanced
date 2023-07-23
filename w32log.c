@@ -1246,7 +1246,7 @@ HMENU GetTagSubMenu(HMENU hmenu)
 {
    char szItemName[256];
    int nMax = GetMenuItemCount(hmenu), i;
-   MENUITEMINFO mii = { sizeof(MENUITEMINFO), MIIM_SUBMENU | MIIM_STRING };    
+   MENUITEMINFO mii = { sizeof(MENUITEMINFO), MIIM_SUBMENU | MIIM_STRING };
    mii.dwTypeData = szItemName;
    mii.cch = sizeof(szItemName);
 
@@ -1311,7 +1311,7 @@ HMENU GetForwardSubMenu(HMENU hmenu)
 {
    char szItemName[256];
    int nMax = GetMenuItemCount(hmenu), i;
-   MENUITEMINFO mii = { sizeof(MENUITEMINFO), MIIM_SUBMENU | MIIM_STRING };    
+   MENUITEMINFO mii = { sizeof(MENUITEMINFO), MIIM_SUBMENU | MIIM_STRING };
    mii.dwTypeData = szItemName;
    mii.cch = sizeof(szItemName);
 

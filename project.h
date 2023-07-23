@@ -1186,7 +1186,7 @@ struct client_state
     */
    struct certs_chain server_certs_chain;
 #endif
-  
+
 #ifdef FEATURE_FORWARD_CLASS
    /** Forward class state associated with this client */
    int forward_class_state[MAX_FORWARD_CLASSES];
@@ -1657,7 +1657,7 @@ struct configuration_spec
    /** Information about manual taggers. */
    struct manual_tagger_spec manual_tagger[MAX_MANUAL_TAGGERS];
 #endif /* def FEATURE_MANUAL_TAGGER */
- 
+
    /** The configuration file object. */
    struct file_list *config_file_list;
 

@@ -574,7 +574,7 @@ struct iob
 /** Action bitmap: Turn https inspection on */
 #define ACTION_HTTPS_INSPECTION                      0x20000000UL
 /** Action bitmap: Turn certificates verification off */
-#define ACTION_IGNORE_CERTIFICATE_ERRORS             0x40000000U
+#define ACTION_IGNORE_CERTIFICATE_ERRORS             0x40000000UL
 /** Action bitmap: Add "Referer" header.  (sic - follow HTTP, not English). */
 #define ACTION_ADD_REFERER                           0x80000000UL
 
@@ -1338,10 +1338,6 @@ struct forward_spec
    struct forward_spec *next;
 };
 
-
-/**
- * Initializer for a static struct forward_spec.
- */
 #ifdef FEATURE_FORWARD_CLASS
 #define FORWARD_SPEC_INITIALIZER { { URL_SPEC_INITIALIZER }, 0, NULL, 0, NULL, 0, 0, NULL }
 #else /* def FEATURE_FORWARD_CLASS */

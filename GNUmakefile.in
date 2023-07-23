@@ -542,8 +542,8 @@ man: dok-release
 	mkdir -p doc/source/temp && cd doc/source/temp && $(RM) * ;\
 	$(NSGMLS) ../privoxy-man-page.sgml  | sgmlspl ../../../utils/docbook2man/docbook2man-spec.pl &&\
 	perl -pi.bak -e 's/ <URL:.*>//; s/\[ /\[/g' $(MAN_PAGE) ;\
-	perl -pi.bak -e "s/\[ /\[/g;s/ï¿½/\\\\['a]/g;s/ï¿½/\\\\['e]/g" $(MAN_PAGE); \
-	perl -pi.bak -e "s/ï¿½/\\\\[:o]/g" $(MAN_PAGE); \
+	perl -pi.bak -e "s/\[ /\[/g;s/á/\\\\['a]/g;s/é/\\\\['e]/g" $(MAN_PAGE); \
+	perl -pi.bak -e "s/ö/\\\\[:o]/g" $(MAN_PAGE); \
 	perl -pi.bak -e 's/([ {])-([a-z])/$$1\\-$$2/g' $(MAN_PAGE); \
 	perl -pi.bak -e 's/ --([a-z])/ \\-\\-$$1/g' $(MAN_PAGE); \
 	perl -pi.bak -e 's/\\fB--/\\fB\\-\\-/g' $(MAN_PAGE); \
@@ -748,8 +748,8 @@ urlmatch.@OBJEXT@:  urlmatch.c  urlmatch.h  config.h $(PROJECT_H_DEPS) errlog.h 
 client-tags.@OBJEXT@: client-tags.c client-tags.h config.h $(PROJECT_H_DEPS) errlog.h miscutil.h ssplit.h
 fuzz.@OBJEXT@: fuzz.c config.h $(PROJECT_H_DEPS) errlog.h miscutil.h ssplit.h
 ssl.@OBJEXT@: ssl.c ssl.h ssl_common.h config.h $(PROJECT_H_DEPS) encode.h errlog.h jcc.h miscutil.h
-openssl.@OBJEXT@: openssl.c ssl.h ssl_common.h config.h $(PROJECT_H_DEPS) encode.h
-common.@OBJEXT@: ssl_common.c ssl.h ssl_common.h config.h $(PROJECT_H_DEPS) errlog.h miscutil.h
+openssl.@OBJEXT@: openssl.c ssl.h ssl_common.h config.h $(PROJECT_H_DEPS) encode.h errlog.h jcc.h miscutil.h
+ssl_common.@OBJEXT@: ssl_common.c ssl.h ssl_common.h config.h $(PROJECT_H_DEPS) errlog.h miscutil.h
 
 # required tag
 required.tag.@OBJEXT@: requiredtag.c requiredtag.h config.h $(PROJECT_H_DEPS) errlog.h miscutil.h

@@ -138,18 +138,6 @@ function set_image_blocker_param_disable(tf)
     }
 }
 
-function show_add_header_opts(tf)
-{
-    if (document.getElementById) {
-        target = document.getElementById("add_header_opts");
-    } else if (document.all) {
-        target = document.add_header_opts;
-    } else {
-        return;
-    }
-    target.style.display = (tf ? "" : "none");
-}
-
 function show_deanimate_opts(tf)
 {
     if (document.getElementById) {

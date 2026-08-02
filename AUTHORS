@@ -54,15 +54,18 @@ include (in alphabetical order):
  Devin Bayer
  Havard Berland
  David Binderman
+ Ingo Blechschmidt
  David Bo
  Gergely Bor
  Francois Botha
+ Luca Broglio
  Reiner Buehl
  Burberry
  Calestyo
  Andrew J. Caines
  Clifford Caoile
  Edward Carrel
+ Laurent Caumont
  Celejar
  Chakib Benziane
  Pak Chan
@@ -85,8 +88,10 @@ include (in alphabetical order):
  Markus Elfring
  Ryan Farmer
  Matthew Fischer
+ Fabrice Fontaine
  T Ford
  Dean Gaudet
+ Peter Geelhoed
  Stephen Gildea
  Morton A. Goldberg
  John McGowan
@@ -121,10 +126,12 @@ include (in alphabetical order):
  Max Khon
  Steven Kolins
  Korda
+ Jakub Kulik
  Stefan Kurtz
  Zeno Kugy
  David Laight
  Bert van Leeuwen
+ Aaron Li
  Don Libes
  Paul Lieverse
  Adele Lime
@@ -177,9 +184,12 @@ include (in alphabetical order):
  Mark Seward
  Franz Schwartau
  Chung-chieh Shan
+ Gagan Sidhu
  Johan Sintorn
  Benjamin C. Wiley Sittler
+ Juliusz Sosinowicz
  DRS David Soft
+ Rainer Sokoll
  Simon South
  Dan Stahlke
  Stefan
@@ -205,6 +215,7 @@ include (in alphabetical order):
  David Wagner
  Glenn Washburn
  Song Weijia
+ Florian Weimer
  Jörg Weinmann
  Darren Wiebe
  Anduin Withers

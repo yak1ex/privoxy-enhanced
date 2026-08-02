@@ -3,7 +3,7 @@
 
  Purpose     :  Entity included in other project documents.
 
- Copyright (C) 2013-2023 Privoxy Developers https://www.privoxy.org/
+ Copyright (C) 2013-2026 Privoxy Developers https://www.privoxy.org/
  See LICENSE.
 
  ======================================================================
@@ -24,83 +24,86 @@
 -->
 
 <para>
-  <application>Privoxy 3.0.34</application> fixes a few
-  minor bugs and comes with a couple of general improvements
-  and new features.
+  <application>Privoxy 4.2.0</application> fixes a couple of bugs and
+  brings general improvements such as support for elliptic-curve keys.
 </para>
 <para>
-  Changes in <application>Privoxy 3.0.34</application> stable:
+  Two potential security problems have been reported and addressed.
+</para>
+<para>
+  Changes in <application>Privoxy 4.2.0</application> stable:
 </para>
 <para>
  <itemizedlist>
+  <listitem>
+   <para>
+    Security improvements:
+    <itemizedlist>
+    <listitem>
+     <para>
+      Parse the chunk-size with a dedicated function and reject "unreasonably"
+      large values to prevent silent truncation by sscanf(), integer overflows
+      and misinterpretation of the content later on. Heap buffer overflows on
+      platforms with 32-bit pointers were alleged as well.
+      Commit 5b3bb22b77. OVE-20260515-0002. Reported by @TristanInSec.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      ssl_send_certificate_error(): Store the generated message on the heap
+      instead of the stack to prevent an alleged segmentation fault if there
+      are enough certificates in the chain to exceed the stack size.
+      While at it, replace another variable-length array that was probably
+      unproblematic with a heap-based buffer as well.
+      Commit 4963aa4f08. OVE-20260515-0001. Reported by @TristanInSec.
+     </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+  </listitem>
   <listitem>
    <para>
     Bug fixes:
     <itemizedlist>
     <listitem>
      <para>
-      Improve the handling of chunk-encoded responses by buffering the data
-      even if filters are disabled and properly keeping track of where the
-      various chunks are supposed to start and end. Previously Privoxy would
-      merely check the last bytes received to see if they looked like the
-      last-chunk. This failed to work if the last-chunk wasn't received in one
-      read and could also result in actual data being misdetected
-      as last-chunk.
-      Should fix: SF support request #1739.
-      Reported by: withoutname.
+      block_acl(): Ignore ACL matches when we don't have a destination yet
+      but the ACL requires one to match. block_acl() will be called
+      again later on when the destination is known from parsing the request.
+      Fixes SF bug #913 reported by Rainer Sokoll  with confirmation from
+      Peter Geelhoed.
      </para>
     </listitem>
     <listitem>
      <para>
-      remove_chunked_transfer_coding(): Refuse to de-chunk invalid data
-      Previously the data could get corrupted even further.
-      Now we simply pass the unmodified data to the client.
+      rfc2553_connect_to(): Prevent theoretical memory disclosure through
+      the CGI interface if a request is rejected due to ACLs. It's theoretical
+      due to the previous bug in the ACL code.
      </para>
     </listitem>
     <listitem>
      <para>
-      gif_deanimate(): Tolerate multiple image extensions in a row.
-      This allows to deanimate all the gifs on:
-      https://commons.wikimedia.org/wiki/Category:Animated_smilies
-      Fixes SF bug #795 reported by Celejar.
+      send_http_request(): Give up on the client connection if writing the
+      request data failed. If there's a request body Privoxy may not have
+      read all the data yet. The issue could be reproduced by running the
+      upstream curl test 1293 multiple times in a row.
      </para>
     </listitem>
     <listitem>
      <para>
-      OpenSSL generate_host_certificate(): Use X509_get_subject_name()
-      instead of X509_get_issuer_name() to get the issuer for generated
-      website certificates so there are no warnings in the browser when using
-      an intermediate CA certificate instead of a self-signed root certificate.
-      Problem reported and patch submitted by Chakib Benziane.
+      load_one_re_filterfile(): Only register content filters for statistics.
+      Previously all filter types were registered which wasted a bit of memory.
      </para>
     </listitem>
     <listitem>
      <para>
-      can_filter_request_body(): Fix a log message that contained a spurious u.
+      Prevent unused-variable warnings when compiling with
+      DISABLE_PCRE_JIT_COMPILATION defined.
      </para>
     </listitem>
     <listitem>
      <para>
-      handle_established_connection(): Check for pending TLS data from the client
-      before checking if data is available on the connection.
-      The TLS library may have already consumed all the data from the client
-      response in which case poll() and select() will not detect that data is
-      available to be read.
-      Sponsored by: Robert Klemme.
-     </para>
-    </listitem>
-    <listitem>
-     <para>
-      ssl_send_certificate_error(): Don't crash if there's no certificate
-      information available. This is only relevant when Privoxy is built with
-      wolfSSL 5.0.0 or later (code not yet published). Earlier wolfSSL versions
-      or the other TLS backends don't seem to trigger the crash.
-     </para>
-    </listitem>
-    <listitem>
-     <para>
-      socks5_connect(): Add support for target hosts specified as IPv4 address
-      Previously the IP address was sent as domain.
+      cgi_show_url_info(): Remove special handling of "standard.action".
      </para>
      </listitem>
     </itemizedlist>
@@ -112,74 +115,126 @@
     <itemizedlist>
     <listitem>
      <para>
-      Add a client-body-tagger action which creates tags based on
-      the content of the request body.
-      Sponsored by: Robert Klemme.
+      Add elliptic-curve-keys directive and enable it by default.
+      It lets Privoxy use the SN_X9_62_prime256v1 group instead of RSA when
+      generating website keys and certificates. This is expected to be faster
+      but may not be supported by older clients. The OpenSSL-specific code is
+      based on on a patch by Steven Smith submitted in SF#933.
      </para>
     </listitem>
     <listitem>
      <para>
-      When client-body filters are enabled, buffer the whole request
-      before opening a connection to the server.
-      Makes it less likely that the server connection times out
-      and we don't open a connection if the buffering fails anyway.
-      Sponsored by: Robert Klemme.
+      Check the listening address when deciding whether or not a client tag
+      matches. This allows to use different client tags for different clients
+      running on the same host.
      </para>
     </listitem>
     <listitem>
      <para>
-      Add periods to a couple of log messages.
+      Add code to make debugging ACL rules more convenient. It can be enabled
+      with the new configure parameter --enable-acl-debugging.
      </para>
     </listitem>
     <listitem>
      <para>
-      accept_connection(): Add missing space to a log message.
+      acl_addr(): Properly reject IPv6 addresses when compiled without RFC2553 support.
      </para>
     </listitem>
     <listitem>
      <para>
-      Initialize ca-related defaults with strdup_or_die() so errors
-      aren't silently ignored.
+      Use separate linked lists for filters of different types to be able look up
+      filters more efficiently. Implements TODO item #96.
      </para>
     </listitem>
     <listitem>
      <para>
-      make_path: Use malloc_or_die() in cases where allocation errors
-      were already fatal anyway.
+      Allow to set and unset external filters through the CGI editor.
      </para>
     </listitem>
     <listitem>
      <para>
-      handle_established_connection(): Improve an error message slightly.
+      parse_acl_rule(): Include the config file line number in the error messages.
      </para>
     </listitem>
     <listitem>
      <para>
-      receive_client_request(): Reject https URLs without CONNECT request.
+      wolfssl: Downgrade an error message in create_server_ssl_connection()
+      to LOG_LEVEL_ERROR.
      </para>
     </listitem>
     <listitem>
      <para>
-      Include all requests in the statistics if mutexes are available.
-      Previously in case of reused connections only the last request got
-      counted. The statistics still aren't perfect but it's an improvement.
+      Remove useless csp member re_filterfile_short[].
      </para>
     </listitem>
     <listitem>
      <para>
-      Add read_socks_reply() and start using it in socks5_connect()
-      to apply the socket timeout more consistently.
+      templates: Update description of the 'unstable' conditional symbol.
      </para>
     </listitem>
     <listitem>
      <para>
-      socks5_connect(): Deal with domain names in the socks reply
+      templates/url-info-osd.xml: Update address of the Privoxy developers mailing list.
      </para>
     </listitem>
     <listitem>
      <para>
-      Add a filter for bundeswehr.de that hides the cookie and
-      privacy info banner.
+      Factor parse_acl_rule() out of load_config().
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      configure.in: Don't claim that OpenSSL has been detected when it may be LibreSSL.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      configure.in: Remove code to disable pcre2. Since the removal of pcre1
+      support in 24d0ff8398fdf pcre2 is no longer optional.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Replace the term 'TLS/SSL' with 'TLS' in a bunch of places as most (all?)
+      supported TLS libraries default to not supporting SSL anymore.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      utils/filter2docs.pl: Add two spaces between filter names and description
+      so there's space after the longest filter name which currently is
+      'allow-autocompletion'.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      utils/filter2docs.pl: Recognize filters with dots in the name.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Remove support for mbedtls 2.x.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Remove support for OpenSSL versions before 2.0.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      GNUMakefile.in: Remove duplicated 'only' in the web-rss-feed target's message.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      GNUMakefile.in: Add a web-rss-feed target that only syncs the RSS feed.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      GNUMakefile.in: The Privoxy tools privoxy-log-parser, privoxy-regression-test
+      and uagen are handled by the "install" and "uninstall" targets now.
      </para>
      </listitem>
     </itemizedlist>
@@ -191,89 +246,172 @@
     <itemizedlist>
     <listitem>
      <para>
-      Disable filter{banners-by-size} for .freiheitsfoo.de/.
+      Disable fast-redirects for "/.*&__goaway_referer=http".
      </para>
     </listitem>
     <listitem>
      <para>
-      Disable filter{banners-by-size} for freebsdfoundation.org/.
+      Block ".parsely.com/p(logger|x)/" to match URLs that weren't
+      covered by ".pixel.parsely.com/".
      </para>
     </listitem>
     <listitem>
      <para>
-      Disable fast-redirects for consent.youtube.com/.
+      Block requests to ".siteintercept.qualtrics.com/".
      </para>
     </listitem>
     <listitem>
      <para>
-      Block requests to ups.xplosion.de/.
+      Unblock "gitlab./search/count\?".
      </para>
     </listitem>
     <listitem>
      <para>
-      Block requests for elsa.memoinsights.com/t.
+      Reword a comment in user.action that claimed that 'we' want
+      to support certain sites.
      </para>
     </listitem>
     <listitem>
      <para>
-      Fix a typo in a test.
+      Remove obsolete domain sunsolve.sun.com from user.action.
      </para>
     </listitem>
     <listitem>
      <para>
-      Disable fast-redirects for launchpad.net/.
+      Stop referring to SSL in comments.
      </para>
     </listitem>
     <listitem>
      <para>
-      Unblock .eff.org/.
+      Disable fast-redirects for "archive.is/".
      </para>
     </listitem>
     <listitem>
      <para>
-      Stop unblocking .org/.*(image|banner) which appears to be too generous
-      The example URL http://www.gnu.org/graphics/gnu-head-banner.png is
-      already unblocked due to .gnu.org being unblocked.
+      Add example section for the taz.de filter to user.action.
      </para>
     </listitem>
     <listitem>
      <para>
-      Unblock adfd.org/.
+      default.action.master: Update list of predefined filters.
+     </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+  </listitem>
+  <listitem>
+   <para>
+    Filter improvements:
+    <itemizedlist>
+    <listitem>
+     <para>
+      Let the "sourceforge" filter hide the "MongoDB" ad and the "vibe coding bar".
      </para>
     </listitem>
     <listitem>
      <para>
-      Disable filter{banners-by-link} for .eff.org/.
+      Add a "taz.de" filter which hides the "paywahl" banner on taz.de by default.
+     </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+  </listitem>
+  <listitem>
+   <para>
+    Documentation improvements:
+    <itemizedlist>
+    <listitem>
+     <para>
+      FAQ: Mention that one can also donate through Liberapay and add a link.
      </para>
     </listitem>
     <listitem>
      <para>
-      Block requests to odb.outbrain.com/.
+      Add two paragraphs to the 'Reporting security problems' section.
+      Request that use of "AI" is disclosed and that reporters respond to
+      questions about the report.
      </para>
     </listitem>
     <listitem>
      <para>
-      Disable fast-redirects for .gandi.net/.
+      The Privoxy tools privoxy-log-parser, privoxy-regression-test and uagen
+      have man pages now. Previously they were only documented in perldoc.
      </para>
     </listitem>
     <listitem>
      <para>
-      Disable fast-redirects{} for .onion/.*/status/.
+      user-manual: Update the content filter list.
      </para>
     </listitem>
     <listitem>
      <para>
-      Disable fast-redirects{} for twitter.com/.*/status/.
+      user-manual: Update limit-connect description. If the https-inspection action
+      is enabled, Privoxy does filter the transferred content even if the CONNECT
+      action is being used.
      </para>
     </listitem>
     <listitem>
      <para>
-      Unblock pinkstinks.de/.
+      Document that the listen-address is taken into account for client
+      tags as well now.
      </para>
     </listitem>
     <listitem>
      <para>
-      Disable fast-redirects for .hagalil.com/.
+      Update limit-connect description.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Don't mention an obsolete mbed TLS version in the user manual's
+      'Third-party licenses and copyrights' section. While at it, link to the
+      GitHub page which shows the README instead of the list of tags which is
+      less informative and replace an 'and' with a comma.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Mention zstd in the user manual's 'Third-party licenses and copyrights' section.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      license.sgml: Remove incorrect comment claiming that the file is included
+      into the user manual.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Factor out license explanation into separate SGML document
+      to deduplicate the content. No HTML output change intended.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      user-manual: Sync paragraph explaining the license of Privoxy binaries
+      when linked to a recent TLS library with license.sgml.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      user-manual: Use &lt; instead of literal '<' to unbreak highlighting in Emacs.
+     </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+  </listitem>
+  <listitem>
+   <para>
+    Website improvements:
+    <itemizedlist>
+    <listitem>
+     <para>
+      Update doc/webserver/README.txt.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Delete doc/webserver/redirect.php which hasn't been used in years.
      </para>
      </listitem>
     </itemizedlist>
@@ -285,21 +423,24 @@
     <itemizedlist>
     <listitem>
      <para>
-      Bump version to 0.9.5.
+      Highlight listen address in "Evaluating tag 'forward-directly' for client
+      127.0.0.1 using 127.0.1.1:8120. End of life 1774948202."
      </para>
     </listitem>
     <listitem>
      <para>
-      Highlight more log messages.
+      Deal with a log message containing only 'TLS' instead of 'TLS/SSL'.
      </para>
     </listitem>
     <listitem>
      <para>
-      Highlight the Crunch reason only once. Previously the "crunch reason"
-      could also be highlighted when the URL contained a matching string.
-      The real crunch reason only occurs once per line, so there's no need
-      to continue looking for it after it has been found once.
-      While at it, add a comment with an example log line.
+      Bump version to 0.9.8.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Highlight listen address in 'Enlisting tag 'allow-cookies' for client
+      127.0.0.1 using 127.0.1.1:8120.'
      </para>
      </listitem>
     </itemizedlist>
@@ -307,123 +448,103 @@
   </listitem>
   <listitem>
    <para>
-    uagen:
+    Test improvements:
     <itemizedlist>
     <listitem>
      <para>
-      Bump version to 1.2.4.
+      run-privoxy-tests.sh: Kill the whole process group if Privoxy
+      doesn't start up in time. This prevents hangs when the system is
+      heavily loaded, run-privoxy-test.sh's output is piped into tee(1)
+      and Privoxy starts up after the the script checks for it, but before
+      it exits.
      </para>
     </listitem>
     <listitem>
      <para>
-      Update BROWSER_VERSION and BROWSER_REVISION to 102.0
-      to match the User-Agent of the current Firefox ESR.
+      Add test for the content filter "taz.de".
      </para>
     </listitem>
     <listitem>
      <para>
-      Explicitly document that changing the 'Gecko token' is suspicious.
+      Add test scenarios for the ACL code.
      </para>
     </listitem>
     <listitem>
      <para>
-      Consistently use a lower-case 'c' as copyright symbol.
+      tests/cts: Make the TESTDIR available as environment variable so
+      the prechecks can access it.
      </para>
     </listitem>
     <listitem>
      <para>
-      Bump copyright.
+      Add test helper script that checks if a local address is available
+      to bind to.
      </para>
     </listitem>
     <listitem>
      <para>
-      Add 'aarch64' as Linux architecture.
+      run-privoxy-tests.sh: Add valgrind support that can be enabled with "-v".
      </para>
     </listitem>
     <listitem>
      <para>
-      Add OpenBSD architecture 'arm64'.
+      run-privoxy-tests.sh: Turn $log_file into a local variable in start_privoxy().
      </para>
     </listitem>
     <listitem>
      <para>
-      Stop using sparc64 as FreeBSD architecture.
-      It hasn't been supported for a while now.
-     </para>
-     </listitem>
-    </itemizedlist>
-   </para>
-  </listitem>
-  <listitem>
-   <para>
-    Build system:
-    <itemizedlist>
-    <listitem>
-     <para>
-      Makefile: Add a 'dok' target that depends on the 'error' target
-      to show the "You are not using GNU make or did nor run configure"
-      message.
+      tests/cts/README: Recommend to use curl upstream tag curl-8_20_0.
      </para>
     </listitem>
     <listitem>
      <para>
-      configure: Fix --with-msan option.
-      Also (probably) reported by Andrew Savchenko.
-     </para>
-     </listitem>
-    </itemizedlist>
-   </para>
-  </listitem>
-  <listitem>
-   <para>
-    macOS build system:
-    <itemizedlist>
-    <listitem>
-     <para>
-      Enable HTTPS inspection when building the macOS binary
-      (using OpenSSL as TLS library).
-     </para>
-     </listitem>
-    </itemizedlist>
-   </para>
-  </listitem>
-  <listitem>
-   <para>
-    Documentation:
-    <itemizedlist>
-    <listitem>
-     <para>
-      Add OpenSSL to the list of libraries that may be licensed under the
-      Apache 2.0 license in which case the linked Privoxy binary has to be
-      distributed under the GPLv3 or later.
+      Regenerate curl-test-manifest-for-privoxy.
      </para>
     </listitem>
     <listitem>
      <para>
-      config: Fix the documented ca-directory default value.
-      Reported by avoidr.
+      gen-skip-reasons.pl: Use '==' instead of 'eq' when checking whether or
+      not a test should be skipped. While the script output is the same, the
+      test number isn't a  string so using '==' seems more appropriate.
      </para>
     </listitem>
     <listitem>
      <para>
-      Rebuild developer-manual and tidy with 'HTML Tidy for FreeBSD version 5.8.0'.
+      gen-skip-reasons.pl: Skip test 1 due to multiple Connection header values.
      </para>
     </listitem>
     <listitem>
      <para>
-      Update developer manual with new macOS packaging instructions.
+      gen-skip-reasons.pl: Skip test 58 for now which doesn't work anymore after
+      a recent curl upstream change.
      </para>
     </listitem>
     <listitem>
      <para>
-      Note that the FreeBSD installation instructions work for
-      ElectroBSD as well.
+      gen-skip-reasons.pl: Skip test 1685 which uses a Cookie header with a tab
+      that Privoxy converts into a space.
      </para>
     </listitem>
     <listitem>
      <para>
-      Note that FreeBSD/ElectroBSD users can try to install Privoxy
-      as binary package using 'pkg'.
+      Privoxy-Regression-Test: Bump version to 0.7.6
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Privoxy-Regression-Test: Allow '!' characters which are used in URLs from
+      taz.de for example.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Privoxy-Regression-Test: Include the offending line in the error message
+      when rejecting Sticky Actions with whitespace inside the action parameters.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Add three more tests for the chunked-transfer-encoding scenario.
      </para>
      </listitem>
     </itemizedlist>

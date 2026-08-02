@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+filter iframes
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+%CR
+# Here are some iframes the iframes filter should filter:
+
+<iframe src="https://www.example.org/ads" title="Some ads for you"></iframe>
+
+<iframe
+   src="https://www.example.org/ads"
+        title="Some ads for you"></iframe>
+
+<iframe src="https://www.example.org/ads">
+</iframe>
+
+<iframe src="https://www.example.org/ads">
+</iframe>
+</data>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+Content-Length: 266%CR
+%CR
+# Here are some iframes the iframes filter should filter:
+
+<!-- iframe removed by Privoxy's iframe filter -->
+
+<!-- iframe removed by Privoxy's iframe filter -->
+
+<!-- iframe removed by Privoxy's iframe filter -->
+
+<!-- iframe removed by Privoxy's iframe filter -->
+</data>
+</proxy-reply>
+
+<client>
+<server>
+http
+</server>
+<name>
++filter{iframes}
+</name>
+<features>
+proxy
+</features>
+<command>
+http://%HOSTIP:%HTTPPORT/iframes/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /iframes/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Connection: close%CR
+%CR
+</protocol>
+</verify>
+</testcase>

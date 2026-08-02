@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTPS
+HTTP POST
+client-body-tagger
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK
+Content-Length: 21
+Content-Type: text/html
+
+Received your input.
+</data>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 Connection established%CR
+%CR
+HTTP/1.1 200 OK%CR
+Content-Length: 21%CR
+Content-Type: text/html%CR
+%CR
+Received your input.
+</data>
+</proxyreply>
+
+<client>
+<server>
+https
+</server>
+<name>
+Two requests to the same URL. The second one is a POST request with an offending word but it's too large to buffer and tag so it gets to pass. (XXX: Privoxy could execute the tagger based on the data that fits into the buffer) (based on test 7)
+</name>
+<features>
+proxy
+</features>
+<command>
+-s --write-out '%{stderr}%{response_code}\n' --insecure https://%HOSTIP:%HTTPSPORT/%TESTNUMBER --next -d @log/post-data-%TESTNUMBER -s --write-out '%{stderr}%{response_code}\n' --insecure https://%HOSTIP:%HTTPSPORT/%TESTNUMBER
+</command>
+<file name="log/post-data-%TESTNUMBER">
+blafasel%repeat[20000 x padding]%
+</file>
+</client>
+
+<verify>
+<protocol nonewline="yes">
+GET /%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPSPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+%CR
+POST /%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPSPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Content-Length: 140008%CR
+Content-Type: application/x-www-form-urlencoded%CR
+%CR
+blafasel%repeat[20000 x padding]%
+</protocol>
+<stderr>
+200
+200
+</stderr>
+
+</verify>
+</testcase>

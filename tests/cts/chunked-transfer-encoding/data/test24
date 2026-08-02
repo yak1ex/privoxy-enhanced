@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+chunked transfer encoding
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: keep-alive%CR
+Content-Type: text/html%CR
+Transfer-Encoding: chunked%CR
+%CR
+6%CR
+AAAAA
+%CR
+6%CR
+BBBBB
+%CR
+0%CR
+%CR
+</data>
+<servercmd>
+writedelay: 20
+</servercmd>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: keep-alive%CR
+Content-Type: text/html%CR
+Transfer-Encoding: chunked%CR
+%CR
+6%CR
+AAAAA
+%CR
+6%CR
+BBBBB
+%CR
+0%CR
+%CR
+</data>
+</proxy-reply>
+
+<client>
+<server>
+http
+</server>
+<name>
+Chunked transfer encoding - Multiple small chunks send delayed. Connection kept alive.
+</name>
+<features>
+proxy
+</features>
+<command>
+ --max-time 10 --raw http://%HOSTIP:%HTTPPORT/no-filter/%TESTNUMBER --next --max-time 10 --raw http://%HOSTIP:%HTTPPORT/no-filter/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /no-filter/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+%CR
+GET /no-filter/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+%CR
+</protocol>
+</verify>
+</testcase>

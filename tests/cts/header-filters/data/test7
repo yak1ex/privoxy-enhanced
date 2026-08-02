@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+server-header-filter less-download-windows
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Disposition: blafasel filename="foo.png" tralala%CR
+Content-Disposition: blafasel filename="foo.gif" tralala%CR
+Content-Disposition: blafasel filename="foo.jpeg" tralala%CR
+Content-Disposition: blafasel filename="foo.jpg" tralala%CR
+Content-Disposition: blafasel filename="foo.diff" tralala%CR
+Content-Disposition: blafasel filename="foo.patch" tralala%CR
+Content-Disposition: blafasel filename="foo.dpatch" tralala%CR
+Content-Disposition: blafasel filename='foo.c' tralala%CR
+Content-Disposition: blafasel filename="foo.h" tralala%CR
+Content-Disposition: blafasel filename=foo.pl tralala%CR
+Content-Disposition: blafasel filename="foo.shar" tralala%CR
+Content-Type: message/news%CR
+Content-Type: message/rfc822%CR
+Content-Type: message/text-blafasel%CR
+Content-Type: application/x-sh%CR
+Content-Type: application/x-sh %CR
+X-Control: swsclose%CR
+Content-Length: 0%CR
+%CR
+</data>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/plain%CR
+Content-Type: text/plain%CR
+Content-Type: message/text-blafasel%CR
+Content-Type: text/plain%CR
+Content-Type: text/plain%CR
+X-Control: swsclose%CR
+Content-Length: 0%CR
+%CR
+</data>
+</proxy-reply>
+
+<client>
+<server>
+http
+</server>
+<name>
++server-header-filter{less-download-windows}
+</name>
+<features>
+proxy
+</features>
+<command>
+--head http://%HOSTIP:%HTTPPORT/less-download-windows/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+HEAD /less-download-windows/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Connection: close%CR
+%CR
+</protocol>
+</verify>
+</testcase>

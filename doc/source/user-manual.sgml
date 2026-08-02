@@ -8,13 +8,13 @@
 <!entity contacting SYSTEM "contacting.sgml">
 <!entity history SYSTEM "history.sgml">
 <!entity copyright SYSTEM "copyright.sgml">
-<!entity license SYSTEM "license.sgml">
+<!entity license-explanation SYSTEM "license-explanation.sgml">
 <!entity GPLv2 SYSTEM "../../LICENSE">
 <!entity GPLv3 SYSTEM "../../LICENSE.GPLv3">
 <!entity p-authors SYSTEM "p-authors.sgml">
 <!entity config SYSTEM "p-config.sgml">
 <!entity changelog SYSTEM "changelog.sgml">
-<!entity p-version "3.0.34">
+<!entity p-version "4.2.0">
 <!entity p-status "stable">
 <!entity % p-authors-formal "INCLUDE"> <!-- include additional text, etc  -->
 <!entity % p-not-stable "IGNORE">
@@ -35,7 +35,7 @@
 
  Purpose     :  user manual
 
- Copyright (C) 2001-2023 Privoxy Developers https://www.privoxy.org/
+ Copyright (C) 2001-2026 Privoxy Developers https://www.privoxy.org/
  See LICENSE.
 
  ========================================================================
@@ -54,7 +54,7 @@
  <subscript>
 <!-- Completely the wrong markup, but very little is allowed  -->
 <!-- in this part of an article. FIXME -->
- <link linkend="copyright">Copyright</link> &my-copy; 2001-2023 by
+ <link linkend="copyright">Copyright</link> &my-copy; 2001-2026 by
  <ulink url="https://www.privoxy.org/">Privoxy Developers</ulink>
  </subscript>
 </pubdate>
@@ -385,7 +385,8 @@ git clone https://www.privoxy.org/git/privoxy.git
 </screen>
 
       <para>
-        Get the source code (.zip or .tar.gz) for tidy from
+        If you want to build the documentation,
+        get the source code (tar.gz) for tidy from
         <ulink url="https://github.com/htacg/tidy-html5/releases">
                     https://github.com/htacg/tidy-html5/releases</ulink>,
         unzip into &lt;root-dir> and build the software:
@@ -412,27 +413,21 @@ MAKENSIS = /&lt;root-dir>/nsis/makensis.exe
 </screen>
 
       <para>
-        Get the latest 8.x PCRE code from
-        <ulink url="https://sourceforge.net/projects/pcre/files/pcre/">PCRE
-                    https://sourceforge.net/projects/pcre/files/pcre/</ulink>
+        Get the latest 10.x PCRE code from
+        <ulink url="https://github.com/PCRE2Project/pcre2/releases">
+                    https://github.com/PCRE2Project/pcre2/releases</ulink>
         and build the static PCRE libraries with
 
         <screen>
 export CFLAGS="-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 export LDFLAGS="-fstack-protector-strong"
-export CPPFLAGS="-DPCRE_STATIC"
+export CPPFLAGS="-DPCRE2_STATIC"
 
 ./configure  --host=i686-w64-mingw32 \
              --prefix=/usr/local/i686-w64-mingw32 \
-             --enable-utf  --enable-unicode-properties \
              --enable-jit \
              --enable-newline-is-anycrlf \
-             --enable-pcre16 \
-             --enable-pcre32 \
-             --disable-pcregrep-libbz2 \
-             --disable-pcregrep-libz \
-             --disable-pcretest-libreadline \
-             --disable-stack-for-recursion  \
+             --with-gnu-ld \
              --enable-static --disable-shared \
   &&  make
 </screen>
@@ -580,6 +575,12 @@ $ make                             # build Privoxy
 <title>What's New in this Release</title>
 
 &changelog;
+
+<para>
+  The Privoxy project is currently underfunded.
+  If you can afford it, please consider
+  <ulink url="https://www.privoxy.org/donate">making a donation</ulink>.
+</para>
 
 <!--   ~~~~~       New section      ~~~~~     -->
 
@@ -2378,14 +2379,6 @@ media.example.com/.*banners
  for the beginning of a line).
 </para>
 
-<para>
- Please also note that matching in the path is <emphasis>CASE INSENSITIVE</emphasis>
- by default, but you can switch to case sensitive at any point in the pattern by using the
- <quote>(?-i)</quote> switch: <literal>www.example.com/(?-i)PaTtErN.*</literal> will match
- only documents whose path starts with <literal>PaTtErN</literal> in
- <emphasis>exactly</emphasis> this capitalization.
-</para>
-
 <variablelist>
  <varlistentry>
   <term><literal>.example.com/.*</literal></term>
@@ -4103,6 +4096,12 @@ problem-host.example.com</screen>
     linkend="external-filter-syntax">syntax</link></literal>
     may change in the future.
    </para>
+   <para>
+    If you want to apply external filters to images or other content
+    that isn't text-based, enable the
+    <literal><link linkend="force-text-mode">force-text-mode</link></literal>
+    action as well.
+   </para>
 
   </listitem>
  </varlistentry>
@@ -4373,128 +4372,132 @@ another.example.com/testing
   <listitem>
    <para>
     <anchor id="filter-js-annoyances">
+    <screen>+filter{js-annoyances}         # Get rid of particularly annoying JavaScript abuse.</screen>
    </para>
-    <screen>+filter{js-annoyances}       # Get rid of particularly annoying JavaScript abuse.</screen>
    <para>
     <anchor id="filter-js-events">
+    <screen>+filter{js-events}             # Kill JavaScript event bindings and timers (Radically destructive! Only for extra nasty sites).</screen>
    </para>
-    <screen>+filter{js-events}           # Kill JavaScript event bindings and timers (Radically destructive! Only for extra nasty sites).</screen>
    <para>
     <anchor id="filter-html-annoyances">
+    <screen>+filter{html-annoyances}       # Get rid of particularly annoying HTML abuse.</screen>
    </para>
-    <screen>+filter{html-annoyances}     # Get rid of particularly annoying HTML abuse.</screen>
    <para>
     <anchor id="filter-content-cookies">
+    <screen>+filter{content-cookies}       # Kill cookies that come in the HTML or JS content.</screen>
    </para>
-    <screen>+filter{content-cookies}     # Kill cookies that come in the HTML or JS content.</screen>
    <para>
     <anchor id="filter-refresh-tags">
+    <screen>+filter{refresh-tags}          # Kill automatic refresh tags if refresh time is larger than 9 seconds.</screen>
    </para>
-    <screen>+filter{refresh-tags}        # Kill automatic refresh tags if refresh time is larger than 9 seconds.</screen>
    <para>
     <anchor id="filter-unsolicited-popups">
+    <screen>+filter{unsolicited-popups}    # Disable only unsolicited pop-up windows.</screen>
    </para>
-    <screen>+filter{unsolicited-popups}  # Disable only unsolicited pop-up windows.</screen>
    <para>
     <anchor id="filter-all-popups">
+    <screen>+filter{all-popups}            # Kill all popups in JavaScript and HTML.</screen>
    </para>
-    <screen>+filter{all-popups}          # Kill all popups in JavaScript and HTML.</screen>
    <para>
     <anchor id="filter-img-reorder">
+    <screen>+filter{img-reorder}           # Reorder attributes in &lt;img&gt; tags to make the banners-by-* filters more effective.</screen>
    </para>
-    <screen>+filter{img-reorder}         # Reorder attributes in &lt;img&gt; tags to make the banners-by-* filters more effective.</screen>
    <para>
     <anchor id="filter-banners-by-size">
+    <screen>+filter{banners-by-size}       # Kill banners by size.</screen>
    </para>
-    <screen>+filter{banners-by-size}     # Kill banners by size.</screen>
    <para>
     <anchor id="filter-banners-by-link">
+    <screen>+filter{banners-by-link}       # Kill banners by their links to known clicktrackers.</screen>
    </para>
-    <screen>+filter{banners-by-link}     # Kill banners by their links to known clicktrackers.</screen>
    <para>
     <anchor id="filter-webbugs">
+    <screen>+filter{webbugs}               # Squish WebBugs (1x1 invisible GIFs used for user tracking).</screen>
    </para>
-    <screen>+filter{webbugs}             # Squish WebBugs (1x1 invisible GIFs used for user tracking).</screen>
    <para>
     <anchor id="filter-tiny-textforms">
+    <screen>+filter{tiny-textforms}        # Extend those tiny textareas up to 40x80 and kill the hard wrap.</screen>
    </para>
-    <screen>+filter{tiny-textforms}      # Extend those tiny textareas up to 40x80 and kill the hard wrap.</screen>
    <para>
     <anchor id="filter-jumping-windows">
+    <screen>+filter{jumping-windows}       # Prevent windows from resizing and moving themselves.</screen>
    </para>
-    <screen>+filter{jumping-windows}     # Prevent windows from resizing and moving themselves.</screen>
    <para>
     <anchor id="filter-frameset-borders">
+    <screen>+filter{frameset-borders}      # Give frames a border and make them resizable.</screen>
    </para>
-    <screen>+filter{frameset-borders}    # Give frames a border and make them resizable.</screen>
    <para>
     <anchor id="filter-iframes">
+    <screen>+filter{iframes}               # Removes all detected iframes. Should only be enabled for individual sites.</screen>
    </para>
-    <screen>+filter{iframes}             # Removes all detected iframes. Should only be enabled for individual sites.</screen>
    <para>
     <anchor id="filter-demoronizer">
+    <screen>+filter{demoronizer}           # Fix MS's non-standard use of standard charsets.</screen>
    </para>
-    <screen>+filter{demoronizer}         # Fix MS's non-standard use of standard charsets.</screen>
    <para>
     <anchor id="filter-shockwave-flash">
+    <screen>+filter{shockwave-flash}       # Kill embedded Shockwave Flash objects.</screen>
    </para>
-    <screen>+filter{shockwave-flash}     # Kill embedded Shockwave Flash objects.</screen>
    <para>
     <anchor id="filter-quicktime-kioskmode">
+    <screen>+filter{quicktime-kioskmode}   # Make Quicktime movies saveable.</screen>
    </para>
-    <screen>+filter{quicktime-kioskmode} # Make Quicktime movies saveable.</screen>
    <para>
     <anchor id="filter-fun">
+    <screen>+filter{fun}                   # Text replacements for subversive browsing fun!</screen>
    </para>
-    <screen>+filter{fun}                 # Text replacements for subversive browsing fun!</screen>
    <para>
     <anchor id="filter-crude-parental">
+    <screen>+filter{crude-parental}        # Crude parental filtering. Note that this filter doesn't work reliably.</screen>
    </para>
-    <screen>+filter{crude-parental}      # Crude parental filtering. Note that this filter doesn't work reliably.</screen>
-   <para>
-    <anchor id="filter-ie-exploits">
-   </para>
-    <screen>+filter{ie-exploits}         # Disable some known Internet Explorer bug exploits.</screen>
    <para>
     <anchor id="filter-site-specifics">
+    <screen>+filter{site-specifics}        # Cure for site-specific problems. Don't apply generally!</screen>
    </para>
-    <screen>+filter{site-specifics}      # Cure for site-specific problems. Don't apply generally!</screen>
    <para>
     <anchor id="filter-no-ping">
+    <screen>+filter{no-ping}               # Removes non-standard ping attributes in &lt;a&gt; and &lt;area&gt; tags.</screen>
    </para>
-    <screen>+filter{no-ping}             # Removes non-standard ping attributes in &lt;a&gt; and &lt;area&gt; tags.</screen>
    <para>
-    <anchor id="filter-bundeswehr.de">
+    <anchor id="filter-allow-autocompletion">
+    <screen>+filter{allow-autocompletion}  # Changes autocomplete="off" on form and input fields to "on" to allow autocompletion.</screen>
    </para>
-    <screen>+filter{bundeswehr.de}      # Hide the cookie and privacy info banner on bundeswehr.de.</screen>
    <para>
     <anchor id="filter-github">
+    <screen>+filter{github}                # Removes the annoying "Sign-Up" banner and the Cookie disclaimer.</screen>
    </para>
-    <screen>+filter{github}              # Removes the annoying "Sign-Up" banner and the Cookie disclaimer.</screen>
-   <para>
-    <anchor id="filter-google">
-   </para>
-    <screen>+filter{google}              # CSS-based block for Google text ads. Also removes a width limitation and the toolbar advertisement.</screen>
    <para>
     <anchor id="filter-imdb">
+    <screen>+filter{imdb}                  # Removes some ads on IMDb.</screen>
    </para>
-    <screen>+filter{imdb}                # Removes some ads on IMDb.</screen>
+   <para>
+    <anchor id="filter-google">
+    <screen>+filter{google}                # CSS-based block for Google text ads. Also removes a width limitation and the toolbar advertisement.</screen>
+   </para>
    <para>
     <anchor id="filter-yahoo">
+    <screen>+filter{yahoo}                 # CSS-based block for Yahoo text ads. Also removes a width limitation.</screen>
    </para>
-    <screen>+filter{yahoo}               # CSS-based block for Yahoo text ads. Also removes a width limitation.</screen>
    <para>
     <anchor id="filter-msn">
+    <screen>+filter{msn}                   # CSS-based block for MSN text ads. Also removes tracking URLs and a width limitation.</screen>
    </para>
-    <screen>+filter{msn}                 # CSS-based block for MSN text ads. Also removes tracking URLs and a width limitation.</screen>
    <para>
     <anchor id="filter-blogspot">
+    <screen>+filter{blogspot}              # Cleans up some Blogspot blogs. Read the fine print before using this.</screen>
    </para>
-    <screen>+filter{blogspot}            # Cleans up some Blogspot blogs. Read the fine print before using this.</screen>
+   <para>
+    <anchor id="filter-bundeswehr.de">
+    <screen>+filter{bundeswehr.de}         # Hide the cookie and privacy info banner on bundeswehr.de</screen>
+   </para>
    <para>
     <anchor id="filter-sourceforge">
+    <screen>+filter{sourceforge}           # Reduces the amount of ads for proprietary software on SourceForge.</screen>
    </para>
-    <screen>+filter{sourceforge}         # Reduces the amount of ads for proprietary software on SourceForge.</screen>
+   <para>
+    <anchor id="filter-taz.de">
+    <screen>+filter{taz.de}                # Hides the 'paywahl' banner on taz.de by default without relying on cookies.</screen>
+   </para>
   </listitem>
  </varlistentry>
 </variablelist>
@@ -5548,7 +5551,7 @@ www.example.com</screen>
  <varlistentry>
   <term>Typical use:</term>
   <listitem>
-   <para>Prevent abuse of <application>Privoxy</application> as a TCP proxy relay or disable SSL for untrusted sites</para>
+   <para>Prevent abuse of <application>Privoxy</application> as a TCP proxy relay</para>
   </listitem>
  </varlistentry>
 
@@ -5596,9 +5599,13 @@ www.example.com</screen>
     This means CONNECT-enabled proxies can be used as TCP relays very easily.
   </para>
   <para>
-   <application>Privoxy</application> relays HTTPS traffic without seeing
-   the decoded content. Websites can leverage this limitation to circumvent &my-app;'s
-   filters. By specifying an invalid port range you can disable HTTPS entirely.
+   If the CONNECT method is being used and the
+   <link linkend="https-inspection">https-inspection</link> action
+   is not enabled, &my-app; relays HTTPS or other traffic without
+   seeing the decoded content.
+   Websites can leverage this limitation to circumvent &my-app;'s filters.
+   By specifying an invalid port range you can disallow the CONNECT method
+   and prevent this.
   </para>
   </listitem>
  </varlistentry>
@@ -6031,7 +6038,7 @@ example.com/.*toChange=(?!bar)
 i[0-9][0-9][0-9][0-9]*/
 
 # Redirect requests for the old Tor Hidden Service of the Privoxy website to the new one
-{+redirect{s@^http://jvauzb4sb3bwlsnc.onion/@http://l3tczdiiwoo63iwxty4lhs6p7eaxop5micbn7vbliydgv63x5zrrrfyd.onion/@}}
+{+redirect{s@^http://jvauzb4sb3bwlsnc.onion/@http://privoxy5wtwbtk4wwyrdbg6oxeghvhghghmokcx2iawydkqmaztfbbid.onion/@}}
 jvauzb4sb3bwlsnc.onion/
 
 # Redirect remote requests for this manual
@@ -7297,7 +7304,7 @@ webmail.example.com
  might end up with unintended variables if you use a variable name
  directly after the delimiter. Variables will be resolved without
  escaping anything, therefore you also have to be careful not to chose
- delimiters that appear in the replacement text. For example '<' should
+ delimiters that appear in the replacement text. For example '&lt;' should
  be save, while '?' will sooner or later cause conflicts with $url.
 </para>
 
@@ -7856,20 +7863,6 @@ pre-defined filters for your convenience:
  </varlistentry>
 
  <varlistentry>
-  <term><emphasis>ie-exploits</emphasis></term>
-  <listitem>
-   <para>
-    An experimental collection of text replacements to disable malicious HTML and JavaScript
-    code that exploits known security holes in Internet Explorer.
-   </para>
-   <para>
-    Presently, it only protects against Nimda and a cross-site scripting bug, and
-    would need active maintenance to provide more substantial protection.
-   </para>
-  </listitem>
- </varlistentry>
-
- <varlistentry>
   <term><emphasis>site-specifics</emphasis></term>
   <listitem>
    <para>
@@ -8172,6 +8165,346 @@ EXTERNAL-FILTER: citation-needed Adds a "[citation needed]" tag to an image. The
 <!--  ~  End section  ~  -->
 
 
+<!--   ~~~~~       New section      ~~~~~     -->
+
+<sect1 id="howto"><title>HOWTOs</title>
+
+<!--   ~~~~~~~~       New section Header    ~~~~~~~~~     -->
+<sect2 id="h2-https-inspection"><title>HTTPS-Inspection HOWTO</title>
+<sect3 id="h2-hi-tls"><title>How TLS Certificates for websites work
+</title>
+<para>
+ The website owner generates a (private) TLS key and a Certificate
+ Signing Request (CSR).
+</para>
+<para>
+ The CSR is then sent to a Certification Authority (CA), which
+ verifies that the owner is the actual owner of the website.  This can
+ be done by proving that the owner has technical write access to the
+ site or the site's DNS, or by verifying the identity of the
+ organization running the site using telephone and public databases.
+</para>
+<para>
+ If the verification is successful, the CA signs the CSR and creates a
+ certificate that certifies that the private TLS key actually belongs
+ to the website name and/or organization that owns the domain.
+</para>
+<para>
+ This TLS certificate is then added to the web server configuration,
+ and when a browser accesses the website, it verifies that the TLS
+ certificate presented to the browser is valid for that domain.
+</para>
+<para>
+ To do this, each browser has the certificates of multiple CAs in its
+ trust store.  The browser will only accept the certificate if the CA
+ that signed it is in its trust store, otherwise it will warn that the
+ certificate is not valid.
+</para>
+<para>
+ If this check passes, the browser sends a random number encrypted
+ with the server's public key to the server, and both compute a shared
+ secret using the Diffie-Hellman key exchange algorithm.  Now server
+ and browser can communicate, but no one else can break that
+ communication because it's encrypted between them.
+</para>
+</sect3>
+
+<sect3 id="h2-hi-works"><title>How HTTPS inspection works</title>
+<para>
+ When we try to inspect HTTPS traffic, we have to break the TLS
+ encryption between browser and web server without being the browser
+ or the web server.  This is exactly what TLS is designed to prevent,
+ because it's a man-in-the-middle attack.
+</para>
+<para>
+ To do this, Privoxy uses its own (private) CA (let's call it
+ "Privoxy CA"), which needs to be added to the trust store of every
+ single browser that you want to use with Privoxy and HTTPS inspection.
+</para>
+<para>
+ Privoxy then breaks the connection between browser and webserver by
+ acting as a browser/client when talking to the webserver (including
+ checking the webserver's TLS certificate against it's own trust
+ store).  Now Privoxy can read and modify the traffic from the
+ webserver.
+</para>
+<para>
+ On the other hand, Privoxy itself encrypts the traffic it sends to
+ the browser using an on the fly self-created TLS server certificate
+ that is signed by Privoxy CA.
+</para>
+</sect3>
+
+<sect3 id="h2-hi-invalid-cert"><title>What happens, if the original
+ certificate is invalid?</title>
+<para>
+ If Privoxy detects that a TLS certificate is invalid, because it's
+ expired, doesn't match the hostname, is self-signed, or similar,
+ Privoxy will block the requests and return an error message
+ explaining the problem to prevent the user/browser from communicating
+ over an insecure channel.
+</para>
+<para>
+ To test this behavior, just go to
+ <ulink url="https://badssl.com/">https://badssl.com/</ulink>
+</para>
+</sect3>
+
+<sect3 id="h2-hi-prerequisites"><title>HTTPS inspection prerequisites
+</title>
+<para>
+ HTTPS inspection in Privoxy can only be used, if Privoxy is built
+ with FEATURE_HTTPS_INSPECTION.  You can check if this feature
+ is enabled at
+ <ulink url="http://config.privoxy.org/show-status">http://config.privoxy.org/show-status</ulink>
+ in the "Conditional #defines" section.
+</para>
+<para>
+ If the feature is not enabled, you may need to
+ <link linkend="installation-source">build Privoxy from source</link>
+ to enable it.
+ FEATURE_HTTPS_INSPECTION relies on a TLS library.
+ You can choose between <ulink url="https://www.libressl.org/">LibreSSL</ulink>,
+ <ulink url="https://www.trustedfirmware.org/projects/mbed-tls/">MbedTLS</ulink>,
+ <ulink url="https://www.openssl.org/">OpenSSL</ulink> and
+ <ulink url="https://www.wolfssl.com/">wolfSSL</ulink>.
+ Which TLS library is the best choice depends on various factors
+ including operating system, cpu and license preference so there isn't
+ any recommendation here.
+</para>
+<para>
+ After installing the development libraries for the TLS library you
+ want to use, you can run <command>./configure</command> with
+ the <command>--with-openssl</command> for LibreSSL and OpenSSL or
+ <command>--with-mbedtls</command> or <command>--with-wolfssl</command> option.
+</para>
+<para>
+ Check the output of <command>./configure</command>, it must contain
+ one of these the following two lines, otherwise HTTPS inspection will
+ not work:
+</para>
+ <screen>
+configure: Detected OpenSSL. Enabling https inspection.
+configure: Detected mbedTLS. Enabling https inspection.
+configure: Detected wolfSSL. Enabling https inspection.
+</screen>
+<para>
+ If you do not find any of these lines, the output of
+ <command>./configure</command> will tell you what went wrong.
+</para>
+<para>
+ You should then proceed with the
+ <link linkend="installation-source">source install</link>.
+ Finally, check the FEATURE_HTTPS_INSPECTION status in
+ <ulink url="http://config.privoxy.org/show-status">http://config.privoxy.org/show-status</ulink>
+ again.
+</para>
+</sect3>
+
+<sect3 id="h2-hi-config"><title>Configuring HTTPS inspection in Privoxy
+</title>
+<para>
+ First, you need to create the private key and certificate for the
+ "Privoxy CA".  This can be done using openssl with the following
+ command:
+ <screen>
+openssl req -new -x509 -extensions v3_ca -keyout privoxy.pem -out privoxy.crt -days 3650
+</screen>
+</para>
+<para>
+ In this example, a CA validity of 10 years (3650 days) is defined.
+ You should set the appropriate validity period based on your needs.
+ A shorter validity makes your system more secure (it doesn't hurt
+ that long if the key gets lost to an attacker), but if the
+ certificate expires before you have replaced it with a new one in
+ Privoxy and in all browsers, the communication will fail.
+</para>
+<para>
+ During key generation you will be asked to provide a "PEM pass
+ phrase".  This passphrase will appear in the Privoxy config CGI, so
+ don't reuse it elsewhere!
+</para>
+<para>
+ Then you will be asked for Country Name, State/Province, Locality,
+ Orginzation Name, Common Name, and Email Address.  You should fill in
+ some useful data here, because these entries will be shown by the
+ browser as "Issuer Name" when you inspect a certificate from an
+ https-inspection site.  Especially the "Common Name" will be shown as
+ the name of your CA, so it's good if you (and other users of your
+ Privoxy instance) are able to identify this CA.
+</para>
+<para>
+ Copy the private key (<filename>privoxy.pem</filename>) and the CA
+ certificate (<filename>privoxy.crt</filename>) into
+ the <link linkend="ca-directory">ca-directory</link> (defined
+ in <link linkend="config">config</link>).
+</para>
+<para>
+ Make sure that the private key (<filename>privoxy.pem</filename> in
+ the example above) is only accessible to the user running Privoxy
+ (usually named "privoxy"):
+</para>
+ <screen>
+chmod 600 privoxy.pem
+chown privoxy privoxy.pem
+</screen>
+<para>
+ Now customize your Privoxy <link linkend="config">configuration</link>:
+</para>
+ <screen>
+<link linkend="ca-directory">ca-directory</link> /etc/privoxy/CA # read-only
+<link linkend="ca-cert-file">ca-cert-file</link> privoxy.crt     # in ca-directory
+<link linkend="ca-key-file">ca-key-file</link> privoxy.pem      # in ca-directory
+<link linkend="ca-password">ca-password</link> passphrasefromabove
+<link linkend="certificate-directory">certificate-directory</link> /var/lib/privoxy/certs
+<link linkend="trusted-cas-file">trusted-cas-file</link> /etc/ssl/certs/ca-certificates.crt
+</screen>
+<para>
+ <link linkend="certificate-directory">certificate-directory</link>
+ contains the (on the fly) created webserver keys and certificates.
+ It should only be readable by the privoxy user only:
+</para>
+ <screen>
+chown privoxy /var/lib/privoxy/certs
+chmod 700 /var/lib/privoxy/certs
+</screen>
+<para>
+ <link linkend="trusted-cas-file">trusted-cas-file</link> is the trust
+ store containing the certificates of all CAs that should be accepted.
+ Each browser comes with it's own trust store.  Most Unix systems also
+ ship with a truststore.  Debian ships it's truststore
+ in <filename>/etc/ssl/certs/ca-certificates.crt</filename>, which is
+ installed by the ca-certificates package and can be updated using
+ update-ca-certificates(8).  Alternatively, such a file (extracted
+ from Mozilla) can be downloaded
+ from <ulink url="https://curl.se/docs/caextract.html">https://curl.se/docs/caextract.html</ulink>.
+</para>
+</sect3>
+
+<sect3 id="h2-hi-browser"><title>Browser configuration</title>
+<para>
+ As mentioned earlier, each browser you use must now trust the newly
+ created Privoxy CA certificate (<filename>privoxy.crt</filename>).
+</para>
+<para>
+ In Firefox you can do this by opening the preferences "Edit" ->
+ "Settings" -> "Privacy & Security" or by typing
+ <ulink url="about:preferences#privacy">about:preferences#privacy</ulink>
+ in the URL.  Then go down to the "Certificates" section and click on
+ "View Certificates". Click on the "Authorities" tab and "Import..."
+ your <filename>privoxy.crt</filename>.  In the "CA certificate trust
+ settings" select "This certificate can identify websites".
+</para>
+<para>
+ In Chrome based browsers, go to the settings and select "Privacy and
+ security"
+ (<ulink url="chrome://settings/privacy">chrome://settings/privacy</ulink>).
+ Click on "Security" and on the opened sub-page on "Manage
+ certificates".  Now go to the "Authorities" tab and
+ import <filename>privoxy.crt</filename> and configure it to trust
+ the certificate for website identification.
+</para>
+</sect3>
+
+<sect3 id="h2-hi-enable"><title>Enabeling HTTPS inspection</title>
+<para>
+ Currently no pages use HTTPS inspection, you need to enable this for
+ some (or all) domains first
+ using <link linkend="user-action">user.action</link> (either by editing
+ the file by hand or via the CGI (this requires
+ <link linkend="enable-edit-actions">enable-edit-actions</link>
+ to be enabled in config) at
+ <ulink url="http://config.privoxy.org/show-status">http://config.privoxy.org/show-status</ulink>
+ (click on user.action Edit button).
+</para>
+<para>
+ Here you can enable HTTPS inspection for individual sites:
+</para>
+ <screen>
+{+<link linkend="https-inspection">https-inspection</link>}
+.badssl.com
+clienttest.ssllabs.com
+</screen>
+<para>
+ You can add more individual sites or wildcards (one per line).
+</para>
+<para>
+ Alternatively, you can use a client-tag to dynamically enable/disable
+ this feature via the browser, as described in the next chapter.
+</para>
+</sect3>
+
+</sect2>
+
+<!--   ~~~~~~~~       New section Header    ~~~~~~~~~     -->
+<sect2 id="h2-client-tags"><title>Client Tags HOWTO</title>
+<para>
+ Client Tags are a mechanism to dynamically or temporarily enable and
+ disable features in Privoxy for each browser instance.
+</para>
+<para>
+ In our example, we use this for the following two use cases:
+ <itemizedlist>
+  <listitem><para>Enable Tor anonymous proxy</para></listitem>
+  <listitem><para>Enable https-inspection</para></listitem>
+ </itemizedlist>
+</para>
+<para>
+ To use this feature, you must first define a tag name and a tag
+ description for each client-tag in <link linkend="config">config</link>,
+ like this:
+</para>
+ <screen>
+<link linkend="client-specific-tag">client-specific-tag</link> tor Use Tor anonymous proxy
+<link linkend="client-specific-tag">client-specific-tag</link> https-inspection Enable https-inspection
+</screen>
+<para>
+ Now you can open <ulink
+ url="http://config.privoxy.org/client-tags">http://config.privoxy.org/client-tags</ulink>
+ or <ulink url="http://p.p/client-tags">http://p.p/client-tags</ulink>
+ and enable or disable the tag there (you may want to bookmark
+ this page for quick access, though it is also available via a link
+ at <ulink url="http://p.p">http://p.p</ulink>).
+</para>
+<para>
+ You can also temporarily enable a tag, which by default means 3
+ minutes (180 seconds) (and can be changed using the
+ <link linkend="client-tag-lifetime">client-tag-lifetime</link>
+ option in <link linkend="config">config</link>).
+</para>
+<para>
+ Before this takes effect, you must reference the client tag in
+ your <link linkend="user-action">user.action</link> like this:
+</para>
+ <screen>
+{+<link linkend="forward-override">forward-override</link>{<link linkend="socks">forward-socks5t</link> 127.0.0.1:9050 .} }
+<link linkend="client-tag-pattern">CLIENT-TAG</link>:^tor$
+</screen>
+<para>
+ This means that if the "tor" client tag is enabled, all traffic will
+ be forwarded by Privoxy through SOCKS5T to a locally installed tor
+ proxy listening on port 9050.
+</para>
+<para>
+ Similarly, you can specify to use the https-inspection client tag to
+ enable https-inspection:
+</para>
+ <screen>
+{+<link linkend="https-inspection">https-inspection</link>}
+<link linkend="client-tag-pattern">CLIENT-TAG</link>:^https-inspection$
+</screen>
+<para>
+ The tag will be set for all requests coming from clients that have
+ requested it to be set.  Note that "clients" are distinguished by
+ their IP address.  If the IP address changes, the tag must be
+ requested again.
+</para>
+</sect2>
+
+</sect1>
+
+<!--  ~  End section  ~  -->
+
 
 <!--   ~~~~~       New section      ~~~~~     -->
 
@@ -8194,24 +8527,8 @@ Requests</title>
  &copyright;
 <!-- end copyright -->
 
-<para>
- <application>Privoxy</application> is free software; you can
- redistribute and/or modify its source code under the terms
- of the <citetitle>GNU General Public License</citetitle>
- as published by the Free Software Foundation, either version 2
- of the license, or (at your option) any later version.
-</para>
-
-<para>
- The same is true for <application>Privoxy</application> binaries
- unless they are linked with a
- <ulink url="https://www.trustedfirmware.org/projects/mbed-tls/">mbed TLS</ulink> version
- that is licensed under the Apache 2.0 license in which
- case you can redistribute and/or modify the <application>Privoxy</application>
- binaries under the terms of the <citetitle>GNU General Public License</citetitle>
- as published by the Free Software Foundation, either version 3
- of the license, or (at your option) any later version.
-</para>
+<!-- Include license-explanation.sgml: -->
+ &license-explanation;
 
 <para>
  Both licenses are included in the next section.
@@ -8244,13 +8561,18 @@ Requests</title>
 <para>
  When compiled with FEATURE_HTTPS_INSPECTION (optional),
  Privoxy depends on a TLS library. The supported libraries are
- <ulink url="https://www.openssl.org/">LibreSSL</ulink>,
- <ulink url="https://github.com/Mbed-TLS/mbedtls/tags">mbed TLS 2.28.x</ulink> and
- <ulink url="https://www.openssl.org/">OpenSSL</ulink>.
+ <ulink url="https://www.libressl.org/">LibreSSL</ulink>,
+ <ulink url="https://github.com/Mbed-TLS/mbedtls/">mbed TLS</ulink>,
+ <ulink url="https://www.openssl.org/">OpenSSL</ulink> and
+ <ulink url="https://www.wolfssl.com/">wolfSSL</ulink>.
 </para>
 <para>
  When compiled with FEATURE_ZLIB (optional),
  Privoxy depends on <ulink url="https://zlib.net/">zlib</ulink>.
+</para>
+<para>
+ When compiled with FEATURE_ZSTD (optional),
+ Privoxy depends on <ulink url="https://facebook.github.io/zstd/">zstd</ulink>.
 </para>
 </sect3>
 
@@ -8841,7 +9163,6 @@ In file: default.action <guibutton>[ View ]</guibutton> <guibutton>[ Edit ]</gui
  +filter {banners-by-size}
  +filter {webbugs}
  +filter {jumping-windows}
- +filter {ie-exploits}
  +hide-from-header {block}
  +hide-referrer {forge}
  +session-cookies-only
@@ -8950,7 +9271,6 @@ Final results:
 +filter {banners-by-size}
 +filter {webbugs}
 +filter {jumping-windows}
-+filter {ie-exploits}
 -filter {google}
 -filter {yahoo}
 -filter {msn}
@@ -9065,7 +9385,6 @@ In file: default.action <guibutton>[ View ]</guibutton> <guibutton>[ Edit ]</gui
  +filter {banners-by-size}
  +filter {webbugs}
  +filter {jumping-windows}
- +filter {ie-exploits}
  -filter {google}
  -filter {yahoo}
  -filter {msn}

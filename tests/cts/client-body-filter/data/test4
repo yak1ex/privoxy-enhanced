@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP POST
+client-body-filter
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: text/html
+
+Received your input.
+
+Will keep the connection open despite the "Connection: Close" header.
+</data>
+</reply>
+
+<client>
+<server>
+http
+</server>
+<name>
+Using client-body-filter{blafasel-to-bumfidel} with server connection that times out after delivering the response
+</name>
+<features>
+proxy
+</features>
+<command>
+-d "blafasel" http://%HOSTIP:%HTTPPORT/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol nonewline="yes">
+POST /%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Content-Length: 8%CR
+Content-Type: application/x-www-form-urlencoded%CR
+Connection: close%CR
+%CR
+bumfidel
+</protocol>
+</verify>
+</testcase>

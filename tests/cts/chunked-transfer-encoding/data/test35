@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+chunked transfer encoding
+# XXX: Test requires "writesize" support that hasn't been upstreamed yet.
+skip
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: keep-alive%CR
+Content-Type: text/html%CR
+Transfer-Encoding: chunked%CR
+%CR
+FE%CR
+%repeat[253 x A]%
+%CR
+XYZ%CR
+This chunk is preceded by an invalid chunk-size
+%repeat[1000 x Padding]%
+%CR
+0%CR
+%CR
+</data>
+# We only send parts of the response and then wait longer
+# than Privoxy's socket-timeout to make sure Privoxy always
+# forwards the same data to curl.
+<servercmd>
+writesize: 4000
+writedelay: 4000
+</servercmd>
+</reply>
+
+<proxy-reply>
+<data nonewline="yes">
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: keep-alive%CR
+Content-Type: text/html%CR
+Transfer-Encoding: chunked%CR
+%CR
+FE%CR
+%repeat[253 x A]%
+%CR
+XYZ%CR
+This chunk is preceded by an invalid chunk-size
+%repeat[507 x Padding]%Paddi
+</data>
+</proxy-reply>
+
+<client>
+<server>
+http
+</server>
+<name>
+Chunked transfer encoding - Invalid chunk-size. Filtering disabled.
+</name>
+<features>
+proxy
+</features>
+<command timeout="20">
+--raw http://%HOSTIP:%HTTPPORT/no-filter/chunked-content/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /no-filter/chunked-content/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+%CR
+</protocol>
+<errorcode>
+56
+</errorcode>
+</verify>
+</testcase>

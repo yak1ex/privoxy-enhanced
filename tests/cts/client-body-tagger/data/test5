@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP POST
+client-body-tagger
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: text/html
+X-Connection: swsclose
+
+Received your input.
+</data>
+</reply>
+
+<client>
+<server>
+http
+</server>
+<name>
+Two requests to the same URL. The second one is a POST request but it's not expected to be blocked due to a tag.
+</name>
+<features>
+proxy
+</features>
+<command>
+-s --write-out '%{stderr}%{response_code}\n' http://%HOSTIP:%HTTPPORT/%TESTNUMBER --next -d "%repeat[5000 x padding]%bumfidel" -s --write-out '%{stderr}%{response_code}\n' http://%HOSTIP:%HTTPPORT/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol nonewline="yes">
+GET /%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Connection: close%CR
+%CR
+POST /%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Content-Length: 35008%CR
+Content-Type: application/x-www-form-urlencoded%CR
+Connection: close%CR
+%CR
+%repeat[5000 x padding]%bumfidel
+</protocol>
+<stderr>
+200
+200
+</stderr>
+
+</verify>
+</testcase>

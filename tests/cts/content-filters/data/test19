@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+filter fun
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+%CR
+# Here are some strings the fun filter should filter:
+
+# pcrs command 1:
+
+Microsoft
+
+# pcrs command 1 should not break URLs:
+
+https://www.microsoft.com/
+
+# pcrs command 2:
+
+Our great product is
+    industry leading
+             world-leading
+                        cutting edge
+                                customer-focused
+                                        market driven
+                                               award winning
+                                                     high performance
+                                                          solutions-based
+                                                                unmatched
+                                                                        unparalleled
+                                                                                and unrivalled.
+
+# pcrs command 3:
+
+Medieninformatik
+        medien
+</data>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+Content-Length: 1456%CR
+%CR
+# Here are some strings the fun filter should filter:
+
+# pcrs command 1:
+
+MicroSuck
+
+# pcrs command 1 should not break URLs:
+
+https://www.microsoft.com/
+
+# pcrs command 2:
+
+Our great product is
+    industry leading<sup><font color="red"><b>Bingo!</b></font></sup> 
+             world-leading<sup><font color="red"><b>Bingo!</b></font></sup> 
+                        cutting edge<sup><font color="red"><b>Bingo!</b></font></sup> 
+                                customer-focused<sup><font color="red"><b>Bingo!</b></font></sup> 
+                                        market driven<sup><font color="red"><b>Bingo!</b></font></sup> 
+                                               award winning<sup><font color="red"><b>Bingo!</b></font></sup> 
+                                                     high performance<sup><font color="red"><b>Bingo!</b></font></sup> 
+                                                          solutions-based<sup><font color="red"><b>Bingo!</b></font></sup> 
+                                                                unmatched<sup><font color="red"><b>Bingo!</b></font></sup> 
+                                                                        unparalleled<sup><font color="red"><b>Bingo!</b></font></sup> 
+                                                                                and unrivalled<sup><font color="red"><b>Bingo!</b></font></sup> .
+
+# pcrs command 3:
+
+M&auml;dcheninformatik
+        m&auml;dchen
+</data>
+</proxy-reply>
+
+<client>
+<server>
+http
+</server>
+<name>
++filter{fun}
+</name>
+<features>
+proxy
+</features>
+<command>
+http://%HOSTIP:%HTTPPORT/fun/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /fun/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Connection: close%CR
+%CR
+</protocol>
+</verify>
+</testcase>

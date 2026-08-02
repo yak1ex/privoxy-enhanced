@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+filter google
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+%CR
+# Here is a string the google filter's pcrs command 3 should filter:
+
+<table cellspacing=0 cellpadding=0 align=right bgcolor=#ffffff border=0
+</data>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+Content-Length: 151%CR
+%CR
+# Here is a string the google filter's pcrs command 3 should filter:
+
+<table cellspacing=0 cellpadding=0 align=right bgcolor=#ffffff border=0 id="ads"
+</data>
+</proxy-reply>
+
+<client>
+<server>
+http
+</server>
+<name>
++filter{google} - pcrs command 3 - pattern C
+</name>
+<features>
+proxy
+</features>
+<command>
+http://%HOSTIP:%HTTPPORT/google/pcrs-command-3c/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /google/pcrs-command-3c/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Connection: close%CR
+%CR
+</protocol>
+</verify>
+</testcase>

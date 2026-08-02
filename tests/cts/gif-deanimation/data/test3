@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+gif deanimation
+</keywords>
+</info>
+
+<reply>
+<data nonewline="yes">
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: image/gif%CR
+X-Control: swsclose%CR
+%CR
+G
+</data>
+</reply>
+
+<proxy-reply>
+<data nonewline="yes">
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: image/gif%CR
+X-Control: swsclose%CR
+%CR
+G
+</data>
+</proxy-reply>
+
+<client>
+<server>
+http
+</server>
+<name>
+Invalid gif. Only a single byte of data.
+</name>
+<features>
+proxy
+</features>
+<command>
+http://%HOSTIP:%HTTPPORT/deanimate-gif/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /deanimate-gif/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+%CR
+</protocol>
+<errorcode>
+0
+</errorcode>
+</verify>
+</testcase>

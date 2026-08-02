@@ -4,9 +4,9 @@
 *
 * File        :  $Source: /cvsroot/ijbswa/current/ssl_common.h,v $
 *
-* Purpose     :  File with TLS/SSL extension. Contains methods for
-*                creating, using and closing TLS/SSL connections that do
-*                not depend on particular TLS/SSL library.
+* Purpose     :  File with TLS extension. Contains methods for
+*                creating, using and closing TLS connections that do
+*                not depend on particular TLS library.
 *
 * Copyright   :  Written by and Copyright (c) 2017 Vaclav Svec. FIT CVUT.
 *
@@ -73,5 +73,6 @@ extern unsigned long get_certificate_serial(struct client_state *csp);
 extern int get_certificate_valid_from_date(char *buffer, size_t buffer_size, const char *fmt);
 extern int get_certificate_valid_to_date(char *buffer, size_t buffer_size, const char *fmt);
 extern int enforce_sane_certificate_state(const char *certificate, const char *key);
+extern int create_hexadecimal_hash_of_host(struct client_state *csp);
 
 #endif /* ndef SSL_COMMON_H_INCLUDED */

@@ -12,7 +12,7 @@
  *
  *                Stick to the short names in this file for consistency.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2014 the
+ * Copyright   :  Written by and Copyright (C) 2001-2026 the
  *                Privoxy team. https://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
@@ -238,7 +238,7 @@ static const struct action_type_info action_type_info[] =
       ACTION_MULTI_SERVER_HEADER_TAGGER,
       "server-header-tagger-params", "server-header-tagger",
       "server-header-tagger-all", "server_header_tagger_all",
-      "E", "SERVER-HEADER-TAGGER"
+      "M", "SERVER-HEADER-TAGGER"
    },
    {
       ACTION_MULTI_SUPPRESS_TAG,
@@ -251,6 +251,12 @@ static const struct action_type_info action_type_info[] =
       "client-body-filter-params", "client-body-filter",
       "client-body-filter-all", "client_body_filter_all",
       "P", "CLIENT-BODY-FILTER"
+   },
+   {
+      ACTION_MULTI_CLIENT_BODY_TAGGER,
+      "client-body-tagger-params", "client-body-tagger",
+      "client-body-tagger-all", "client_body_tagger_all",
+      "Q", "CLIENT-BODY-TAGGER"
    },
    {
       ACTION_MULTI_ADD_HEADER,
@@ -362,38 +368,6 @@ static jb_err get_file_name_param(struct client_state *csp,
 	                                   const struct map *parameters,
 	                                   const char *param_name,
 	                                   const char **pfilename);
-
-/* Internal convenience functions */
-static char *section_target(const unsigned sectionid);
-
-/*********************************************************************
- *
- * Function    :  section_target
- *
- * Description :  Given an unsigned (section id) n, produce a dynamically
- *                allocated string of the form #l<n>, for use in link
- *                targets.
- *
- *                XXX: The hash should be moved into the templates
- *                to make this function more generic and render
- *                stringify() obsolete.
- *
- * Parameters  :
- *          1  :  sectionid = start line number of section
- *
- * Returns     :  String with link target, or NULL if out of
- *                memory
- *
- *********************************************************************/
-static char *section_target(const unsigned sectionid)
-{
-   char buf[30];
-
-   snprintf(buf, sizeof(buf), "#l%u", sectionid);
-   return(strdup(buf));
-
-}
-
 
 /*********************************************************************
  *
@@ -552,7 +526,7 @@ jb_err cgi_edit_actions_url_form(struct client_state *csp,
    if (!err) err = map(exports, "v", 1, file->version_str, 1);
    if (!err) err = map(exports, "p", 1, url_encode(lookup(parameters, "p")), 0);
    if (!err) err = map(exports, "u", 1, html_encode(cur_line->unprocessed), 0);
-   if (!err) err = map(exports, "jumptarget", 1, section_target(section_start_line_number), 0);
+   if (!err) err = map(exports, "jumptarget", 1, stringify(section_start_line_number), 0);
 
    edit_free_file(file);
 
@@ -712,7 +686,7 @@ jb_err cgi_edit_actions_remove_url_form(struct client_state *csp,
    if (!err) err = map(exports, "v", 1, file->version_str, 1);
    if (!err) err = map(exports, "p", 1, url_encode(lookup(parameters, "p")), 0);
    if (!err) err = map(exports, "u", 1, html_encode(cur_line->unprocessed), 0);
-   if (!err) err = map(exports, "jumptarget", 1, section_target(section_start_line_number), 0);
+   if (!err) err = map(exports, "jumptarget", 1, stringify(section_start_line_number), 0);
    if (!err) err = map(exports, "actions-file", 1, html_encode(file->filename), 0);
 
    edit_free_file(file);
@@ -2797,8 +2771,8 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
 
    for (i = 0; !err && i < SZ(string_action_type_info); i++)
    {
-      err = action_render_string_actions_template(exports, cur_line->data.action, filter_template,
-                                                  &string_action_type_info[i]);
+      err = action_render_string_actions_template(exports,
+         cur_line->data.action, filter_template, &string_action_type_info[i]);
    }
    freez(filter_template);
 
@@ -2890,73 +2864,76 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
       {
          if ((csp->rlist[i] != NULL) && (csp->rlist[i]->f != NULL))
          {
-            filter_group = csp->rlist[i]->f;
-            for (;(!err) && (filter_group != NULL); filter_group = filter_group->next)
+            int filter_type;
+            for (filter_type = 0; filter_type < MAX_FILTER_TYPES; filter_type++)
             {
-               char current_mode = 'x';
-               char number[20];
-               struct list_entry *filter_name;
-               struct map *line_exports;
-               const enum filter_type type = filter_group->type;
-               const int multi_action_index = action_type_info[type].multi_action_index;
-
-               assert(type < MAX_FILTER_TYPES);
-
-               filter_name = cur_line->data.action->multi_add[multi_action_index]->first;
-               while ((filter_name != NULL)
-                   && (0 != strcmp(filter_group->name, filter_name->str)))
+               filter_group = ((struct re_filters *)(csp->rlist[i]->f))->filters[filter_type];
+               for (; (!err) && (filter_group != NULL); filter_group = filter_group->next)
                {
-                    filter_name = filter_name->next;
-               }
+                  char current_mode = 'x';
+                  char number[20];
+                  struct list_entry *filter_name;
+                  struct map *line_exports;
+                  const int multi_action_index = action_type_info[filter_type].multi_action_index;
 
-               if (filter_name != NULL)
-               {
-                  current_mode = 'y';
-               }
-               else
-               {
-                  filter_name = cur_line->data.action->multi_remove[multi_action_index]->first;
+                  assert(multi_action_index < ACTION_MULTI_COUNT);
+
+                  filter_name = cur_line->data.action->multi_add[multi_action_index]->first;
                   while ((filter_name != NULL)
                       && (0 != strcmp(filter_group->name, filter_name->str)))
                   {
                        filter_name = filter_name->next;
                   }
+
                   if (filter_name != NULL)
                   {
-                     current_mode = 'n';
+                     current_mode = 'y';
                   }
-               }
-
-               /* Generate a unique serial number */
-               snprintf(number, sizeof(number), "%x", filter_identifier++);
-               number[sizeof(number) - 1] = '\0';
-
-               line_exports = new_map();
-               if (line_exports == NULL)
-               {
-                  err = JB_ERR_MEMORY;
-               }
-               else
-               {
-                  char *filter_line;
-
-                  if (!err) err = map(line_exports, "index", 1, number, 1);
-                  if (!err) err = map(line_exports, "name",  1, filter_group->name, 1);
-                  if (!err) err = map(line_exports, "description",  1, filter_group->description, 1);
-                  if (!err) err = map_radio(line_exports, "this-filter", "ynx", current_mode);
-                  if (!err) err = map(line_exports, "filter-type", 1, action_type_info[type].type, 1);
-                  if (!err) err = map(line_exports, "abbr-action-type", 1, action_type_info[type].abbr_type, 1);
-                  if (!err) err = map(line_exports, "anchor", 1, action_type_info[type].anchor, 1);
-
-                  if (!err)
+                  else
                   {
-                     filter_line = strdup(filter_template);
-                     if (filter_line == NULL) err = JB_ERR_MEMORY;
+                     filter_name = cur_line->data.action->multi_remove[multi_action_index]->first;
+                     while ((filter_name != NULL)
+                         && (0 != strcmp(filter_group->name, filter_name->str)))
+                     {
+                          filter_name = filter_name->next;
+                     }
+                     if (filter_name != NULL)
+                     {
+                        current_mode = 'n';
+                     }
                   }
-                  if (!err) err = template_fill(&filter_line, line_exports);
-                  if (!err) err = string_join(&prepared_templates[type], filter_line);
 
-                  free_map(line_exports);
+                  /* Generate a unique serial number */
+                  snprintf(number, sizeof(number), "%x", filter_identifier++);
+                  number[sizeof(number) - 1] = '\0';
+
+                  line_exports = new_map();
+                  if (line_exports == NULL)
+                  {
+                     err = JB_ERR_MEMORY;
+                  }
+                  else
+                  {
+                     char *filter_line;
+
+                     if (!err) err = map(line_exports, "index", 1, number, 1);
+                     if (!err) err = map(line_exports, "name",  1, filter_group->name, 1);
+                     if (!err) err = map(line_exports, "description",  1, filter_group->description, 1);
+                     if (!err) err = map_radio(line_exports, "this-filter", "ynx", current_mode);
+                     if (!err) err = map(line_exports, "filter-type", 1, action_type_info[filter_type].type, 1);
+                     if (!err) err = map(line_exports, "abbr-action-type", 1, action_type_info[filter_type].abbr_type, 1);
+                     if (!err) err = map(line_exports, "anchor", 1, action_type_info[filter_type].anchor, 1);
+
+                     if (!err)
+                     {
+                        filter_line = strdup(filter_template);
+                        if (filter_line == NULL) err = JB_ERR_MEMORY;
+                     }
+                     if (!err) err = template_fill(&filter_line, line_exports);
+                     if (!err) err = string_join(&prepared_templates[filter_type], filter_line);
+
+                     free_map(line_exports);
+                  }
                }
             }
          }
@@ -3005,7 +2982,7 @@ jb_err cgi_edit_actions_for_url(struct client_state *csp,
  *
  * Function    :  get_number_of_filters
  *
- * Description :  Counts the number of filter available.
+ * Description :  Counts the number of filters available.
  *
  * Parameters  :
  *          1  :  csp = Current client state (buffers, headers, etc...)
@@ -3019,6 +2996,7 @@ static int get_number_of_filters(const struct client_state *csp)
    struct re_filterfile_spec *b;
    struct file_list *fl;
    int number_of_filters = 0;
+   int filter_type;
 
    for (i = 0; i < MAX_AF_FILES; i++)
    {
@@ -3034,10 +3012,12 @@ static int get_number_of_filters(const struct client_state *csp)
          */
         continue;
      }
-
-     for (b = fl->f; b != NULL; b = b->next)
+     for (filter_type = 0; filter_type < MAX_FILTER_TYPES; filter_type++)
      {
-        number_of_filters++;
+        for (b = ((struct re_filters *)fl->f)->filters[filter_type]; b != NULL; b = b->next)
+        {
+           number_of_filters++;
+        }
      }
    }
 
@@ -3350,10 +3330,7 @@ jb_err cgi_edit_actions_submit(struct client_state *csp,
                    * 'N' (inactive) and 'X' (no change).
                    * XXX: bad name.
                    */
-      char type;  /*
-                   * Abbreviated filter type. Valid types are: 'F' (content filter),
-                   * 'S' (server-header filter) and 'C' (client-header filter).
-                   */
+      char filter_type;
       int multi_action_index = 0;
 
       /* Generate the keys */
@@ -3372,8 +3349,8 @@ jb_err cgi_edit_actions_submit(struct client_state *csp,
          continue;
       }
 
-      type = get_char_param(parameters, key_type);
-      switch (type)
+      filter_type = get_char_param(parameters, key_type);
+      switch (filter_type)
       {
          case 'F':
             multi_action_index = ACTION_MULTI_FILTER;
@@ -3387,15 +3364,21 @@ jb_err cgi_edit_actions_submit(struct client_state *csp,
          case 'L':
             multi_action_index = ACTION_MULTI_CLIENT_HEADER_TAGGER;
             break;
-         case 'E':
+         case 'M':
             multi_action_index = ACTION_MULTI_SERVER_HEADER_TAGGER;
             break;
          case 'P':
             multi_action_index = ACTION_MULTI_CLIENT_BODY_FILTER;
             break;
+#ifdef FEATURE_EXTERNAL_FILTERS
+         case 'E':
+            multi_action_index = ACTION_MULTI_EXTERNAL_FILTER;
+            break;
+#endif
          default:
             log_error(LOG_LEVEL_ERROR,
-               "Unknown filter type: %c for filter %s. Filter ignored.", type, name);
+               "Unknown filter type: %c for filter %s. Filter ignored.",
+               filter_type, name);
             continue;
       }
       assert(multi_action_index);
@@ -4487,8 +4470,9 @@ static jb_err actions_to_radio(struct map * exports,
  *
  * Function    :  action_render_string_actions_template
  *
- * Description :  Converts a actionsfile entry into HTML template for actions with string
- *                filters (currently SUPPRESS-TAG actions only)
+ * Description : Converts an actionsfile entry into HTML template for
+ *               actions with string filters (currently SUPPRESS-TAG
+ *               actions only)
  *
  * Parameters  :
  *          1  :  exports = List of substitutions to add to.
@@ -4500,9 +4484,9 @@ static jb_err actions_to_radio(struct map * exports,
  *                JB_ERR_MEMORY on out-of-memory
  *
  *********************************************************************/
-static jb_err action_render_string_actions_template(struct map * exports,
+static jb_err action_render_string_actions_template(struct map *exports,
                                        const struct action_spec *action,
-                                       const char* action_template,
+                                       const char *action_template,
                                        const struct string_action_type_info *string_action_type)
 {
    jb_err err = JB_ERR_OK;
@@ -4515,6 +4499,8 @@ static jb_err action_render_string_actions_template(struct map * exports,
        char radio;
        struct list_entry *list;
    };
+
+   assert(type->multi_action_index < ACTION_MULTI_COUNT);
 
    struct action_multi desc[] = {
        { 'y', action->multi_add[type->multi_action_index][0].first },

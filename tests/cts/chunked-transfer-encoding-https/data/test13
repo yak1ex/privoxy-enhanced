@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+chunked transfer encoding
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+Transfer-Encoding: chunked%CR
+X-Control: swsclose%CR
+%CR
+100%CR
+%repeat[255 x A]%
+%CR
+100%CR
+%repeat[255 x B]%
+%CR
+100%CR
+%repeat[255 x C]%
+%CR
+100%CR
+%repeat[255 x %01]%
+%CR
+0%CR
+%CR
+</data>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 Connection established%CR
+%CR
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+%CR
+%repeat[255 x A]%
+%repeat[255 x B]%
+%repeat[255 x C]%
+%repeat[255 x %01]%
+</data>
+</proxy-reply>
+
+<client>
+<server>
+https
+</server>
+<name>
+Chunked transfer encoding - Multiple chunks, chunk at the end contains binary ones and is valid
+</name>
+<features>
+proxy
+</features>
+<command>
+--insecure --raw https://%HOSTIP:%HTTPSPORT/chunked-transfer-encoding/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /chunked-transfer-encoding/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPSPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+%CR
+</protocol>
+<errorcode>
+0
+</errorcode>
+</verify>
+</testcase>

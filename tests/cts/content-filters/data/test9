@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+filter banners-by-size
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+%CR
+# Here is some HTML that the banners-by-size filter should modify:
+
+# pcrs command 1 (88*31):
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="88" height="31">
+<img src="https://www.privoxy.org/images/privoxy.png" width="88" height="31">
+<img src='http://www.privoxy.org/images/privoxy.png' width='88' height='31'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="88" height="31">
+
+# pcrs command 2 (120*60, 120*90, 120*240, 120*600):
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="120" height="60">
+<img src="https://www.privoxy.org/images/privoxy.png" width="120" height="60">
+<img src='http://www.privoxy.org/images/privoxy.png' width='120' height='60'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="120" height="60">
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="120" height="90">
+<img src="https://www.privoxy.org/images/privoxy.png" width="120" height="90">
+<img src='http://www.privoxy.org/images/privoxy.png' width='120' height='90'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="120" height="90">
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="120" height="240">
+<img src="https://www.privoxy.org/images/privoxy.png" width="120" height="240">
+<img src='http://www.privoxy.org/images/privoxy.png' width='120' height='240'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="120" height="240">
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="120" height="600">
+<img src="https://www.privoxy.org/images/privoxy.png" width="120" height="600">
+<img src='http://www.privoxy.org/images/privoxy.png' width='120' height='600'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="120" height="600">
+
+# pcrs command 3 (125*125):
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="125" height="125">
+<img src="https://www.privoxy.org/images/privoxy.png" width="125" height="125">
+<img src='http://www.privoxy.org/images/privoxy.png' width='125' height='125'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="125" height="125">
+
+# pcrs command 4 (160*600):
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="160" height="600">
+<img src="https://www.privoxy.org/images/privoxy.png" width="160" height="600">
+<img src='http://www.privoxy.org/images/privoxy.png' width='160' height='600'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="160" height="600">
+
+# pcrs command 5 (180*150):
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="180" height="150">
+<img src="https://www.privoxy.org/images/privoxy.png" width="180" height="150">
+<img src='http://www.privoxy.org/images/privoxy.png' width='180' height='150'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="180" height="150">
+
+# pcrs command 6 (234*60, 468*60):
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="234" height="60">
+<img src="https://www.privoxy.org/images/privoxy.png" width="234" height="60">
+<img src='http://www.privoxy.org/images/privoxy.png' width='234' height='60'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="234" height="60">
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="468" height="60">
+<img src="https://www.privoxy.org/images/privoxy.png" width="468" height="60">
+<img src='http://www.privoxy.org/images/privoxy.png' width='468' height='60'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="468" height="60">
+
+# pcrs command 7 (240*400):
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="240" height="400">
+<img src="https://www.privoxy.org/images/privoxy.png" width="240" height="400">
+<img src='http://www.privoxy.org/images/privoxy.png' width='240' height='400'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="240" height="400">
+
+# pcrs command 8 (250*250, 300*250):
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="250" height="250">
+<img src="https://www.privoxy.org/images/privoxy.png" width="250" height="250">
+<img src='http://www.privoxy.org/images/privoxy.png' width='250' height='250'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="250" height="250">
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="300" height="250">
+<img src="https://www.privoxy.org/images/privoxy.png" width="300" height="250">
+<img src='http://www.privoxy.org/images/privoxy.png' width='300' height='250'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="300" height="250">
+
+# pcrs command 8 (336*280):
+
+<img src="http://www.privoxy.org/images/privoxy.png" width="336" height="280">
+<img src="https://www.privoxy.org/images/privoxy.png" width="336" height="280">
+<img src='http://www.privoxy.org/images/privoxy.png' width='336' height='280'>
+<img src="http://www.privoxy.org/images/privoxy.png" width="336" height="280">
+</data>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+Content-Length: 9499%CR
+%CR
+# Here is some HTML that the banners-by-size filter should modify:
+
+# pcrs command 1 (88*31):
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="88" height="31">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="88" height="31">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='88' height='31'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="88" height="31">
+
+# pcrs command 2 (120*60, 120*90, 120*240, 120*600):
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="120" height="60">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="120" height="60">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='120' height='60'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="120" height="60">
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="120" height="90">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="120" height="90">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='120' height='90'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="120" height="90">
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="120" height="240">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="120" height="240">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='120' height='240'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="120" height="240">
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="120" height="600">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="120" height="600">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='120' height='600'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="120" height="600">
+
+# pcrs command 3 (125*125):
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="125" height="125">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="125" height="125">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='125' height='125'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="125" height="125">
+
+# pcrs command 4 (160*600):
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="160" height="600">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="160" height="600">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='160' height='600'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="160" height="600">
+
+# pcrs command 5 (180*150):
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="180" height="150">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="180" height="150">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='180' height='150'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="180" height="150">
+
+# pcrs command 6 (234*60, 468*60):
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="234" height="60">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="234" height="60">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='234' height='60'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="234" height="60">
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="468" height="60">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="468" height="60">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='468' height='60'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="468" height="60">
+
+# pcrs command 7 (240*400):
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="240" height="400">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="240" height="400">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='240' height='400'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="240" height="400">
+
+# pcrs command 8 (250*250, 300*250):
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="250" height="250">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="250" height="250">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='250' height='250'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="250" height="250">
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="300" height="250">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="300" height="250">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='300' height='250'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="300" height="250">
+
+# pcrs command 8 (336*280):
+
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="336" height="280">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-https://www.privoxy.org/images/privoxy.png-by-size" width="336" height="280">
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width='336' height='280'>
+  <img src="http://config.privoxy.org/send-banner?type=auto" border="0" title="Killed-http://www.privoxy.org/images/privoxy.png-by-size" width="336" height="280">
+</data>
+</proxy-reply>
+
+<client>
+<server>
+http
+</server>
+<name>
++filter{banners-by-size}
+</name>
+<features>
+proxy
+</features>
+<command>
+http://%HOSTIP:%HTTPPORT/banners-by-size/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /banners-by-size/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Connection: close%CR
+%CR
+</protocol>
+</verify>
+</testcase>

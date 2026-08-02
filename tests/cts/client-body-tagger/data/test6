@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP POST
+client-body-tagger
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: text/html
+X-Connection: swsclose
+
+Received your input.
+</data>
+</reply>
+
+<client>
+<server>
+http
+</server>
+<name>
+Two requests to the same URL. The second one is a POST request and a client-body-filter is enabled based on a tag.
+</name>
+<features>
+proxy
+</features>
+<command>
+-s --write-out '%{stderr}%{response_code}\n' http://%HOSTIP:%HTTPPORT/tag-bumfidel-requests/%TESTNUMBER --next -d "%repeat[5000 x padding]%bumfidel" -s --write-out '%{stderr}%{response_code}\n' http://%HOSTIP:%HTTPPORT/tag-bumfidel-requests/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol nonewline="yes">
+GET /tag-bumfidel-requests/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Connection: close%CR
+%CR
+POST /tag-bumfidel-requests/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Content-Length: 35007%CR
+Content-Type: application/x-www-form-urlencoded%CR
+Connection: close%CR
+%CR
+%repeat[5000 x padding]%tralala
+</protocol>
+<stderr>
+200
+200
+</stderr>
+
+</verify>
+</testcase>

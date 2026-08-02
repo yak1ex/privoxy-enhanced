@@ -2,13 +2,13 @@
  *
  * File        :  $Source: /cvsroot/ijbswa/current/openssl.c,v $
  *
- * Purpose     :  File with TLS/SSL extension. Contains methods for
- *                creating, using and closing TLS/SSL connections
+ * Purpose     :  File with TLS extension. Contains methods for
+ *                creating, using and closing TLS connections
  *                using OpenSSL (or LibreSSL).
  *
  * Copyright   :  Written by and Copyright (c) 2020 Maxim Antonov <mantonov@gmail.com>
  *                Copyright (C) 2017 Vaclav Svec. FIT CVUT.
- *                Copyright (C) 2018-2022 by Fabian Keil <fk@fabiankeil.de>
+ *                Copyright (C) 2018-2026 by Fabian Keil <fk@fabiankeil.de>
  *
  *                This program is free software; you can redistribute it
  *                and/or modify it under the terms of the GNU General
@@ -36,8 +36,15 @@
 #include <openssl/bn.h>
 #include <openssl/opensslv.h>
 #include <openssl/pem.h>
-#include <openssl/md5.h>
+#include <openssl/sha.h>
 #include <openssl/x509v3.h>
+#ifdef _WIN32
+/* https://www.openssl.org/docs/faq.html
+   I’ve compiled a program under Windows and it crashes: Why?
+   tl,dr: because it needs this include:
+*/
+#include <openssl/applink.c>
+#endif /* _WIN32 */
 
 #include "config.h"
 #include "project.h"
@@ -67,14 +74,6 @@ static void log_ssl_errors(int debuglevel, const char* fmt, ...) __attribute__((
 
 static int ssl_inited = 0;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-#define X509_set1_notBefore X509_set_notBefore
-#define X509_set1_notAfter X509_set_notAfter
-#define X509_get0_serialNumber X509_get_serialNumber
-#define X509_get0_notBefore X509_get_notBefore
-#define X509_get0_notAfter X509_get_notAfter
-#endif
-
 /*********************************************************************
  *
  * Function    :  openssl_init
@@ -93,11 +92,7 @@ static void openssl_init(void)
       privoxy_mutex_lock(&ssl_init_mutex);
       if (ssl_inited == 0)
       {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-         SSL_library_init();
-#else
          OPENSSL_init_ssl(0, NULL);
-#endif
          SSL_load_error_strings();
          OpenSSL_add_ssl_algorithms();
          ssl_inited = 1;
@@ -185,7 +180,7 @@ extern int ssl_send_data(struct ssl_attr *ssl_attr, const unsigned char *buf, si
          if (!BIO_should_retry(bio))
          {
             log_ssl_errors(LOG_LEVEL_ERROR,
-               "Sending data on socket %d over TLS/SSL failed", fd);
+               "Sending data on socket %d over TLS failed", fd);
             return -1;
          }
       }
@@ -238,7 +233,7 @@ extern int ssl_recv_data(struct ssl_attr *ssl_attr, unsigned char *buf, size_t m
    if (ret < 0)
    {
       log_ssl_errors(LOG_LEVEL_ERROR,
-         "Receiving data on socket %d over TLS/SSL failed", fd);
+         "Receiving data on socket %d over TLS failed", fd);
 
       return -1;
    }
@@ -277,9 +272,7 @@ static int ssl_store_cert(struct client_state *csp, X509 *crt)
    char *encoded_text;
    long l;
    const ASN1_INTEGER *bs;
-#if OPENSSL_VERSION_NUMBER > 0x10100000L
    const X509_ALGOR *tsig_alg;
-#endif
    int loc;
 
    if (!bio)
@@ -473,7 +466,6 @@ static int ssl_store_cert(struct client_state *csp, X509 *crt)
       goto exit;
    }
 
-#if OPENSSL_VERSION_NUMBER > 0x10100000L
    if (BIO_puts(bio, "\nsigned using      : ") <= 0)
    {
       log_ssl_errors(LOG_LEVEL_ERROR, "BIO_puts() for signed using failed");
@@ -487,7 +479,6 @@ static int ssl_store_cert(struct client_state *csp, X509 *crt)
       ret = -1;
       goto exit;
    }
-#endif
    pkey = X509_get_pubkey(crt);
    if (!pkey)
    {
@@ -699,8 +690,8 @@ exit:
  *
  * Function    :  host_to_hash
  *
- * Description :  Creates MD5 hash from host name. Host name is loaded
- *                from structure csp and saved again into it.
+ * Description :  Creates a sha256 hash from host name. The host name
+ *                is taken from the csp structure and stored into it.
  *
  * Parameters  :
  *          1  :  csp = Current client state (buffers, headers, etc...)
@@ -711,25 +702,11 @@ exit:
  *********************************************************************/
 static int host_to_hash(struct client_state *csp)
 {
-   int ret = 0;
-
-   memset(csp->http->hash_of_host, 0, sizeof(csp->http->hash_of_host));
-   MD5((unsigned char *)csp->http->host, strlen(csp->http->host),
+   SHA256((unsigned char *)csp->http->host, strlen(csp->http->host),
       csp->http->hash_of_host);
 
-   /* Converting hash into string with hex */
-   size_t i = 0;
-   for (; i < 16; i++)
-   {
-      if ((ret = sprintf((char *)csp->http->hash_of_host_hex + 2 * i, "%02x",
-         csp->http->hash_of_host[i])) < 0)
-      {
-         log_error(LOG_LEVEL_ERROR, "Sprintf return value: %d", ret);
-         return -1;
-      }
-   }
+   return create_hexadecimal_hash_of_host(csp);
 
-   return 0;
 }
 
 
@@ -737,7 +714,7 @@ static int host_to_hash(struct client_state *csp)
  *
  * Function    :  create_client_ssl_connection
  *
- * Description :  Creates TLS/SSL secured connection with client
+ * Description :  Creates TLS secured connection with client
  *
  * Parameters  :
  *          1  :  csp = Current client state (buffers, headers, etc...)
@@ -756,7 +733,7 @@ extern int create_client_ssl_connection(struct client_state *csp)
    SSL *ssl;
 
    /*
-    * Initializing OpenSSL structures for TLS/SSL connection
+    * Initializing OpenSSL structures for TLS connection
     */
    openssl_init();
 
@@ -790,17 +767,16 @@ extern int create_client_ssl_connection(struct client_state *csp)
     * certificate and key inconsistence must be locked.
     */
    privoxy_mutex_lock(&certificate_mutex);
-
    ret = generate_host_certificate(csp);
+   privoxy_mutex_unlock(&certificate_mutex);
+
    if (ret < 0)
    {
       log_error(LOG_LEVEL_ERROR,
-         "generate_host_certificate failed: %d", ret);
-      privoxy_mutex_unlock(&certificate_mutex);
+         "generate_host_certificate() failed: %d", ret);
       ret = -1;
       goto exit;
    }
-   privoxy_mutex_unlock(&certificate_mutex);
 
    if (!(ssl_attr->openssl_attr.ctx = SSL_CTX_new(SSLv23_server_method())))
    {
@@ -867,12 +843,12 @@ extern int create_client_ssl_connection(struct client_state *csp)
     *  Handshake with client
     */
    log_error(LOG_LEVEL_CONNECT,
-      "Performing the TLS/SSL handshake with client. Hash of host: %s",
+      "Performing the TLS handshake with client. Hash of host: %s",
       csp->http->hash_of_host_hex);
    if (BIO_do_handshake(ssl_attr->openssl_attr.bio) != 1)
    {
        log_ssl_errors(LOG_LEVEL_ERROR,
-          "The TLS/SSL handshake with the client failed");
+          "The TLS handshake with the client failed");
        ret = -1;
        goto exit;
    }
@@ -903,7 +879,7 @@ exit:
  *
  * Function    :  close_client_ssl_connection
  *
- * Description :  Closes TLS/SSL connection with client. This function
+ * Description :  Closes TLS connection with client. This function
  *                checks if this connection is already created.
  *
  * Parameters  :
@@ -977,7 +953,7 @@ static void free_client_ssl_structures(struct client_state *csp)
  *
  * Function    :  close_server_ssl_connection
  *
- * Description :  Closes TLS/SSL connection with server. This function
+ * Description :  Closes TLS connection with server. This function
  *                checks if this connection is already opened.
  *
  * Parameters  :
@@ -1023,7 +999,7 @@ extern void close_server_ssl_connection(struct client_state *csp)
  *
  * Function    :  create_server_ssl_connection
  *
- * Description :  Creates TLS/SSL secured connection with server.
+ * Description :  Creates TLS secured connection with server.
  *
  * Parameters  :
  *          1  :  csp = Current client state (buffers, headers, etc...)
@@ -1104,39 +1080,19 @@ extern int create_server_ssl_connection(struct client_state *csp)
    /*
     * Set the hostname to check against the received server certificate
     */
-#if OPENSSL_VERSION_NUMBER > 0x10100000L
    if (!SSL_set1_host(ssl, csp->http->host))
    {
       log_ssl_errors(LOG_LEVEL_ERROR, "SSL_set1_host failed");
       ret = -1;
       goto exit;
    }
-#else
-   if (host_is_ip_address(csp->http->host))
-   {
-      if (X509_VERIFY_PARAM_set1_ip_asc(ssl->param,  csp->http->host) != 1)
-      {
-         log_ssl_errors(LOG_LEVEL_ERROR,
-            "X509_VERIFY_PARAM_set1_ip_asc() failed");
-         ret = -1;
-         goto exit;
-      }
-   }
-   else
-   {
-      if (X509_VERIFY_PARAM_set1_host(ssl->param,  csp->http->host, 0) != 1)
-      {
-         log_ssl_errors(LOG_LEVEL_ERROR,
-            "X509_VERIFY_PARAM_set1_host() failed");
-         ret = -1;
-         goto exit;
-      }
-   }
-#endif
+
    /* SNI extension */
-   if (!SSL_set_tlsext_host_name(ssl, csp->http->host))
+   if (!host_is_ip_address(csp->http->host) &&
+       !SSL_set_tlsext_host_name(ssl, csp->http->host))
    {
-      log_ssl_errors(LOG_LEVEL_ERROR, "SSL_set_tlsext_host_name failed");
+      log_ssl_errors(LOG_LEVEL_ERROR,
+         "SSL_set_tlsext_host_name() failed to set %s", csp->http->host);
       ret = -1;
       goto exit;
    }
@@ -1145,12 +1101,12 @@ extern int create_server_ssl_connection(struct client_state *csp)
     * Handshake with server
     */
    log_error(LOG_LEVEL_CONNECT,
-      "Performing the TLS/SSL handshake with the server");
+      "Performing the TLS handshake with the server");
 
    if (BIO_do_handshake(ssl_attrs->bio) != 1)
    {
       log_ssl_errors(LOG_LEVEL_ERROR,
-         "The TLS/SSL handshake with the server failed");
+         "The TLS handshake with the server failed");
       ret = -1;
       goto exit;
    }
@@ -1274,11 +1230,11 @@ static void log_ssl_errors(int debuglevel, const char* fmt, ...)
    va_end(args);
    /*
     * In case if called by mistake and there were
-    * no TLS/SSL errors let's report it to the log.
+    * no TLS errors let's report it to the log.
     */
    if (!reported)
    {
-      log_error(debuglevel, "%s: no TLS/SSL errors detected", prefix);
+      log_error(debuglevel, "%s: no TLS errors detected", prefix);
    }
 }
 
@@ -1296,7 +1252,7 @@ static void log_ssl_errors(int debuglevel, const char* fmt, ...)
  *          4  :  src = Source buffer
  *          5  :  slen = Amount of data to be encoded
  *
- * Returns     :  0 on success, error code othervise
+ * Returns     :  0 on success, error code otherwise
  *
  *********************************************************************/
 extern int ssl_base64_encode(unsigned char *dst, size_t dlen, size_t *olen,
@@ -1489,8 +1445,11 @@ static int generate_key(struct client_state *csp, char **key_buf)
 {
    int ret = 0;
    char* key_file_path;
+#if (OPENSSL_VERSION_NUMBER < 0x30000000L)
    BIGNUM *exp;
    RSA *rsa;
+   EC_KEY *ec_key;
+#endif
    EVP_PKEY *key;
 
    key_file_path = make_certs_path(csp->config->certificate_directory,
@@ -1509,38 +1468,93 @@ static int generate_key(struct client_state *csp, char **key_buf)
       return 0;
    }
 
-   exp = BN_new();
-   rsa = RSA_new();
+#if (OPENSSL_VERSION_NUMBER < 0x30000000L)
    key = EVP_PKEY_new();
-   if (exp == NULL || rsa == NULL || key == NULL)
+   if (key == NULL)
    {
-      log_ssl_errors(LOG_LEVEL_ERROR, "RSA key memory allocation failure");
+      log_ssl_errors(LOG_LEVEL_ERROR, "RSA/EC key memory allocation failure.");
       ret = -1;
       goto exit;
    }
+   if (csp->config->elliptic_curve_keys)
+   {
+      ec_key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+      if (ec_key == NULL)
+      {
+         log_ssl_errors(LOG_LEVEL_ERROR, "EC key creation failed.");
+         ret = -1;
+         goto exit;
+      }
+      if (!EC_KEY_generate_key(ec_key))
+      {
+         log_ssl_errors(LOG_LEVEL_ERROR, "EC key generation failed.");
+         ret = -1;
+         goto exit;
+      }
+      if (!EVP_PKEY_set1_EC_KEY(key, ec_key))
+      {
+         log_ssl_errors(LOG_LEVEL_ERROR,
+            "Error assigning EC key pair to PKEY structure");
+         ret = -1;
+         goto exit;
+      }
+   }
+   else
+   {
+      exp = BN_new();
+      rsa = RSA_new();
+      if (exp == NULL || rsa == NULL)
+      {
+         log_ssl_errors(LOG_LEVEL_ERROR, "RSA key memory allocation failure");
+         ret = -1;
+         goto exit;
+      }
 
-   if (BN_set_word(exp, RSA_KEY_PUBLIC_EXPONENT) != 1)
-   {
-      log_ssl_errors(LOG_LEVEL_ERROR, "Setting RSA key exponent failed");
-      ret = -1;
-      goto exit;
-   }
+      if (BN_set_word(exp, RSA_KEY_PUBLIC_EXPONENT) != 1)
+      {
+         log_ssl_errors(LOG_LEVEL_ERROR, "Setting RSA key exponent failed");
+         ret = -1;
+         goto exit;
+      }
 
-   ret = RSA_generate_key_ex(rsa, RSA_KEYSIZE, exp, NULL);
-   if (ret == 0)
-   {
-      log_ssl_errors(LOG_LEVEL_ERROR, "RSA key generation failure");
-      ret = -1;
-      goto exit;
-   }
+      ret = RSA_generate_key_ex(rsa, RSA_KEYSIZE, exp, NULL);
+      if (ret == 0)
+      {
+         log_ssl_errors(LOG_LEVEL_ERROR, "RSA key generation failure");
+         ret = -1;
+         goto exit;
+      }
 
-   if (!EVP_PKEY_set1_RSA(key, rsa))
-   {
-      log_ssl_errors(LOG_LEVEL_ERROR,
-         "Error assigning RSA key pair to PKEY structure");
-      ret = -1;
-      goto exit;
+      if (!EVP_PKEY_set1_RSA(key, rsa))
+      {
+         log_ssl_errors(LOG_LEVEL_ERROR,
+            "Error assigning RSA key pair to PKEY structure");
+         ret = -1;
+         goto exit;
+      }
    }
+#else
+   if (csp->config->elliptic_curve_keys)
+   {
+      key = EVP_EC_gen(SN_X9_62_prime256v1);
+      if (key == NULL)
+      {
+         log_ssl_errors(LOG_LEVEL_ERROR, "EC key generation error");
+         ret = -1;
+         goto exit;
+      }
+   }
+   else
+   {
+      key = EVP_RSA_gen(RSA_KEYSIZE);
+      if (key == NULL)
+      {
+         log_ssl_errors(LOG_LEVEL_ERROR, "EVP_RSA_gen() failed");
+         ret = -1;
+         goto exit;
+      }
+   }
+#endif
 
    /*
     * Exporting private key into file
@@ -1557,14 +1571,26 @@ exit:
    /*
     * Freeing used variables
     */
-   if (exp)
+#if (OPENSSL_VERSION_NUMBER < 0x30000000L)
+   if (csp->config->elliptic_curve_keys)
    {
-      BN_free(exp);
+      if (ec_key)
+      {
+         EC_KEY_free(ec_key);
+      }
    }
-   if (rsa)
+   else
    {
-      RSA_free(rsa);
+      if (exp)
+      {
+         BN_free(exp);
+      }
+      if (rsa)
+      {
+         RSA_free(rsa);
+      }
    }
+#endif
    if (key)
    {
       EVP_PKEY_free(key);
@@ -2262,11 +2288,9 @@ extern void ssl_release(void)
 {
    if (ssl_inited == 1)
    {
-#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
 #ifndef LIBRESSL_VERSION_NUMBER
 #ifndef OPENSSL_NO_COMP
       SSL_COMP_free_compression_methods();
-#endif
 #endif
 #endif
       CONF_modules_free();

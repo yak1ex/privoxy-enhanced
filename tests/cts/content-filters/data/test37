@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+filter github
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+%CR
+# Here are some strings the github filter should filter:
+
+<signup-prompt blafasel>
+Come join our proprietary platform!!!
+</signup-prompt>
+
+<div class="hx_cookie-banner>
+By the way, we are using cookies to track you.
+</div>
+</data>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+Content-Length: 166%CR
+%CR
+# Here are some strings the github filter should filter:
+
+
+
+<div style="display:none;" class="hx_cookie-banner>
+By the way, we are using cookies to track you.
+</div>
+</data>
+</proxy-reply>
+
+<client>
+<server>
+http
+</server>
+<name>
++filter{github}
+</name>
+<features>
+proxy
+</features>
+<command>
+http://%HOSTIP:%HTTPPORT/github/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /github/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Connection: close%CR
+%CR
+</protocol>
+</verify>
+</testcase>

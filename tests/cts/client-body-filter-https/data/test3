@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTPS
+HTTP POST
+client-body-filter
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: text/html
+X-Connection: swsclose
+
+Received your input.
+</data>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 Connection established%CR
+%CR
+HTTP/1.1 200 OK%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Connection: swsclose%CR
+%CR
+Received your input.
+</data>
+</proxy-reply>
+
+<client>
+<server>
+https
+</server>
+<name>
+Apply client-body-filter{blafasel-to-bumfidel} to request that does not contain blafasel
+</name>
+<features>
+proxy
+</features>
+<command>
+-d "foo bar" --insecure https://%HOSTIP:%HTTPSPORT/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol nonewline="yes">
+POST /%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPSPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Content-Length: 7%CR
+Content-Type: application/x-www-form-urlencoded%CR
+%CR
+foo bar
+</protocol>
+</verify>
+</testcase>

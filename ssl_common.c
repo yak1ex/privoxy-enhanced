@@ -2,12 +2,12 @@
  *
  * File        :  $Source: /cvsroot/ijbswa/current/ssl_common.c,v $
  *
- * Purpose     :  File with TLS/SSL extension. Contains methods for
- *                creating, using and closing TLS/SSL connections that do
- *                not depend on particular TLS/SSL library.
+ * Purpose     :  File with TLS extension. Contains methods for
+ *                creating, using and closing TLS connections that do
+ *                not depend on particular TLS library.
  *
  * Copyright   :  Written by and Copyright (c) 2017 Vaclav Svec. FIT CVUT.
- *                Copyright (C) 2018-2021 by Fabian Keil <fk@fabiankeil.de>
+ *                Copyright (C) 2018-2024 by Fabian Keil <fk@fabiankeil.de>
  *
  *                This program is free software; you can redistribute it
  *                and/or modify it under the terms of the GNU General
@@ -54,7 +54,7 @@
  * Parameters  :
  *          1  :  csp = Current client state (buffers, headers, etc...)
  *
- * Returns     :  If client should use TLS/SSL connection, 1 is returned.
+ * Returns     :  If client should use TLS connection, 1 is returned.
  *                Otherwise 0 is returned.
  *
  *********************************************************************/
@@ -74,7 +74,7 @@ extern int client_use_ssl(const struct client_state *csp)
  * Parameters  :
  *          1  :  csp = Current client state (buffers, headers, etc...)
  *
- * Returns     :  If server should use TLS/SSL connection, 1 is returned.
+ * Returns     :  If server should use TLS connection, 1 is returned.
  *                Otherwise 0 is returned.
  *
  *********************************************************************/
@@ -380,8 +380,7 @@ extern void ssl_send_certificate_error(struct client_state *csp)
    /*
     * Joining all blocks in one long message
     */
-   char message[message_len];
-   memset(message, 0, message_len);
+   char *message = zalloc_or_die(message_len);
 
    strlcpy(message, message_begin, message_len);
    strlcat(message, reason       , message_len);
@@ -392,12 +391,10 @@ extern void ssl_send_certificate_error(struct client_state *csp)
    {
       if (cert->file_buf != NULL)
       {
-                                                       /* +1 for terminating null */
-         size_t base64_len = base64_len = 4 * ((strlen(cert->file_buf) + 2) / 3) + 1;
+                                           /* +1 for terminating null */
+         size_t base64_len = 4 * ((strlen(cert->file_buf) + 2) / 3) + 1;
          size_t olen = 0;
-         char base64_buf[base64_len];
-
-         memset(base64_buf, 0, base64_len);
+         char *base64_buf = zalloc_or_die(base64_len);
 
          /* Encoding certificate into base64 code */
          ret = ssl_base64_encode((unsigned char*)base64_buf,
@@ -420,6 +417,7 @@ extern void ssl_send_certificate_error(struct client_state *csp)
             strlcat(message, base64_buf, message_len);
             strlcat(message, "\">Download certificate</a>", message_len);
          }
+         freez(base64_buf);
       }
 
       cert = cert->next;
@@ -442,6 +440,7 @@ extern void ssl_send_certificate_error(struct client_state *csp)
    (void)ssl_send_data(ssl_attr, (const unsigned char *)message, strlen(message));
 
    free_certificate_chain(csp);
+   freez(message);
 
    log_error(LOG_LEVEL_CRUNCH, "Certificate error: %s: https://%s%s",
       reason, csp->http->hostport, csp->http->path);
@@ -696,7 +695,7 @@ extern int get_certificate_valid_to_date(char *buffer, size_t buffer_size, const
  * Description :  Makes sure the certificate state is sane.
  *
  * Parameters  :
- *          1  :  certificate = Path to the potentionally existing certifcate.
+ *          1  :  certificate = Path to the potentionally existing certificate.
  *          2  :  key = Path to the potentionally existing key.
  *
  * Returns     :   -1 => Error
@@ -729,6 +728,43 @@ extern int enforce_sane_certificate_state(const char *certificate, const char *k
       {
          log_error(LOG_LEVEL_ERROR, "Failed to unlink %s: %E", certificate);
 
+         return -1;
+      }
+   }
+
+   return 0;
+
+}
+
+
+/*********************************************************************
+ *
+ * Function    :  create_hexadecimal_hash_of_host
+ *
+ * Description :  Converts the binary hash of a host into a
+ *                hexadecimal string.
+ *
+ * Parameters  :
+ *          1  :  csp = Current client state (buffers, headers, etc...)
+ *
+ * Returns     : -1 => Error while creating hash
+ *                0 => Hash created successfully
+ *
+ *********************************************************************/
+int create_hexadecimal_hash_of_host(struct client_state *csp)
+{
+   unsigned int i;
+   int ret;
+
+   for (i = 0; i < HASH_OF_HOST_BUF_SIZE; i++)
+   {
+      unsigned int j = 2 * i;
+      ret = snprintf((char *)csp->http->hash_of_host_hex + j,
+         sizeof(csp->http->hash_of_host_hex) - j, "%02x",
+         csp->http->hash_of_host[i]);
+      if (ret < 0)
+      {
+         log_error(LOG_LEVEL_ERROR, "snprintf() return value: %d", ret);
          return -1;
       }
    }

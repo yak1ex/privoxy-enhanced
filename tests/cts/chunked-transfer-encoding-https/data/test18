@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+%CR
+%hex[%00]hex%Blafasel
+</data>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 Connection established%CR
+%CR
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+%CR
+%hex[%00]hex%Blafasel
+</data>
+</proxy-reply>
+
+<client>
+<server>
+https
+</server>
+<name>
+Binary zero test. XXX: Not actually a chunked-transfer-encoding test.
+</name>
+<features>
+proxy
+</features>
+<command>
+--insecure https://%HOSTIP:%HTTPSPORT/chunked-transfer-encoding/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /chunked-transfer-encoding/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPSPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+%CR
+</protocol>
+<errorcode>
+0
+</errorcode>
+</verify>
+</testcase>

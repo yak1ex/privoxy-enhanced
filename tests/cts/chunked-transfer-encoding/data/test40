@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+chunked transfer encoding
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: keep-alive%CR
+Content-Type: text/html%CR
+Transfer-Encoding: chunked%CR
+%CR
+A%CR
+%repeat[9 x A]%
+%CR
+0%CR
+%CR
+</data>
+<servercmd>
+writesize: 150
+writedelay: 20
+</servercmd>
+</reply>
+
+<client>
+<server>
+http
+</server>
+<name>
+Chunked transfer encoding - Small chunks on connection that is kept alive, last chunk partially received with server headers.
+</name>
+<features>
+proxy
+</features>
+<command>
+--max-time 20 --raw http://%HOSTIP:%HTTPPORT/no-filter/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /no-filter/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+%CR
+</protocol>
+<errorcode>
+0
+</errorcode>
+</verify>
+</testcase>

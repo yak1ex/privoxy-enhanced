@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+chunked transfer encoding
+# XXX: Test requires "writesize" support that hasn't been upstreamed yet.
+skip
+</keywords>
+</info>
+
+<reply>
+# Note that the %hex sequence is invalid and will not be transformed.
+# At first it was an accident but as it triggered
+# a bug in test build the test has been kept as is.
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Content-Type: text/html%CR
+Transfer-Encoding: chunked%CR
+%CR
+%hex[1%0d%0a%0a%0d%0a0%0d%0a%0d%0a]
+</data>
+<servercmd>
+writesize: 1000
+</servercmd>
+</reply>
+
+
+<client>
+<server>
+http
+</server>
+<name>
+Chunked transfer encoding - Chunk with invalid chunk size received with the server headers
+</name>
+<features>
+proxy
+</features>
+<command>
+--raw http://%HOSTIP:%HTTPPORT/no-filter/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /no-filter/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+%CR
+</protocol>
+<errorcode>
+56
+</errorcode>
+</verify>
+</testcase>

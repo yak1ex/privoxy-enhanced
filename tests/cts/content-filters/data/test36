@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<testcase>
+<info>
+<keywords>
+HTTP
+HTTP GET
+filter allow-autocompletion
+</keywords>
+</info>
+
+<reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+%CR
+# Here are some strings the allow-autocompletion filter should filter:
+
+<input blafasel autocomplete="off"
+<input blafasel autocomplete='0'
+
+<form blafasel autocomplete="off"
+<form blafasel autocomplete='0'
+
+<select blafasel autocomplete="off"
+<select blafasel autocomplete='0'
+
+<textarea blafasel autocomplete="off"
+<textarea blafasel autocomplete='0'
+</data>
+</reply>
+
+<proxy-reply>
+<data>
+HTTP/1.1 200 OK%CR
+Date: Thu, 22 Jul 2010 11:22:33 GMT%CR
+Connection: close%CR
+Content-Type: text/html%CR
+X-Control: swsclose%CR
+Content-Length: 353%CR
+%CR
+# Here are some strings the allow-autocompletion filter should filter:
+
+<input blafasel autocomplete="on"
+<input blafasel autocomplete='on'
+
+<form blafasel autocomplete="on"
+<form blafasel autocomplete='on'
+
+<select blafasel autocomplete="on"
+<select blafasel autocomplete='on'
+
+<textarea blafasel autocomplete="on"
+<textarea blafasel autocomplete='on'
+</data>
+</proxy-reply>
+
+<client>
+<server>
+http
+</server>
+<name>
++filter{allow-autocompletion}
+</name>
+<features>
+proxy
+</features>
+<command>
+http://%HOSTIP:%HTTPPORT/allow-autocompletion/%TESTNUMBER
+</command>
+</client>
+
+<verify>
+<protocol>
+GET /allow-autocompletion/%TESTNUMBER HTTP/1.1%CR
+Host: %HOSTIP:%HTTPPORT%CR
+User-Agent: curl/%VERSION%CR
+Accept: */*%CR
+Connection: close%CR
+%CR
+</protocol>
+</verify>
+</testcase>

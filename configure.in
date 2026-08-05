@@ -1210,12 +1210,12 @@ if test X"$OPT_MBEDTLS" != Xno; then
      AC_DEFINE(FEATURE_HTTPS_INSPECTION_MBEDTLS, 1, [if mbedTLS is enabled])
      AC_SUBST(FEATURE_HTTPS_INSPECTION_MBEDTLS, [1])
      FEATURE_HTTPS_INSPECTION_MBEDTLS="yes"
-   ], [], -lmbedx509 -lmbedcrypto)
+   ], [], -lmbedx509 -lmbedcrypto -lbcrypt)
 
   if test "x$FEATURE_HTTPS_INSPECTION_MBEDTLS" = "xyes"; then
     AC_MSG_NOTICE([Detected mbedTLS. Enabling https inspection.])
 
-    LIBS="-lmbedtls -lmbedx509 -lmbedcrypto $LIBS"
+    LIBS="-lmbedtls -lmbedx509 -lmbedcrypto -lbcrypt $LIBS"
     old_CFLAGS_nospecial="-Imbedtls/include $old_CFLAGS_nospecial"
 
     FEATURE_HTTPS_INSPECTION_ONLY=

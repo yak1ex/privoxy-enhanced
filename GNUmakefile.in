@@ -554,8 +554,8 @@ man: dok-release
 	mkdir -p doc/source/temp && cd doc/source/temp && $(RM) * ;\
 	$(NSGMLS) ../privoxy-man-page.sgml  | sgmlspl ../../../utils/docbook2man/docbook2man-spec.pl &&\
 	perl -pi.bak -e 's/ <URL:.*>//; s/\[ /\[/g' $(PRIVOXY_MAN_PAGE) ;\
-	perl -pi.bak -e "s/\[ /\[/g;s/ï¿½/\\\\['a]/g;s/ï¿½/\\\\['e]/g" $(PRIVOXY_MAN_PAGE); \
-	perl -pi.bak -e "s/ï¿½/\\\\[:o]/g" $(PRIVOXY_MAN_PAGE); \
+	perl -pi.bak -e "s/\[ /\[/g;s/á/\\\\['a]/g;s/é/\\\\['e]/g" $(PRIVOXY_MAN_PAGE); \
+	perl -pi.bak -e "s/ö/\\\\[:o]/g" $(PRIVOXY_MAN_PAGE); \
 	perl -pi.bak -e 's/([ {])-([a-z])/$$1\\-$$2/g' $(PRIVOXY_MAN_PAGE); \
 	perl -pi.bak -e 's/ --([a-z])/ \\-\\-$$1/g' $(PRIVOXY_MAN_PAGE); \
 	perl -pi.bak -e 's/\\fB--/\\fB\\-\\-/g' $(PRIVOXY_MAN_PAGE); \
